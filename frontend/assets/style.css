@@ -1,0 +1,72 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: auto;
+  scrollbar-color: #aaaaaa1f #5553;
+}
+
+*::-webkit-scrollbar {
+  width: 10pt;
+  height: 10pt;
+}
+
+*::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: #5553;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #aaaaaa1f;
+  border: 2pt solid #5553;
+}
+
+#header {
+  height: 25pt;
+  width: 100%;
+  background: #111;
+  display: block;
+}
+
+.app_view {
+  min-width: 200pt;
+  width: 30%;
+  height: 100%;
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  color: #aaa;
+  font-family: 'Consolas', monospace;
+  vertical-align: top;
+  background: #1e1e1e;
+}
+
+#app_container {
+  margin: 0;
+  background: #1a1a1a;
+  width: 100vw;
+  height: calc(100% - 25pt);
+  padding: 40pt 0;
+}
+
+#header img {
+  height: 23pt;
+  margin: 1pt 5pt;
+}
+
+div.box {
+  display: block;
+  margin: 50pt auto;
+  max-width: 800pt;
+  width: 70%;
+  background: #333;
+  padding: 40pt 80pt;
+  color: #fff;
+  font-family: 'Segoe UI', sans-serif;
+}
