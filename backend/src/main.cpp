@@ -1,17 +1,5 @@
-#include <stdlib.h>
-#include <stdint.h>
-#include <inttypes.h>
 #include <stdio.h>
-#include <string.h>
-#include <malloc.h>
-
 #include <exception>
-
-#include "schedd.h"
-
-#ifdef _MSC_VER
-#pragma optimize("", off)
-#endif
 
 #define ASIO_STANDALONE 1
 #define ASIO_NO_EXCEPTIONS 1
@@ -51,7 +39,12 @@ namespace asio
 
 //////////////////////////////////////////////////////////////////////////
 
+#include "schedd.h"
+
+//////////////////////////////////////////////////////////////////////////
+
 crow::response handle_response_A(const crow::request &req);
+crow::response handle_login(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -66,7 +59,10 @@ int32_t main(void)
   cors.global().origin("*");
 #endif
 
+  create_new_user("poepe");
+
   CROW_ROUTE(app, "/handle_response_A").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_response_A(req); });
+  CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
 
   app.port(61919).multithreaded().run();
 }
@@ -87,6 +83,26 @@ crow::response handle_response_A(const crow::request &req)
 
   crow::json::wvalue ret;
   ret["response_param"] = "response_param_value";
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_login(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("username"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  const std::string &username = body["username"].s();
+
+  int64_t sessionId;
+  
+  if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
+    return crow::response(crow::status::UNAUTHORIZED);
+
+  crow::json::wvalue ret;
+  ret["session_id"] = sessionId;
 
   return crow::response(crow::status::OK, ret);
 }

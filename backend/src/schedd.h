@@ -1,12 +1,11 @@
 #pragma once
 
-#include <stdint.h>
-#include <inttypes.h>
+#include "core.h"
 
 #include "local_list.h"
+#include "pool.h"
 
 constexpr size_t maxUsersPerEvent = 16;
-constexpr size_t maxEventNameLength = 64;
 
 typedef uint64_t time_point_t;
 typedef uint64_t time_span_t;
@@ -26,7 +25,7 @@ enum weekday_flags : uint8_t
 
 struct event
 {
-  char name[maxEventNameLength]; // think about length
+  char name[256];
   uint64_t duration; // which datatype is suitable, could possibly have a max value of 24h * 60min
   local_list<uint64_t, maxUsersPerEvent> userIds;
   size_t weight, weightGrowthFactor;
@@ -35,20 +34,25 @@ struct event
   time_point_t creationTime, lastCompletedTime, lastModifiedTime;
 };
 
+struct session_token
+{
+  int64_t sessionId;
+};
+
 constexpr size_t maxEventsPerUserPerDay = 32;
-constexpr size_t maxUsernameLength = 32;
-constexpr size_t maxSessionsPerUser = 32;
+constexpr size_t maxSessionsPerUser = 8;
 
 struct user
 {
-  char userName[maxUsernameLength];
-  local_list<uint64_t, maxSessionsPerUser> sessionIds;
+  char userName[256];
+  local_list<session_token, maxSessionsPerUser> sessionIds; // how do i know if it's in use? second list with acrive tokens? bool in sessio_token `is_in_use`?
   uint64_t availableTimeInMinutesPerDay[7];
   local_list<uint8_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event or else array if events
   local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event or else array if events
 };
 
-// userids in pool
+lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId);
+uint64_t create_new_user(const char *username);
 
 // what day is it?
 

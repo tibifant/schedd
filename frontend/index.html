@@ -15,9 +15,9 @@
   </div>
   <div id="app_container">
     <script type="module">
-      const server_url = document.location.hostname == 'localhost' ? 'http://localhost:61919/' : 'https://hostname_not_configured/backend/';
+      const server_url = document.location.hostname == 'localhost' || document.location.hostname == '' ? 'http://localhost:61919/' : 'https://hostname_not_configured/backend/';
 
-      function load_url(url, callback, obj, failure_callback) {
+      function load_url(url, callback, payload, failure_callback) {
         var xmlhttp;
 
         if (window.XMLHttpRequest)
@@ -47,7 +47,11 @@
         xmlhttp.timeout = 7500;
         xmlhttp.open("POST", url, true);
         xmlhttp.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-        xmlhttp.send(JSON.stringify(obj));
+        xmlhttp.send(JSON.stringify(payload));
+      }
+
+      function load_backend_url(url, callback, payload, failure_callback) {
+        load_url(server_url + url, callback, payload, failure_callback);
       }
       
       function login_failure() {};
@@ -61,7 +65,7 @@
       }
       
       function set_session_token(token) {
-        return localStorage.setItem(token);
+        return localStorage.setItem("session_token", token);
       }
       
       function show_login_screen() {
@@ -69,18 +73,22 @@
 
         document.getElementById("usernameSubmitButton").addEventListener('click', function () {
           let usernameObject = { username: document.getElementById("username").value };
-          load_url(server_url + "/login", show_user_schedule, usernameObject, login_failure);
+          
+          function onLoginSuccess(obj) {
+            set_session_token(obj.session_id);
+            document.getElementsByClassName("login")[0].style.display = "none";
+            show_user_schedule();
+          };
+
+          load_backend_url("login", onLoginSuccess, usernameObject, login_failure);
         });
       }
 
       function show_user_schedule(token) { // doesn't get called yet but it's too late
-        document.getElementsByClassName("login")[0].style.display = "none";
         document.getElementsByClassName("schedule")[0].style.display = "block";
-        set_session_token(token);
       }
 
       window.addEventListener('load', () => {
-        console.log('!!!!!!!!!!!!!!!!!!!!')
         if (!is_logged_in()) {
           show_login_screen();
           return;
@@ -98,7 +106,7 @@
         <p>Please log in with your username.</p>
         <label for="username">Username</label></br>
         <input type="text" id="username"></input>
-        <button id="usernameSubmitButton">Submit</button>
+        <button id="usernameSubmitButton">log in</button>
       </div>
     </div>
     <div class="schedule">
