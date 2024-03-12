@@ -7,6 +7,8 @@
 
 #include <exception>
 
+#include "schedd.h"
+
 #ifdef _MSC_VER
 #pragma optimize("", off)
 #endif

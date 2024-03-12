@@ -70,3 +70,11 @@ div.box {
   color: #fff;
   font-family: 'Segoe UI', sans-serif;
 }
+
+div.login {
+  display: none;
+}
+
+div.schedule {
+  display: none;
+}

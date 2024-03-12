@@ -50,15 +50,63 @@
         xmlhttp.send(JSON.stringify(obj));
       }
       
-      // js code here.
+      function login_failure() {};
+
+      function is_logged_in() {
+        return (localStorage.getItem("session_token") != null);
+      }
+      
+      function get_session_token() {
+        return localStorage.getItem("session_token");
+      }
+      
+      function set_session_token(token) {
+        return localStorage.setItem(token);
+      }
+      
+      function show_login_screen() {
+        document.getElementsByClassName("login")[0].style.display = "block";
+
+        document.getElementById("usernameSubmitButton").addEventListener('click', function () {
+          let usernameObject = { username: document.getElementById("username").value };
+          load_url(server_url + "/login", show_user_schedule, usernameObject, login_failure);
+        });
+      }
+
+      function show_user_schedule(token) { // doesn't get called yet but it's too late
+        document.getElementsByClassName("login")[0].style.display = "none";
+        document.getElementsByClassName("schedule")[0].style.display = "block";
+        set_session_token(token);
+      }
+
+      window.addEventListener('load', () => {
+        console.log('!!!!!!!!!!!!!!!!!!!!')
+        if (!is_logged_in()) {
+          show_login_screen();
+          return;
+        }
+        
+        // TODO: Enable / Display buttons only accessible when logged in?
+        
+        // TODO: Get Current Tasks / Progress / Whatsoever.
+      });
     </script>
 
-    <div class="box">
-      <h1>This is an example box.</h1>
-      <p>This is an example text block</p>
+    <div class="login">
+      <div class="box">
+        <h1>Login</h1>
+        <p>Please log in with your username.</p>
+        <label for="username">Username</label></br>
+        <input type="text" id="username"></input>
+        <button id="usernameSubmitButton">Submit</button>
+      </div>
+    </div>
+    <div class="schedule">
+      <div class="box">
+        <h1>Success!</h1>
+      </div>
     </div>
   </div>
-</div>
 </body>
 
 </html>
