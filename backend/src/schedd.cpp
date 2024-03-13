@@ -19,7 +19,7 @@ lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId
     // iterate pool checking for username
     for (const auto &&_item : _Users)
     {
-      if (strncmp(_item.pItem->userName, username, LS_ARRAYSIZE(_item.pItem->userName)) == 0) // if name matches.
+      if (strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0) // if name matches.
       {
         User = *_item.pItem;
         userNotFound = false;
@@ -47,16 +47,29 @@ lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId
   return result;
 }
 
-uint64_t create_new_user(const char *username)
+lsResult create_new_user(const char *username)
 {
-  user newUser;
-  strncpy(newUser.userName, username, LS_ARRAYSIZE(newUser.userName));
+  lsResult result = lsR_Success;
 
-  uint64_t userId;
+  user newUser;
+
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_item : _Users)
+    {
+      LS_ERROR_IF((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0), lsR_InvalidParameter); // if username matches existing one.
+    }
+  }
+
+  strncpy(newUser.username, username, LS_ARRAYSIZE(newUser.username));
+
+  uint64_t userId; // does anyone need this as return value from this function?
   {
     std::scoped_lock lock(_ThreadLock);
     LS_DEBUG_ERROR_ASSERT(pool_add(&_Users, newUser, &userId));
   }
 
-  return userId;
+epilogue:
+  return result;
 }

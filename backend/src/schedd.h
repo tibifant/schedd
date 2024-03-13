@@ -44,15 +44,15 @@ constexpr size_t maxSessionsPerUser = 8;
 
 struct user
 {
-  char userName[256];
+  char username[256];
   local_list<session_token, maxSessionsPerUser> sessionIds; // how do i know if it's in use? second list with acrive tokens? bool in sessio_token `is_in_use`?
   uint64_t availableTimeInMinutesPerDay[7];
-  local_list<uint8_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event or else array if events
+  local_list<uint8_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event or else array of events
   local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event or else array if events
 };
 
 lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId);
-uint64_t create_new_user(const char *username);
+lsResult create_new_user(const char *username);
 
 // what day is it?
 

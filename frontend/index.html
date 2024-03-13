@@ -54,7 +54,13 @@
         load_url(server_url + url, callback, payload, failure_callback);
       }
       
-      function login_failure() {};
+      function login_failure() {
+        document.getElementById("login_failure").style.display = "block";
+      };
+
+      function registration_failure() {
+        document.getElementById("registration_failure").style.display = "block";
+      }
 
       function is_logged_in() {
         return (localStorage.getItem("session_token") != null);
@@ -71,7 +77,7 @@
       function show_login_screen() {
         document.getElementsByClassName("login")[0].style.display = "block";
 
-        document.getElementById("usernameSubmitButton").addEventListener('click', function () {
+        document.getElementById("username-submit-button").addEventListener('click', function () {
           let usernameObject = { username: document.getElementById("username").value };
           
           function onLoginSuccess(obj) {
@@ -82,9 +88,20 @@
 
           load_backend_url("login", onLoginSuccess, usernameObject, login_failure);
         });
+        
+        document.getElementById("create-account-button").addEventListener('click', function () {
+          let usernameObject = { username: document.getElementById("new-username").value };
+
+          function onRegistrationSuccess(obj) {
+            set_session_token(obj.session_id);
+            document.getElementsByClassName("login")[0].style.display = "none";
+          };
+
+          load_backend_url("registration", onRegistrationSuccess, usernameObject, registration_failure);
+        });
       }
 
-      function show_user_schedule(token) { // doesn't get called yet but it's too late
+      function show_user_schedule() {
         document.getElementsByClassName("schedule")[0].style.display = "block";
       }
 
@@ -92,6 +109,9 @@
         if (!is_logged_in()) {
           show_login_screen();
           return;
+        }
+        else {
+          show_user_schedule();
         }
         
         // TODO: Enable / Display buttons only accessible when logged in?
@@ -104,14 +124,24 @@
       <div class="box">
         <h1>Login</h1>
         <p>Please log in with your username.</p>
+        <failure_message id="login_failure">
+          <p>Username does not exist.</p>
+        </failure_message>
         <label for="username">Username</label></br>
         <input type="text" id="username"></input>
-        <button id="usernameSubmitButton">log in</button>
+        <button id="username-submit-button">log in</button>
+        <p><br>Or register with a new username.</p>
+        <failure_message id="login_failure">
+          <p>Registration failure.</p>
+        </failure_message>
+        <label for="username">New Username</label></br>
+        <input type="text" id="new-username"></input>
+        <button id="create-account-button">create new account</button>
       </div>
     </div>
     <div class="schedule">
       <div class="box">
-        <h1>Success!</h1>
+        <h1>Your tasks for today</h1>
       </div>
     </div>
   </div>

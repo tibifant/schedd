@@ -78,3 +78,7 @@ div.login {
 div.schedule {
   display: none;
 }
+
+failure_message {
+  display: none;
+}
