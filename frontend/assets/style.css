@@ -81,4 +81,5 @@ div.schedule {
 
 failure_message {
   display: none;
+  color: #ffad10;
 }

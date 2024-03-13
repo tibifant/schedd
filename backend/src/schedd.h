@@ -39,6 +39,14 @@ struct session_token
   int64_t sessionId;
 };
 
+constexpr size_t maxUserAmount = 64;
+
+struct user_info
+{
+  int64_t sessionId;
+  uint64_t userId;
+};
+
 constexpr size_t maxEventsPerUserPerDay = 32;
 constexpr size_t maxSessionsPerUser = 8;
 

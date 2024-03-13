@@ -102,7 +102,7 @@ crow::response handle_user_registration(const crow::request &req)
 
   int64_t sessionId;
 
-  if (LS_FAILED(assign_session_token(username.c_str(), &sessionId))) // ask coc if this should be handled in a seperate request
+  if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
 
   crow::json::wvalue ret;
