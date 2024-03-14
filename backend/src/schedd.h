@@ -28,7 +28,7 @@ struct event
   char name[256];
   uint64_t duration; // which datatype is suitable, could possibly have a max value of 24h * 60min
   local_list<uint64_t, maxUsersPerEvent> userIds;
-  size_t weight, weightGrowthFactor;
+  uint64_t weight, weightGrowthFactor;
   weekday_flags possibleExecutionDays; // 1 bit for each day + 1 extra
   time_span_t repetitionTimeSpan; // if 0: don't repeat!
   time_point_t creationTime, lastCompletedTime, lastModifiedTime;
@@ -53,7 +53,7 @@ constexpr size_t maxSessionsPerUser = 8;
 struct user
 {
   char username[256];
-  local_list<session_token, maxSessionsPerUser> sessionIds; // how do i know if it's in use? second list with acrive tokens? bool in sessio_token `is_in_use`?
+  local_list<session_token, maxSessionsPerUser> sessionTokens; // how do i know if it's in use? second list with acrive tokens? bool in sessio_token `is_in_use`?
   uint64_t availableTimeInMinutesPerDay[7];
   local_list<uint8_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event or else array of events
   local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event or else array if events

@@ -45,6 +45,7 @@ namespace asio
 
 crow::response handle_login(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
+crow::response handle_task_creation(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -63,6 +64,7 @@ int32_t main(void)
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
+  CROW_ROUTE(app, "/task-creation").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation(req); });
 
   app.port(61919).multithreaded().run();
 }
@@ -107,6 +109,28 @@ crow::response handle_user_registration(const crow::request &req)
 
   crow::json::wvalue ret;
   ret["session_id"] = sessionId;
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_task_creation(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  const int64_t sessionId = body["sessionId"].i();
+  const std::string &eventName = body["name"].s();
+  const uint64_t duration = body["duration"].i();
+  const std::vector<bool> executionDays = body["possibleExecutionDays"].lo(); // pupupupu
+  const uint64_t repetitionTimeSpan = body["repetitionTimeSpan"].i();
+  const uint64_t weight = body["weight"].i();
+
+  // todo
+
+  crow::json::wvalue ret;
+  ret["success"] = true;
 
   return crow::response(crow::status::OK, ret);
 }

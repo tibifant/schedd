@@ -79,6 +79,10 @@ div.schedule {
   display: none;
 }
 
+div.task-creation {
+  display: none;
+}
+
 failure_message {
   display: none;
   color: #ffad10;

@@ -45,17 +45,23 @@ lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId
     // Assign Session Id.
     {
       *pOutSessionId = lsGetRand(); // we should check if this is unique
+
+      // Check for sessionId duplicates
+      for (const auto &_item : usr.sessionTokens)
+        while (_item.sessionId == *pOutSessionId)
+          *pOutSessionId = lsGetRand();
+
       session_token token;
       token.sessionId = *pOutSessionId;
 
       // if user already has maximum amount of userids, replace first
-      if (usr.sessionIds.count == maxSessionsPerUser)
+      if (usr.sessionTokens.count == maxSessionsPerUser)
       {
-        usr.sessionIds[0] = token;
+        usr.sessionTokens[0] = token;
       }
       else
       {
-        local_list_add(&usr.sessionIds, token);
+        local_list_add(&usr.sessionTokens, token);
         
         // Add User Info to List
         user_info userInfo;

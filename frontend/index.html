@@ -61,6 +61,10 @@
       function registration_failure() {
         document.getElementById("registration_failure").style.display = "block";
       }
+      
+      function task_creation_failure() {
+        document.getElementById("task_creation_failure").style.display = "block";
+      }
 
       function is_logged_in() {
         return (localStorage.getItem("session_token") != null);
@@ -83,7 +87,7 @@
           function onLoginSuccess(obj) {
             set_session_token(obj.session_id);
             document.getElementsByClassName("login")[0].style.display = "none";
-            show_user_schedule();
+            show_task_creation();
           };
 
           load_backend_url("login", onLoginSuccess, usernameObject, login_failure);
@@ -95,11 +99,40 @@
           function onRegistrationSuccess(obj) {
             set_session_token(obj.session_id);
             document.getElementsByClassName("login")[0].style.display = "none";
-            show_user_schedule();
+            show_task_creation();
           };
 
           load_backend_url("registration", onRegistrationSuccess, usernameObject, registration_failure);
         });
+      }
+
+      function show_task_creation() {
+        document.getElementsByClassName("task-creation")[0].style.display = "block";
+
+        document.getElementById("task-creation").addEventListener('click', () => {
+          let sessionToken = get_session_token();
+          let taskName = document.getElementById("task-name").value;
+          let taskDuration = document.getElementById("task-duration").value;
+          let taskExecutionDays = [];
+          taskExecutionDays[0] = document.getElementById("task-execution-days-monday").checked;
+          taskExecutionDays[1] = document.getElementById("task-execution-days-tuesdays").checked;
+          taskExecutionDays[2] = document.getElementById("task-execution-days-wendesday").checked;
+          taskExecutionDays[3] = document.getElementById("task-execution-days-thursday").checked;
+          taskExecutionDays[4] = document.getElementById("task-execution-days-friday").checked;
+          taskExecutionDays[5] = document.getElementById("task-execution-days-saturday").checked;
+          taskExecutionDays[6] = document.getElementById("task-execution-days-sunday").checked;
+          let taskRepition = document.getElementById("task-repetition").value;
+          let taskWeight = document.getElementById("task-weight");
+
+          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight };
+
+          function onTaskCreationSuccess(obj) {
+            document.getElementsByClassName("task-creation")[0].style.display = "none";
+            show_user_schedule();
+          }
+
+          load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_creation_failure)
+        })
       }
 
       function show_user_schedule() {
@@ -116,6 +149,8 @@
         }
         
         // TODO: Enable / Display buttons only accessible when logged in?
+
+        // TODO: User must provide his available time per day (when registrating?)
         
         // TODO: Get Current Tasks / Progress / Whatsoever.
       });
@@ -135,9 +170,34 @@
         <failure_message id="registration_failure">
           <p>Registration failure!</p>
         </failure_message>
-        <label for="username">Username</label></br>
+        <label for="new-username">Username</label></br>
         <input type="text" id="new-username"></input>
         <button id="create-account-button">create new account</button>
+      </div>
+    </div>
+    <div class="task-creation">
+      <div class="box">
+        <h1>Create a new task.</h1>
+        <failure_message id="task_creation_failure">
+          <p>Task Creation Failure!</p>
+        </failure_message>
+        <label for="task-name">What's the name of the task?</label></br>
+        <input type="text" id="task-name"></input></br>
+        <label for="task-duration">How long does the task take? (in minutes)</label></br>
+        <input type="number" min="1" max="1440" id="task-duration"></input></br> <!-- This should be handled differently-->
+        <label>On which days can the task be executed?</label></br>
+        <input type="checkbox" id="task-execution-days-monday">On Mondays</input></br>
+        <input type="checkbox" id="task-execution-days-tuesdays">On Tuesdays</input></br>
+        <input type="checkbox" id="task-execution-days-wendesday">On Wendesdays</input></br>
+        <input type="checkbox" id="task-execution-days-thursday">On Thursdays</input></br>
+        <input type="checkbox" id="task-execution-days-friday">On Fridays</input></br>
+        <input type="checkbox" id="task-execution-days-saturday">On Saturdays</input></br>
+        <input type="checkbox" id="task-execution-days-sunday">On Sundays</input></br>
+        <label for="task-reptition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days-->
+        <input type="number" min="0" id="task-reptition"></input><br>
+        <label for="task-weight">How important is the task? (Number between 0 and 100)</label></br>
+        <input type="number" min="0" max="100" id="task-weight"></input><br>
+        <button id="create-task-button">create new task</button>
       </div>
     </div>
     <div class="schedule">
