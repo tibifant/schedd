@@ -123,8 +123,9 @@
           taskExecutionDays[6] = document.getElementById("task-execution-days-sunday").checked;
           let taskRepition = document.getElementById("task-repetition").value;
           let taskWeight = document.getElementById("task-weight");
+          let taskWeightFactor = document.getElementById("task-weight-factor");
 
-          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight };
+          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "taskWeightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task-creation")[0].style.display = "none";
@@ -197,6 +198,8 @@
         <input type="number" min="0" id="task-reptition"></input><br>
         <label for="task-weight">How important is the task? (Number between 0 and 100)</label></br>
         <input type="number" min="0" max="100" id="task-weight"></input><br>
+        <label for="task-weight-factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
+        <input type="number" min="0" max="100" id="task-weight-factor"></input><br>
         <button id="create-task-button">create new task</button>
       </div>
     </div>

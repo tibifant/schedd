@@ -60,7 +60,8 @@ struct user
 };
 
 lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId);
-lsResult create_new_user(const char *username);
+lsResult create_new_user(const char *username); 
+lsResult create_new_task(const int64_t sessionId, const char *eventName, const uint64_t duration, const time_span_t repetitionTimeSpan, const uint64_t weight, const uint64_t weightFactor, local_list<bool, 7> executionDays);
 
 // what day is it?
 

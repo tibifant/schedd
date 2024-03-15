@@ -137,3 +137,39 @@ lsResult get_user_id_from_session_id(const int64_t sessionId, _Out_ uint64_t *pU
 epilogue:
   return result;
 }
+
+lsResult create_new_task(const int64_t sessionId, const char *eventName, const uint64_t duration, const time_span_t repetitionTimeSpan, const uint64_t weight, const uint64_t weightFactor, local_list<bool, 7> executionDays)
+{
+  lsResult result = lsR_Success;
+
+  event evnt; // it cries if I put this after `LS_ERROR_CHECK`
+
+  uint64_t userId;
+  LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
+
+  local_list_add(&evnt.userIds, userId);
+
+  LS_ERROR_IF(strlen(eventName) + 1 > LS_ARRAYSIZE(evnt.name), lsR_ArgumentOutOfBounds);
+  LS_ERROR_IF(strlen(eventName) == 0, lsR_InvalidParameter);
+  strncpy(evnt.name, eventName, LS_ARRAYSIZE(evnt.name));
+
+  LS_ERROR_IF(duration > 24 * 60 || duration < 1, lsR_ArgumentOutOfBounds); // this should also not exceed the maximum time of the user for the possible execution days
+  evnt.duration = duration;
+
+  LS_ERROR_IF(repetitionTimeSpan < 0, lsR_ArgumentOutOfBounds);
+  evnt.repetitionTimeSpan = repetitionTimeSpan;
+
+  LS_ERROR_IF(weight < 0 || weight > 100, lsR_ArgumentOutOfBounds);
+  evnt.weight = weight;
+
+  LS_ERROR_IF(weightFactor < 0 || weightFactor > 100, lsR_ArgumentOutOfBounds);
+  evnt.weightGrowthFactor = weightFactor;
+
+  // TODO: exectutionDays
+  // TODO: timestamp of currentTime (or should we get this from js?)
+
+  _EventChangingStatus++;
+
+epilogue:
+  return result;
+}

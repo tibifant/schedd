@@ -123,11 +123,18 @@ crow::response handle_task_creation(const crow::request &req)
   const int64_t sessionId = body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
-  const std::vector<bool> executionDays = body["possibleExecutionDays"].lo(); // pupupupu
   const uint64_t repetitionTimeSpan = body["repetitionTimeSpan"].i();
   const uint64_t weight = body["weight"].i();
+  const uint64_t weightFactor = body["taskWeightFactor"].i();
+  local_list<bool, 7> executionDays;
+  
+  for (const auto &b : body["possibleExecutionDays"])
+    if (LS_FAILED(local_list_add(&executionDays, b.b())))
+      return crow::response(crow::status::BAD_REQUEST);
 
-  // todo
+  // TODO: Possibilty to add other users
+
+  create_new_task(sessionId, eventName.c_str(), duration, repetitionTimeSpan, weight, weightFactor, executionDays);
 
   crow::json::wvalue ret;
   ret["success"] = true;
