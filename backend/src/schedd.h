@@ -8,7 +8,7 @@
 constexpr size_t maxUsersPerEvent = 16;
 
 typedef uint64_t time_point_t;
-typedef uint64_t time_span_t;
+typedef int64_t time_span_t;
 
 enum weekday_flags : uint8_t
 {
@@ -61,7 +61,11 @@ struct user
 
 lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId);
 lsResult create_new_user(const char *username); 
-lsResult create_new_task(const int64_t sessionId, const char *eventName, const uint64_t duration, const time_span_t repetitionTimeSpan, const uint64_t weight, const uint64_t weightFactor, local_list<bool, 7> executionDays);
+lsResult add_new_task(event evnt);
+lsResult get_user_id_from_session_id(const int64_t sessionId, _Out_ uint64_t *pUserId);
+
+time_point_t get_current_time();
+time_span_t time_span_from_days(const size_t days);
 
 // what day is it?
 

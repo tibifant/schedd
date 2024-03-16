@@ -71,7 +71,7 @@
       }
       
       function get_session_token() {
-        return localStorage.getItem("session_token");
+        return Number(localStorage.getItem("session_token"));
       }
       
       function set_session_token(token) {
@@ -109,7 +109,7 @@
       function show_task_creation() {
         document.getElementsByClassName("task-creation")[0].style.display = "block";
 
-        document.getElementById("task-creation").addEventListener('click', () => {
+        document.getElementById("create-task-button").addEventListener('click', () => {
           let sessionToken = get_session_token();
           let taskName = document.getElementById("task-name").value;
           let taskDuration = document.getElementById("task-duration").value;
@@ -125,7 +125,7 @@
           let taskWeight = document.getElementById("task-weight");
           let taskWeightFactor = document.getElementById("task-weight-factor");
 
-          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "taskWeightFactor": taskWeightFactor };
+          let taskObject = { "sessionId": Number(sessionToken), "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task-creation")[0].style.display = "none";
@@ -194,8 +194,8 @@
         <input type="checkbox" id="task-execution-days-friday">On Fridays</input></br>
         <input type="checkbox" id="task-execution-days-saturday">On Saturdays</input></br>
         <input type="checkbox" id="task-execution-days-sunday">On Sundays</input></br>
-        <label for="task-reptition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days-->
-        <input type="number" min="0" id="task-reptition"></input><br>
+        <label for="task-repetition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days-->
+        <input type="number" min="0" id="task-repetition"></input><br>
         <label for="task-weight">How important is the task? (Number between 0 and 100)</label></br>
         <input type="number" min="0" max="100" id="task-weight"></input><br>
         <label for="task-weight-factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
