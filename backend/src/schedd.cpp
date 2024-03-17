@@ -127,6 +127,7 @@ lsResult get_user_id_from_session_id(const int64_t sessionId, _Out_ uint64_t *pU
       {
         *pUserId = _item.userId;
         sessionIdNotFound = false;
+        break;
       }
     }
 

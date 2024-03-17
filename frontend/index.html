@@ -71,7 +71,7 @@
       }
       
       function get_session_token() {
-        return Number(localStorage.getItem("session_token"));
+        return localStorage.getItem("session_token");
       }
       
       function set_session_token(token) {
@@ -122,10 +122,10 @@
           taskExecutionDays[5] = document.getElementById("task-execution-days-saturday").checked;
           taskExecutionDays[6] = document.getElementById("task-execution-days-sunday").checked;
           let taskRepition = document.getElementById("task-repetition").value;
-          let taskWeight = document.getElementById("task-weight");
-          let taskWeightFactor = document.getElementById("task-weight-factor");
+          let taskWeight = document.getElementById("task-weight").value;
+          let taskWeightFactor = document.getElementById("task-weight-factor").value;
 
-          let taskObject = { "sessionId": Number(sessionToken), "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
+          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task-creation")[0].style.display = "none";
@@ -145,9 +145,7 @@
           show_login_screen();
           return;
         }
-        else {
-          show_user_schedule();
-        }
+        // TODO: Show the last used screen when reloading
         
         // TODO: Enable / Display buttons only accessible when logged in?
 
