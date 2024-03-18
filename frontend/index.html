@@ -128,8 +128,9 @@
           let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
-            document.getElementsByClassName("task-creation")[0].style.display = "none";
-            show_user_schedule();
+            document.getElementById("task_creation_success").style.display = "block";
+            //document.getElementsByClassName("task-creation")[0].style.display = "none";
+            //show_user_schedule();
           }
 
           load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_creation_failure)
@@ -179,6 +180,9 @@
         <h1>Create a new task.</h1>
         <failure_message id="task_creation_failure">
           <p>Task Creation Failure!</p>
+        </failure_message>
+        <failure_message id="task_creation_success">
+          <p>Success!</p>
         </failure_message>
         <label for="task-name">What's the name of the task?</label></br>
         <input type="text" id="task-name"></input></br>

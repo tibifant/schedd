@@ -79,7 +79,7 @@ crow::response handle_login(const crow::request &req)
 
   const std::string &username = body["username"].s();
 
-  int64_t sessionId;
+  int32_t sessionId;
   
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
@@ -102,7 +102,7 @@ crow::response handle_user_registration(const crow::request &req)
   if (LS_FAILED(create_new_user(username.c_str())))
     return crow::response(crow::status::FORBIDDEN);
 
-  int64_t sessionId;
+  int32_t sessionId;
 
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
@@ -120,7 +120,7 @@ crow::response handle_task_creation(const crow::request &req)
   if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const int64_t sessionId = body["sessionId"].i();
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
   const uint64_t repetitionTimeSpan = body["repetitionTimeSpan"].i();

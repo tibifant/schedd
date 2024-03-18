@@ -15,7 +15,7 @@ static std::atomic<uint64_t> _EventChangingStatus = 0;
 
 //////////////////////////////////////////////////////////////////////////
 
-lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId)
+lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId)
 {
   lsResult result = lsR_Success;
 
@@ -43,13 +43,13 @@ lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId
 
     // Assign Session Id.
     {
-      *pOutSessionId = lsGetRand(); // we should check if this is unique
+      *pOutSessionId = (int32_t)lsGetRand(); // we should check if this is unique
 
       // Check for sessionId duplicates
-      for (const auto &_item : usr.sessionTokens)
-        while (_item.sessionId == *pOutSessionId)
-          *pOutSessionId = lsGetRand();
-
+      //for (const auto &_item : usr.sessionTokens)
+      //  while (_item.sessionId == *pOutSessionId)
+      //    *pOutSessionId = lsGetRand();
+   
       session_token token;
       token.sessionId = *pOutSessionId;
 
@@ -67,7 +67,7 @@ lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId
         userInfo.sessionId = *pOutSessionId;
         userInfo.userId = userId;
 
-        local_list_add(&_UserInfo, userInfo);
+        local_list_add(&_UserInfo, userInfo); // TODO: handle case of too many sessionids!
       }
     }
   }
@@ -111,7 +111,7 @@ epilogue:
   return result;
 }
 
-lsResult get_user_id_from_session_id(const int64_t sessionId, _Out_ uint64_t *pUserId)
+lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId)
 {
   lsResult result = lsR_Success;
 
@@ -131,7 +131,7 @@ lsResult get_user_id_from_session_id(const int64_t sessionId, _Out_ uint64_t *pU
       }
     }
 
-    LS_ERROR_IF(sessionIdNotFound, lsR_InvalidParameter);
+    LS_ERROR_IF(sessionIdNotFound, lsR_InvalidParameter); // sometimes failing?!
   }
 
 epilogue:

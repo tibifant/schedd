@@ -43,7 +43,7 @@ constexpr size_t maxUserAmount = 64;
 
 struct user_info
 {
-  int64_t sessionId;
+  int32_t sessionId;
   uint64_t userId;
 };
 
@@ -59,10 +59,10 @@ struct user
   local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event or else array if events
 };
 
-lsResult assign_session_token(const char *username, _Out_ int64_t *pOutSessionId);
+lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
 lsResult create_new_user(const char *username); 
 lsResult add_new_task(event evnt);
-lsResult get_user_id_from_session_id(const int64_t sessionId, _Out_ uint64_t *pUserId);
+lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId);
 
 time_point_t get_current_time();
 time_span_t time_span_from_days(const size_t days);
