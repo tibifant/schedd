@@ -36,7 +36,7 @@ struct event
 
 struct session_token
 {
-  int64_t sessionId;
+  int32_t sessionId;
 };
 
 constexpr size_t maxUserAmount = 64;
@@ -53,7 +53,7 @@ constexpr size_t maxSessionsPerUser = 8;
 struct user
 {
   char username[256];
-  local_list<session_token, maxSessionsPerUser> sessionTokens; // how do i know if it's in use? second list with acrive tokens? bool in sessio_token `is_in_use`?
+  local_list<session_token, maxSessionsPerUser> sessionTokens;
   uint64_t availableTimeInMinutesPerDay[7];
   local_list<uint8_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event or else array of events
   local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event or else array if events

@@ -46,9 +46,9 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
       *pOutSessionId = (int32_t)lsGetRand(); // we should check if this is unique
 
       // Check for sessionId duplicates
-      //for (const auto &_item : usr.sessionTokens)
-      //  while (_item.sessionId == *pOutSessionId)
-      //    *pOutSessionId = lsGetRand();
+      for (const auto &_item : _UserInfo)
+        while (_item.sessionId == *pOutSessionId)
+          *pOutSessionId = (int32_t)lsGetRand();
    
       session_token token;
       token.sessionId = *pOutSessionId;
@@ -56,7 +56,12 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
       // if user already has maximum amount of userids, replace first
       if (usr.sessionTokens.count == maxSessionsPerUser)
       {
+        int32_t firstSessionId = usr.sessionTokens[0].sessionId;
         usr.sessionTokens[0] = token;
+
+        for (auto &_item : _UserInfo)
+          if (_item.sessionId == firstSessionId)
+            _item.sessionId = token.sessionId;
       }
       else
       {
@@ -66,8 +71,7 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
         user_info userInfo;
         userInfo.sessionId = *pOutSessionId;
         userInfo.userId = userId;
-
-        local_list_add(&_UserInfo, userInfo); // TODO: handle case of too many sessionids!
+        local_list_add(&_UserInfo, userInfo); // TODO: Either cap the amount of maximum users or handle having no free slot for another userInfo!
       }
     }
   }
