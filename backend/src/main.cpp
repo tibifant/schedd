@@ -60,7 +60,8 @@ int32_t main(void)
   cors.global().origin("*");
 #endif
 
-  create_new_user("poepe");
+  const uint64_t poepesAvailableHours[7] = {60, 60, 60, 60, 60, 120, 120};
+  create_new_user("poepe", poepesAvailableHours);
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
@@ -94,12 +95,17 @@ crow::response handle_user_registration(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("username"))
+  if (!body || !body.has("username") || !body.has("availableTime"))
     return crow::response(crow::status::BAD_REQUEST);
 
   const std::string &username = body["username"].s();
+  uint64_t availableTime[7];
 
-  if (LS_FAILED(create_new_user(username.c_str())))
+  size_t idx = 0; // pls coc tell me how to do this properly
+  for (const auto time : body["availableTime"])
+    availableTime[idx++] = time.i();
+
+  if (LS_FAILED(create_new_user(username.c_str(), availableTime)))
     return crow::response(crow::status::FORBIDDEN);
 
   int32_t sessionId;
@@ -147,7 +153,7 @@ crow::response handle_task_creation(const crow::request &req)
 
   strncpy(evnt.name, eventName.c_str(), LS_ARRAYSIZE(evnt.name));
 
-  if (duration > 24 * 60 || duration < 1) // this should also not exceed the maximum time of the user for the possible execution days
+  if (duration > 24 * 60 || duration < 1) // TODO: this should also not exceed the maximum time of the user for the possible execution days
     return crow::response(crow::status::BAD_REQUEST);
 
   evnt.duration = duration;

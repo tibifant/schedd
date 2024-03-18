@@ -56,11 +56,11 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
       // if user already has maximum amount of userids, replace first
       if (usr.sessionTokens.count == maxSessionsPerUser)
       {
-        int32_t firstSessionId = usr.sessionTokens[0].sessionId;
+        int32_t firstSessionIdOfUser = usr.sessionTokens[0].sessionId;
         usr.sessionTokens[0] = token;
 
         for (auto &_item : _UserInfo)
-          if (_item.sessionId == firstSessionId)
+          if (_item.sessionId == firstSessionIdOfUser)
             _item.sessionId = token.sessionId;
       }
       else
@@ -82,14 +82,19 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
   return result;
 }
 
-lsResult create_new_user(const char *username)
+lsResult create_new_user(const char *username, const uint64_t availableTimePerDay[7])
 {
   lsResult result = lsR_Success;
 
   user newUser;
 
+  constexpr size_t daysOfWeek = 7; // for real? we're crying if i define this after these error ifs?
+
   LS_ERROR_IF(strlen(username) + 1 > LS_ARRAYSIZE(newUser.username), lsR_ArgumentOutOfBounds);
   LS_ERROR_IF(strlen(username) == 0, lsR_InvalidParameter);
+
+  for (size_t i = 0; i < daysOfWeek; i++)
+    LS_ERROR_IF(availableTimePerDay[i] > 24 * 60, lsR_ArgumentOutOfBounds);
 
   // Scope Lock
   {
@@ -101,8 +106,9 @@ lsResult create_new_user(const char *username)
       LS_ERROR_IF((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0), lsR_InvalidParameter); 
     }
 
-    // Set username of new user.
+    // Set username and available time of new user.
     strncpy(newUser.username, username, LS_ARRAYSIZE(newUser.username));
+    memcpy(&newUser.availableTimeInMinutesPerDay, &availableTimePerDay, LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay));
 
     // Add user to pool
     size_t _unused;

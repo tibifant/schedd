@@ -94,16 +94,37 @@
         });
         
         document.getElementById("create-account-button").addEventListener('click', function () {
-          let usernameObject = { username: document.getElementById("new-username").value };
+            document.getElementsByClassName("login")[0].style.display = "none";
+            show_account_creation_screen();
+        });
+      }
+
+      function show_account_creation_screen() {
+        document.getElementsByClassName("user_registration")[0].style.display = "block";
+        
+        document.getElementById("submit_new_user_info_button").addEventListener('click', function () {
+          let username = document.getElementById("new-username").value;
+
+          let availableTime = [];
+          availableTime[0] = document.getElementById("user_time_info_monday").value;
+          availableTime[1] = document.getElementById("user_time_info_tuesday").value;
+          availableTime[2] = document.getElementById("user_time_info_wendesday").value;
+          availableTime[3] = document.getElementById("user_time_info_thursday").value;
+          availableTime[4] = document.getElementById("user_time_info_friday").value;
+          availableTime[5] = document.getElementById("user_time_info_saturday").value;
+          availableTime[6] = document.getElementById("user_time_info_sunday").value;
+
+          let newAccountObject = { "username": username, "availableTime": availableTime };
 
           function onRegistrationSuccess(obj) {
             set_session_token(obj.session_id);
-            document.getElementsByClassName("login")[0].style.display = "none";
+            document.getElementsByClassName("user_registration")[0].style.display = "none";
             show_task_creation();
           };
 
-          load_backend_url("registration", onRegistrationSuccess, usernameObject, registration_failure);
+          load_backend_url("registration", onRegistrationSuccess, newAccountObject, registration_failure);
         });
+
       }
 
       function show_task_creation() {
@@ -167,12 +188,32 @@
         <input type="text" id="username"></input>
         <button id="username-submit-button">log in</button>
         <p><br>Or register with a new username.</p>
-        <failure_message id="registration_failure">
+        <button id="create-account-button">create new account</button>
+      </div>
+    </div>
+    <div class="user_registration">
+      <div class="box">
           <p>Registration failure!</p>
         </failure_message>
         <label for="new-username">Username</label></br>
         <input type="text" id="new-username"></input>
         <button id="create-account-button">create new account</button>
+        <p>On which days do you have how much available time for schedd-tasks?</p>
+        <label for="user_time_info_monday">On Mondays (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_monday"></input><br>
+        <label for="user_time_info_tuesday">On Tuesdays (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_tuesday"></input><br>
+        <label for="user_time_info_wendesday">On Wendesdays (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_wendesday"></input><br>
+        <label for="user_time_info_thursday">On Thursdays (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_thursday"></input><br>
+        <label for="user_time_info_friday">On Friday (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_friday"></input><br>
+        <label for="user_time_info_saturday">On Saturdays (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_saturday"></input><br>
+        <label for="user_time_info_sunday">On Sundays (in minutes)</label></br>
+        <input type="number" min="0" max="1440" id="user_time_info_sunday"></input><br>
+        <button id="submit_new_user_info_button">submit</button>
       </div>
     </div>
     <div class="task-creation">

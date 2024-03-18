@@ -83,6 +83,10 @@ div.task-creation {
   display: none;
 }
 
+div.user_registration {
+  display: none;
+}
+
 failure_message {
   display: none;
   color: #ffad10;

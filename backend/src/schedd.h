@@ -60,7 +60,7 @@ struct user
 };
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
-lsResult create_new_user(const char *username); 
+lsResult create_new_user(const char *username, const uint64_t availableTimePerDay[7]);
 lsResult add_new_task(event evnt);
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId);
 
