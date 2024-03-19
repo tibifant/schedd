@@ -55,12 +55,14 @@ struct user
   char username[256];
   local_list<session_token, maxSessionsPerUser> sessionTokens;
   uint64_t availableTimeInMinutesPerDay[7];
-  local_list<uint8_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event or else array of events
-  local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event or else array if events
+  local_list<uint64_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event
+  local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
 };
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
 lsResult create_new_user(const char *username, const uint64_t availableTimePerDay[7]);
+// ONLY TEMPORARLY NEEDED FOR TESTING!
+lsResult create_new_user_with_events(const char *username, const uint64_t availableTimePerDay[7], const event todaysEvents[2]);
 lsResult add_new_task(event evnt);
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId);
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents);
