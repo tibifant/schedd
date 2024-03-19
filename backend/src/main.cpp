@@ -46,6 +46,7 @@ namespace asio
 crow::response handle_login(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
 crow::response handle_task_creation(const crow::request &req);
+crow::response handle_user_schedule(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -66,6 +67,7 @@ int32_t main(void)
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
   CROW_ROUTE(app, "/task-creation").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation(req); });
+  CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
 
   app.port(61919).multithreaded().run();
 }
@@ -189,6 +191,29 @@ crow::response handle_task_creation(const crow::request &req)
 
   crow::json::wvalue ret;
   ret["success"] = true;
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_user_schedule(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  int32_t sessionId = (int32_t)body["sessionId"].i();
+
+  local_list<event, maxEventsPerUserPerDay> currentTasks;
+  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  crow::json::wvalue ret;
+  for (int8_t i = 0; i < currentTasks.count; i++)
+  {
+    ret[i]["eventName"] = currentTasks[i].name;
+    ret[i]["duration"] = currentTasks[i].duration;
+  }
 
   return crow::response(crow::status::OK, ret);
 }

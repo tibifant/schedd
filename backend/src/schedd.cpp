@@ -165,6 +165,30 @@ epilogue:
   return result;
 }
 
+lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents)
+{
+  lsResult result = lsR_Success;
+
+  uint64_t userId;
+  LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
+  
+    // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    const user *pUser = pool_get(&_Users, userId);
+    
+    for (const auto &_item : pUser->tasksForCurrentDay)
+    {
+      const event *pEvent = pool_get(&_Events, _item);
+      local_list_add(pOutCurrentEvents, *pEvent);
+    }
+  }
+
+epilogue:
+  return result;
+}
+
 time_point_t get_current_time()
 {
   return (time_point_t)time(nullptr);

@@ -53,18 +53,6 @@
       function load_backend_url(url, callback, payload, failure_callback) {
         load_url(server_url + url, callback, payload, failure_callback);
       }
-      
-      function login_failure() {
-        document.getElementById("login_failure").style.display = "block";
-      };
-
-      function registration_failure() {
-        document.getElementById("registration_failure").style.display = "block";
-      }
-      
-      function task_creation_failure() {
-        document.getElementById("task_creation_failure").style.display = "block";
-      }
 
       function is_logged_in() {
         return (localStorage.getItem("session_token") != null);
@@ -77,6 +65,14 @@
       function set_session_token(token) {
         return localStorage.setItem("session_token", token);
       }
+
+      function append_element(parent, type, className, innerText) {
+        const elem = document.createElement(type);
+        elem.innerText = innerText;
+        elem.className = className;
+        parent.appendChild(elem);
+        return elem;
+      }
       
       function show_login_screen() {
         document.getElementsByClassName("login")[0].style.display = "block";
@@ -87,7 +83,8 @@
           function onLoginSuccess(obj) {
             set_session_token(obj.session_id);
             document.getElementsByClassName("login")[0].style.display = "none";
-            show_task_creation();
+            //show_task_creation();
+            show_user_schedule();
           };
 
           load_backend_url("login", onLoginSuccess, usernameObject, login_failure);
@@ -98,6 +95,10 @@
             show_account_creation_screen();
         });
       }
+      
+      function login_failure() {
+        document.getElementById("login_failure").style.display = "block";
+      };
 
       function show_account_creation_screen() {
         document.getElementsByClassName("user_registration")[0].style.display = "block";
@@ -125,6 +126,10 @@
           load_backend_url("registration", onRegistrationSuccess, newAccountObject, registration_failure);
         });
 
+      }
+
+      function registration_failure() {
+        document.getElementById("registration_failure").style.display = "block";
       }
 
       function show_task_creation() {
@@ -157,15 +162,36 @@
           load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_creation_failure)
         })
       }
+      
+      function task_creation_failure() {
+        document.getElementById("task_creation_failure").style.display = "block";
+      }
 
       function show_user_schedule() {
-        document.getElementsByClassName("schedule")[0].style.display = "block";
+        load_backend_url("user-schedule", onGetCurrentTasksSuccess, { "sessionId": get_session_token()}, user_schedule_failure)
+
+        function onGetCurrentTasksSuccess(obj) {
+          document.getElementsByClassName("schedule")[0].style.display = "block";
+          for (const item of obj)
+          {
+            let name = item.name;
+            let duration = item.duration;
+            append_element(document.getElementById("current_tasks"), 'li', '', name + " (" +  duration + "minutes)");
+          }
+        }
+      }
+
+      function user_schedule_failure() {
+        document.getElementById("user_schedule_failure").style.display = "block";
       }
 
       window.addEventListener('load', () => {
         if (!is_logged_in()) {
           show_login_screen();
           return;
+        }
+        else {
+          show_user_schedule();
         }
         // TODO: Show the last used screen when reloading
         
@@ -249,6 +275,10 @@
     <div class="schedule">
       <div class="box">
         <h1>Your tasks for today</h1>
+        <failure_message id="user_schedule_failure">
+          <p>Failure!</p>
+        </failure_message>
+        <ul id="current_tasks"></ul>
       </div>
     </div>
   </div>
