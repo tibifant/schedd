@@ -62,15 +62,7 @@ int32_t main(void)
 #endif
 
   const uint64_t poepesAvailableHours[7] = {60, 60, 60, 60, 60, 120, 120};
-  event poepePutzt;
-  strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
-  poepePutzt.duration = 20;
-  event poepeKocht;
-  strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepePutzt.name));
-  poepeKocht.duration = 100;
-
-  const event poepesTasks[2] = { poepePutzt, poepeKocht };
-  create_new_user_with_events("poepe", poepesAvailableHours, poepesTasks); // give poepe a schedule so we can test stuff
+  create_new_user("poepe", poepesAvailableHours);
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
@@ -212,14 +204,16 @@ crow::response handle_user_schedule(const crow::request &req)
 
   int32_t sessionId = (int32_t)body["sessionId"].i();
 
-  local_list<event, maxEventsPerUserPerDay> currentTasks;
-  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
+  set_events_for_user(sessionId);
+
+  local_list<event, maxEventsPerUserPerDay> currentTasks; // something went horribly wrong there's only weird stuff in this list :/
+  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks))) // I bet it's a bad idea to have a local_list as out param...
     return crow::response(crow::status::BAD_REQUEST);
 
   crow::json::wvalue ret;
-  for (int8_t i = 0; i < currentTasks.count; i++) // probably is random github person lying but its currently only returning null... 
+  for (int8_t i = 0; i < currentTasks.count; i++) // probably is random github person lying but its currently only returning null... nope... the list is just empty?!
   {
-    ret[i]["eventName"] = currentTasks[i].name;
+    ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].duration;
   }
 

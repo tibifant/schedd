@@ -121,56 +121,6 @@ epilogue:
   return result;
 }
 
-// THIS IS ALL JUST FOR QUICK TESTING!!!!!
-lsResult create_new_user_with_events(const char *username, const uint64_t availableTimePerDay[7], const event todaysEvents[2])
-{
-  lsResult result = lsR_Success;
-
-  user newUser;
-
-  constexpr size_t daysOfWeek = 7; // for real? we're crying if i define this after these error ifs?
-
-  LS_ERROR_IF(strlen(username) + 1 > LS_ARRAYSIZE(newUser.username), lsR_ArgumentOutOfBounds);
-  LS_ERROR_IF(strlen(username) == 0, lsR_InvalidParameter);
-
-  for (size_t i = 0; i < daysOfWeek; i++)
-    LS_ERROR_IF(availableTimePerDay[i] > 24 * 60, lsR_ArgumentOutOfBounds);
-
-  // Scope Lock
-  {
-    std::scoped_lock lock(_ThreadLock);
-
-    // Check for duplication of usernames
-    for (const auto &&_item : _Users)
-    {
-      LS_ERROR_IF((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0), lsR_InvalidParameter);
-    }
-
-    // Set username and available time of new user.
-    strncpy(newUser.username, username, LS_ARRAYSIZE(newUser.username));
-    memcpy(&newUser.availableTimeInMinutesPerDay, &availableTimePerDay, LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay));
-
-    // Add user to pool
-    size_t _unused;
-    LS_DEBUG_ERROR_ASSERT(pool_add(&_Users, newUser, &_unused));
-
-    for (size_t i = 0; i < 2; i++)
-    {
-      // Add events to pool
-      uint64_t eventId;
-      pool_add(&_Events, todaysEvents[i], &eventId);
-
-      local_list_add(&newUser.tasksForCurrentDay, eventId);
-    }
-    
-  }
-
-  _UserChangingStatus++;
-
-epilogue:
-  return result;
-}
-
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId)
 {
   lsResult result = lsR_Success;
@@ -228,11 +178,43 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
 
     const user *pUser = pool_get(&_Users, userId);
     
-    for (const auto &_item : pUser->tasksForCurrentDay)
+    for (const auto &_item : pUser->tasksForCurrentDay) // why is the count always 0 here when i can check it earlier and there's clearly something added??
     {
       const event *pEvent = pool_get(&_Events, _item);
       local_list_add(pOutCurrentEvents, *pEvent);
     }
+  }
+
+epilogue:
+  return result;
+}
+
+lsResult set_events_for_user(const int32_t sessionId)
+{
+  lsResult result = lsR_Success;
+
+  uint64_t userId;
+  LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+    
+    event poepePutzt;
+    strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
+    poepePutzt.duration = 20;
+    event poepeKocht;
+    strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepePutzt.name));
+    poepeKocht.duration = 100;
+
+    uint64_t putzEventId;
+    pool_add(&_Events, poepePutzt, &putzEventId);
+    uint64_t kochEventId;
+    pool_add(&_Events, poepeKocht, &kochEventId);
+
+    user *pUser = pool_get(&_Users, userId);
+    local_list_add(&pUser->tasksForCurrentDay, putzEventId);
+    local_list_add(&pUser->tasksForCurrentDay, kochEventId);
   }
 
 epilogue:

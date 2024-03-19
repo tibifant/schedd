@@ -61,11 +61,10 @@ struct user
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
 lsResult create_new_user(const char *username, const uint64_t availableTimePerDay[7]);
-// ONLY TEMPORARLY NEEDED FOR TESTING!
-lsResult create_new_user_with_events(const char *username, const uint64_t availableTimePerDay[7], const event todaysEvents[2]);
 lsResult add_new_task(event evnt);
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId);
-lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents);
+lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents); 
+lsResult set_events_for_user(const int32_t sessionId);
 
 time_point_t get_current_time();
 time_span_t time_span_from_days(const size_t days);
