@@ -81,9 +81,14 @@ div.schedule {
 
 div.task-creation {
   display: none;
+  position: fixed;
 }
 
 div.user_registration {
+  display: none;
+}
+
+div.overview {
   display: none;
 }
 

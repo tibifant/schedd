@@ -206,12 +206,12 @@ crow::response handle_user_schedule(const crow::request &req)
 
   set_events_for_user(sessionId);
 
-  local_list<event, maxEventsPerUserPerDay> currentTasks; // something went horribly wrong there's only weird stuff in this list :/
-  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks))) // I bet it's a bad idea to have a local_list as out param...
+  local_list<event, maxEventsPerUserPerDay> currentTasks;
+  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
     return crow::response(crow::status::BAD_REQUEST);
 
   crow::json::wvalue ret;
-  for (int8_t i = 0; i < currentTasks.count; i++) // probably is random github person lying but its currently only returning null... nope... the list is just empty?!
+  for (int8_t i = 0; i < currentTasks.count; i++)
   {
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].duration;

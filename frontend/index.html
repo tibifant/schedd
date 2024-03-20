@@ -84,7 +84,7 @@
             set_session_token(obj.session_id);
             document.getElementsByClassName("login")[0].style.display = "none";
             //show_task_creation();
-            show_user_schedule();
+            show_overview();
           };
 
           load_backend_url("login", onLoginSuccess, usernameObject, login_failure);
@@ -120,7 +120,7 @@
           function onRegistrationSuccess(obj) {
             set_session_token(obj.session_id);
             document.getElementsByClassName("user_registration")[0].style.display = "none";
-            show_task_creation();
+            show_overview();
           };
 
           load_backend_url("registration", onRegistrationSuccess, newAccountObject, registration_failure);
@@ -130,6 +130,13 @@
 
       function registration_failure() {
         document.getElementById("registration_failure").style.display = "block";
+      }
+
+      function show_overview() {
+        document.getElementsByClassName("overview")[0].style.display = "block";
+        show_user_schedule();
+
+        document.getElementById("show_add_task_button").addEventListener('click', show_task_creation);
       }
 
       function show_task_creation() {
@@ -154,8 +161,8 @@
           let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
-            document.getElementById("task_creation_success").style.display = "block";
-            //document.getElementsByClassName("task-creation")[0].style.display = "none";
+            //document.getElementById("task_creation_success").style.display = "block";
+            document.getElementsByClassName("task-creation")[0].style.display = "none";
             //show_user_schedule();
           }
 
@@ -168,15 +175,15 @@
       }
 
       function show_user_schedule() {
-        load_backend_url("user-schedule", onGetCurrentTasksSuccess, { "sessionId": get_session_token()}, user_schedule_failure)
-
+      load_backend_url("user-schedule", onGetCurrentTasksSuccess, { "sessionId": get_session_token()}, user_schedule_failure)
+      
         function onGetCurrentTasksSuccess(obj) {
           document.getElementsByClassName("schedule")[0].style.display = "block";
           for (const item of obj)
           {
             let name = item.name;
             let duration = item.duration;
-            append_element(document.getElementById("current_tasks"), 'li', '', name + " (" +  duration + " minutes)");
+            append_element(document.getElementById("current_tasks"), 'li', '', name + " (" +  duration + " minutes)"); // TODO: Only append this if it's not alredy loaded
           }
         }
       }
@@ -191,7 +198,7 @@
           return;
         }
         else {
-          show_user_schedule();
+          show_overview();
         }
         // TODO: Show the last used screen when reloading
         
@@ -270,6 +277,11 @@
         <label for="task-weight-factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
         <input type="number" min="0" max="100" id="task-weight-factor"></input><br>
         <button id="create-task-button">create new task</button>
+      </div>
+    </div>
+    <div class="overview">
+      <div class="box">
+        <button id="show_add_task_button">Add new task</button>
       </div>
     </div>
     <div class="schedule">
