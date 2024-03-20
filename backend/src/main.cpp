@@ -221,7 +221,8 @@ crow::response handle_user_schedule(const crow::request &req)
   set_events_for_user(sessionId);
 
   local_list<event, maxEventsPerUserPerDay> currentTasks;
-  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
+  local_list<uint64_t, maxEventsPerUserPerDay> ids;
+  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks, &ids)))
     return crow::response(crow::status::BAD_REQUEST);
 
   crow::json::wvalue ret;
@@ -229,6 +230,7 @@ crow::response handle_user_schedule(const crow::request &req)
   {
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].duration;
+    ret[i]["id"] = ids[i];
   }
 
   return crow::response(crow::status::OK, ret);

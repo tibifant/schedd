@@ -109,7 +109,7 @@ lsResult create_new_user(const char *username, const uint64_t availableTimePerDa
     // Set username and available time of new user.
     strncpy(newUser.username, username, LS_ARRAYSIZE(newUser.username));
     
-    for (size_t i = 0; i < LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay); i++) // TODO: coooc? how does one do this?
+    for (size_t i = 0; i < LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay); i++) // TODO: coooc? how does one do this nicely?
       newUser.availableTimeInMinutesPerDay[i] = availableTimePerDay[i];
 
     // Add user to pool
@@ -143,7 +143,7 @@ lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pU
       }
     }
 
-    LS_ERROR_IF(sessionIdNotFound, lsR_InvalidParameter); // sometimes failing?!
+    LS_ERROR_IF(sessionIdNotFound, lsR_InvalidParameter);
   }
 
 epilogue:
@@ -167,7 +167,7 @@ epilogue:
   return result;
 }
 
-lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents)
+lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents, _Out_ local_list<uint64_t, maxEventsPerUserPerDay> *pOutIds)
 {
   lsResult result = lsR_Success;
 
@@ -180,11 +180,13 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
 
     const user *pUser = pool_get(&_Users, userId);
     
-    for (const auto &_item : pUser->tasksForCurrentDay) // why is the count always 0 here when i can check it earlier and there's clearly something added??
+    for (const auto &_item : pUser->tasksForCurrentDay)
     {
-      const event *pEvent = pool_get(&_Events, _item);
-      local_list_add(pOutCurrentEvents, *pEvent);
+      local_list_add(pOutCurrentEvents, *pool_get(&_Events, _item));
+      // TODO: return ids of the tasks
     }
+
+    *pOutIds = pUser->tasksForCurrentDay;
   }
 
 epilogue:
@@ -233,6 +235,8 @@ lsResult replace_task(uint64_t id, event evnt)
     
     *pool_get(&_Events, id) = evnt;
   }
+
+  _EventChangingStatus++;
 
   return result;
 }
