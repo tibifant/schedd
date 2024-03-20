@@ -53,6 +53,7 @@ body {
   width: 100vw;
   height: calc(100% - 25pt);
   padding: 40pt 0;
+  overflow: scroll;
 }
 
 #header img {
@@ -79,7 +80,7 @@ div.schedule {
   display: none;
 }
 
-div.task-creation {
+div.task_creation {
   display: none;
   position: fixed;
 }

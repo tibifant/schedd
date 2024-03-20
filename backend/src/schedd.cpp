@@ -108,7 +108,9 @@ lsResult create_new_user(const char *username, const uint64_t availableTimePerDa
 
     // Set username and available time of new user.
     strncpy(newUser.username, username, LS_ARRAYSIZE(newUser.username));
-    memcpy(&newUser.availableTimeInMinutesPerDay, &availableTimePerDay, LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay));
+    
+    for (size_t i = 0; i < LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay); i++) // TODO: coooc? how does one do this?
+      newUser.availableTimeInMinutesPerDay[i] = availableTimePerDay[i];
 
     // Add user to pool
     size_t _unused;
@@ -219,6 +221,32 @@ lsResult set_events_for_user(const int32_t sessionId)
 
 epilogue:
   return result;
+}
+
+bool check_event_duration_compatibilty(uint64_t userId, uint64_t duration, weekday_flags executionDays)
+{
+  bool isCompatible = false;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    user *pUser = pool_get(&_Users, userId);
+
+    for (size_t i = 0; i < LS_ARRAYSIZE(pUser->availableTimeInMinutesPerDay); i++)
+    {
+      if (executionDays & (1 << i))
+      {
+        if (*pUser->availableTimeInMinutesPerDay >= duration)
+        {
+          isCompatible = true; // It is enough if one day is compatible
+          break;
+        }
+      }
+    }
+  }
+
+  return isCompatible;
 }
 
 time_point_t get_current_time()

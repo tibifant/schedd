@@ -54,6 +54,8 @@
         load_url(server_url + url, callback, payload, failure_callback);
       }
 
+///////////////////////////////////////////////////////////////////////////////////////
+
       function is_logged_in() {
         return (localStorage.getItem("session_token") != null);
       }
@@ -66,6 +68,8 @@
         return localStorage.setItem("session_token", token);
       }
 
+///////////////////////////////////////////////////////////////////////////////////////
+
       function append_element(parent, type, className, innerText) {
         const elem = document.createElement(type);
         elem.innerText = innerText;
@@ -73,6 +77,8 @@
         parent.appendChild(elem);
         return elem;
       }
+
+///////////////////////////////////////////////////////////////////////////////////////
       
       function show_login_screen() {
         document.getElementsByClassName("login")[0].style.display = "block";
@@ -99,6 +105,8 @@
       function login_failure() {
         document.getElementById("login_failure").style.display = "block";
       };
+
+///////////////////////////////////////////////////////////////////////////////////////
 
       function show_account_creation_screen() {
         document.getElementsByClassName("user_registration")[0].style.display = "block";
@@ -132,17 +140,27 @@
         document.getElementById("registration_failure").style.display = "block";
       }
 
+///////////////////////////////////////////////////////////////////////////////////////
+
       function show_overview() {
         document.getElementsByClassName("overview")[0].style.display = "block";
         show_user_schedule();
 
-        document.getElementById("show_add_task_button").addEventListener('click', show_task_creation);
+        document.getElementById("show_add_task_button").addEventListener('click', () => {
+          show_task_edit(false);
+        });
+
+        document.getElementById("show_edit_task_button").addEventListener('click', () => {
+          show_task_edit(true);
+        }); // TODO: ask coc how to add this to list elements
       }
 
-      function show_task_creation() {
-        document.getElementsByClassName("task-creation")[0].style.display = "block";
+///////////////////////////////////////////////////////////////////////////////////////
 
-        document.getElementById("create-task-button").addEventListener('click', () => {
+      function show_task_edit(isEdit) {
+        document.getElementsByClassName("task_creation")[0].style.display = "block";
+
+        document.getElementById("create_task_button").addEventListener('click', () => {
           let sessionToken = get_session_token();
           let taskName = document.getElementById("task-name").value;
           let taskDuration = document.getElementById("task-duration").value;
@@ -158,32 +176,35 @@
           let taskWeight = document.getElementById("task-weight").value;
           let taskWeightFactor = document.getElementById("task-weight-factor").value;
 
-          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
+          let taskObject = { "isEdit": isEdit, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
             //document.getElementById("task_creation_success").style.display = "block";
-            document.getElementsByClassName("task-creation")[0].style.display = "none";
+            document.getElementsByClassName("task_creation")[0].style.display = "none";
             //show_user_schedule();
           }
 
-          load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_creation_failure)
+          load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_edit_failure)
         })
       }
       
-      function task_creation_failure() {
+      function task_edit_failure() {
         document.getElementById("task_creation_failure").style.display = "block";
       }
+
+///////////////////////////////////////////////////////////////////////////////////////
 
       function show_user_schedule() {
       load_backend_url("user-schedule", onGetCurrentTasksSuccess, { "sessionId": get_session_token()}, user_schedule_failure)
       
         function onGetCurrentTasksSuccess(obj) {
           document.getElementsByClassName("schedule")[0].style.display = "block";
+
           for (const item of obj)
           {
             let name = item.name;
             let duration = item.duration;
-            append_element(document.getElementById("current_tasks"), 'li', '', name + " (" +  duration + " minutes)"); // TODO: Only append this if it's not alredy loaded
+            append_element(document.getElementById('current_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
           }
         }
       }
@@ -191,6 +212,8 @@
       function user_schedule_failure() {
         document.getElementById("user_schedule_failure").style.display = "block";
       }
+
+///////////////////////////////////////////////////////////////////////////////////////
 
       window.addEventListener('load', () => {
         if (!is_logged_in()) {
@@ -200,11 +223,8 @@
         else {
           show_overview();
         }
-        // TODO: Show the last used screen when reloading
-        
-        // TODO: Enable / Display buttons only accessible when logged in?
 
-        // TODO: User must provide his available time per day (when registrating?)
+        // TODO: Enable / Display buttons only accessible when logged in?
         
         // TODO: Get Current Tasks / Progress / Whatsoever.
       });
@@ -226,12 +246,13 @@
     </div>
     <div class="user_registration">
       <div class="box">
+        <h1>Create a new account</h1>
+        <failure_message id="registration_failure">
           <p>Registration failure!</p>
         </failure_message>
         <label for="new-username">Username</label></br>
         <input type="text" id="new-username"></input>
-        <button id="create-account-button">create new account</button>
-        <p>On which days do you have how much available time for schedd-tasks?</p>
+        <h2>On which days do you have how much available time for schedd-tasks?</h2>
         <label for="user_time_info_monday">On Mondays (in minutes)</label></br>
         <input type="number" min="0" max="1440" id="user_time_info_monday"></input><br>
         <label for="user_time_info_tuesday">On Tuesdays (in minutes)</label></br>
@@ -246,10 +267,10 @@
         <input type="number" min="0" max="1440" id="user_time_info_saturday"></input><br>
         <label for="user_time_info_sunday">On Sundays (in minutes)</label></br>
         <input type="number" min="0" max="1440" id="user_time_info_sunday"></input><br>
-        <button id="submit_new_user_info_button">submit</button>
+        <button id="submit_new_user_info_button">Submit</button>
       </div>
     </div>
-    <div class="task-creation">
+    <div class="task_creation">
       <div class="box">
         <h1>Create a new task.</h1>
         <failure_message id="task_creation_failure">
@@ -276,12 +297,14 @@
         <input type="number" min="0" max="100" id="task-weight"></input><br>
         <label for="task-weight-factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
         <input type="number" min="0" max="100" id="task-weight-factor"></input><br>
-        <button id="create-task-button">create new task</button>
+        <button id="create_task_button">create new task</button>
       </div>
     </div>
     <div class="overview">
       <div class="box">
-        <button id="show_add_task_button">Add new task</button>
+        <h1>Welcome to Schedd!</h1>
+        <button id="show_add_task_button">Add new Task</button>
+        <button id="show_edit_task_button">Edit Task</button>
       </div>
     </div>
     <div class="schedule">

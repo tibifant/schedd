@@ -125,9 +125,10 @@ crow::response handle_task_creation(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
+  if (!body || !body.has("isEdit") || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
     return crow::response(crow::status::BAD_REQUEST);
 
+  // const bool isEdit = body["isEdit"].b(); TODO!
   const int32_t sessionId = (int32_t)body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
@@ -147,18 +148,13 @@ crow::response handle_task_creation(const crow::request &req)
 
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::BAD_REQUEST);
-
+  
   local_list_add(&evnt.userIds, userId);
 
   if (eventName.length() == 0 || eventName.length() > LS_ARRAYSIZE(evnt.name))
     return crow::response(crow::status::BAD_REQUEST);
 
   strncpy(evnt.name, eventName.c_str(), LS_ARRAYSIZE(evnt.name));
-
-  if (duration > 24 * 60 || duration < 1) // TODO: this should also not exceed the maximum time of the user for the possible execution days
-    return crow::response(crow::status::BAD_REQUEST);
-
-  evnt.duration = duration;
 
   if (repetitionTimeSpan < 0)
     return crow::response(crow::status::BAD_REQUEST);
@@ -184,10 +180,17 @@ crow::response handle_task_creation(const crow::request &req)
 
   evnt.possibleExecutionDays = (weekday_flags)executionDayFlags;
 
+  if (duration > 24 * 60 || duration < 1 || !check_event_duration_compatibilty(userId, duration, evnt.possibleExecutionDays)) // TODO: this should also not exceed the maximum time of the user for the possible execution days
+    return crow::response(crow::status::BAD_REQUEST);
+
+  evnt.duration = duration;
+
   evnt.creationTime = get_current_time();
 
-  if(LS_FAILED(add_new_task(evnt)))
-    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+  // TODO!
+  // if (!isEdit)
+    if(LS_FAILED(add_new_task(evnt)))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret;
   ret["success"] = true;

@@ -64,7 +64,8 @@ lsResult create_new_user(const char *username, const uint64_t availableTimePerDa
 lsResult add_new_task(event evnt);
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId);
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents); 
-lsResult set_events_for_user(const int32_t sessionId);
+lsResult set_events_for_user(const int32_t sessionId); 
+bool check_event_duration_compatibilty(uint64_t userId, uint64_t duration, weekday_flags executionDays);
 
 time_point_t get_current_time();
 time_span_t time_span_from_days(const size_t days);
