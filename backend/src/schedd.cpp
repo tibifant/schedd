@@ -223,31 +223,45 @@ epilogue:
   return result;
 }
 
-bool check_event_duration_compatibilty(uint64_t userId, uint64_t duration, weekday_flags executionDays)
+lsResult replace_task(uint64_t id, event evnt)
 {
-  bool isCompatible = false;
+  lsResult result = lsR_Success;
 
   // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
-
-    user *pUser = pool_get(&_Users, userId);
-
-    for (size_t i = 0; i < LS_ARRAYSIZE(pUser->availableTimeInMinutesPerDay); i++)
-    {
-      if (executionDays & (1 << i))
-      {
-        if (*pUser->availableTimeInMinutesPerDay >= duration)
-        {
-          isCompatible = true; // It is enough if one day is compatible
-          break;
-        }
-      }
-    }
+    
+    *pool_get(&_Events, id) = evnt;
   }
 
-  return isCompatible;
+  return result;
 }
+
+//bool check_event_duration_compatibilty(uint64_t userId, uint64_t duration, weekday_flags executionDays)
+//{
+//  bool isCompatible = false;
+//
+//  // Scope Lock
+//  {
+//    std::scoped_lock lock(_ThreadLock);
+//
+//    user *pUser = pool_get(&_Users, userId);
+//
+//    for (size_t i = 0; i < LS_ARRAYSIZE(pUser->availableTimeInMinutesPerDay); i++)
+//    {
+//      if (executionDays & (1 << i))
+//      {
+//        if (*pUser->availableTimeInMinutesPerDay >= duration)
+//        {
+//          isCompatible = true; // It is enough if one day is compatible
+//          break;
+//        }
+//      }
+//    }
+//  }
+//
+//  return isCompatible;
+//}
 
 time_point_t get_current_time()
 {

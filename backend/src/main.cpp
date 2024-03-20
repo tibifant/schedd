@@ -45,7 +45,7 @@ namespace asio
 
 crow::response handle_login(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
-crow::response handle_task_creation(const crow::request &req);
+crow::response handle_task_creation_modification(const crow::request &req, const bool isCreation);
 crow::response handle_user_schedule(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
@@ -66,7 +66,8 @@ int32_t main(void)
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
-  CROW_ROUTE(app, "/task-creation").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation(req); });
+  CROW_ROUTE(app, "/task-creation").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, true); });
+  CROW_ROUTE(app, "/task-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, false); });
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
 
   app.port(61919).multithreaded().run();
@@ -121,14 +122,13 @@ crow::response handle_user_registration(const crow::request &req)
   return crow::response(crow::status::OK, ret);
 }
 
-crow::response handle_task_creation(const crow::request &req)
+crow::response handle_task_creation_modification(const crow::request &req, const bool isCreation)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("isEdit") || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
+  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  // const bool isEdit = body["isEdit"].b(); TODO!
   const int32_t sessionId = (int32_t)body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
@@ -180,17 +180,28 @@ crow::response handle_task_creation(const crow::request &req)
 
   evnt.possibleExecutionDays = (weekday_flags)executionDayFlags;
 
-  if (duration > 24 * 60 || duration < 1 || !check_event_duration_compatibilty(userId, duration, evnt.possibleExecutionDays)) // TODO: this should also not exceed the maximum time of the user for the possible execution days
+  if (duration > 24 * 60 || duration < 1)
     return crow::response(crow::status::BAD_REQUEST);
 
   evnt.duration = duration;
 
   evnt.creationTime = get_current_time();
 
-  // TODO!
-  // if (!isEdit)
-    if(LS_FAILED(add_new_task(evnt)))
+  if (isCreation)
+  {
+    if (LS_FAILED(add_new_task(evnt)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+  }
+  else
+  {
+    if (!body.has("id"))
+      return crow::response(crow::status::BAD_REQUEST);
+
+    uint64_t id = body["id"].i();
+
+    if (LS_FAILED(replace_task(id, evnt)))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+  }
 
   crow::json::wvalue ret;
   ret["success"] = true;
