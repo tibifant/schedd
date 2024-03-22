@@ -145,6 +145,7 @@
       function show_overview() {
         document.getElementsByClassName("overview")[0].style.display = "block";
         show_user_schedule();
+        show_task_search();
 
         document.getElementById("show_add_task_button").addEventListener('click', () => {
           show_task_creation();
@@ -193,7 +194,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-function show_task_modification() {
+      function show_task_modification() {
         document.getElementsByClassName("task_creation")[0].style.display = "block";
 
         // TODO: set values to the current values of the tasks
@@ -234,8 +235,7 @@ function show_task_modification() {
         function onGetCurrentTasksSuccess(obj) {
           document.getElementsByClassName("schedule")[0].style.display = "block";
 
-          for (const item of obj)
-          {
+          for (const item of obj) {
             let name = item.name;
             let duration = item.duration;
             append_element(document.getElementById('current_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
@@ -245,6 +245,28 @@ function show_task_modification() {
 
       function user_schedule_failure() {
         document.getElementById("user_schedule_failure").style.display = "block";
+      }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function show_task_search() {
+        document.getElementsByClassName("task_search")[0].display = "block";
+        
+        document.getElementById("submit_search_button").addEventListener('click', () => {
+          let input = document.getElementById("task_search_input").value;
+          let searchObj = { "sessionId": get_session_token(), "input": input };
+          load_backend_url("task-search", onTaskSearchSuccess, searchObj, task_search_failure);
+        });
+
+        function onTaskSearchSuccess(obj) {
+          for (const item of obj) {
+            append_element(document.getElementById('task_search_results'), 'li', name + ' (' +  duration + ' minutes)');
+          }
+        }
+      }
+
+      function task_search_failure() {
+        document.getElementById("task_search_failure").style.display = "block";
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -313,7 +335,7 @@ function show_task_modification() {
         <label for="task_name">What's the name of the task?</label></br>
         <input type="text" id="task_name"></input></br>
         <label for="task_duration">How long does the task take? (in minutes)</label></br>
-        <input type="number" min="1" max="1440" id="task_duration"></input></br> <!-- This should be handled differently-->
+        <input type="number" min="1" max="1440" id="task_duration"></input></br> <!-- This should be handled differently -->
         <label>On which days can the task be executed?</label></br>
         <input type="checkbox" id="task_execution_days_monday">On Mondays</input></br>
         <input type="checkbox" id="task_execution_days_tuesdays">On Tuesdays</input></br>
@@ -322,7 +344,7 @@ function show_task_modification() {
         <input type="checkbox" id="task_execution_days_friday">On Fridays</input></br>
         <input type="checkbox" id="task_execution_days_saturday">On Saturdays</input></br>
         <input type="checkbox" id="task_execution_days_sunday">On Sundays</input></br>
-        <label for="task_repetition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days-->
+        <label for="task_repetition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
         <input type="number" min="0" id="task_repetition"></input><br>
         <label for="task_weight">How important is the task? (Number between 0 and 100)</label></br>
         <input type="number" min="0" max="100" id="task_weight"></input><br>
@@ -335,8 +357,19 @@ function show_task_modification() {
       <div class="box">
         <h1>Welcome to Schedd!</h1>
         <button id="show_add_task_button">Add new Task</button>
-        <button id="show_edit_task_button">Edit Task</button>
+        <button id="show_edit_task_button">Edit Task</button><br>
       </div>
+    </div>
+    <div class="task_search">
+      <box>
+        <failure_message id="task_search_failure">
+          <p>Task Search Failure!</p>
+        </failure_message>
+        <label for="task_search_input">Search for a task</label></br>
+        <input type="text" id="task_search_input"></input></br>
+        <button id="submit_search_button">search</button><br>
+        <ul id="task_search_results"></ul>
+      </box>
     </div>
     <div class="schedule">
       <div class="box">

@@ -28,7 +28,7 @@ enum weekday_flags : uint8_t
 struct event
 {
   char name[256];
-  uint64_t duration; // which datatype is suitable, could possibly have a max value of 24h * 60min
+  uint64_t duration;
   local_list<size_t, maxUsersPerEvent> userIds;
   uint64_t weight, weightGrowthFactor;
   weekday_flags possibleExecutionDays; // 1 bit for each day + 1 extra
@@ -82,10 +82,3 @@ lsResult replace_task(const size_t id, const event evnt);
 
 time_point_t get_current_time();
 time_span_t time_span_from_days(const size_t days);
-
-// what day is it?
-
-// events:
-// mark as done
-// edit event
-// create new event

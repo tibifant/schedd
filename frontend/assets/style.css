@@ -93,6 +93,10 @@ div.overview {
   display: none;
 }
 
+div.task_search {
+  display: none;
+}
+
 failure_message {
   display: none;
   color: #ffad10;

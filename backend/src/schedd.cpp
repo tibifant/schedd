@@ -98,13 +98,11 @@ lsResult create_new_user(const char *username, const local_list<uint64_t, DaysPe
 
     // Check for duplication of usernames
     for (const auto &&_item : _Users)
-    {
-      LS_ERROR_IF((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0), lsR_InvalidParameter); 
-    }
+      LS_ERROR_IF((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0), lsR_InvalidParameter);
 
     // Set username and available time of new user.
     strncpy(usr.username, username, LS_ARRAYSIZE(usr.username));
-    
+
     lsAssert(LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay) == pAvailableTimePerDay->count);
     lsMemcpy(&usr.availableTimeInMinutesPerDay, &pAvailableTimePerDay->values, LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay));
 
@@ -170,7 +168,7 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
   size_t userId;
   LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
   
-    // Scope Lock
+  // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
 
