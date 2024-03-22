@@ -47,6 +47,7 @@ crow::response handle_login(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
 crow::response handle_task_creation_modification(const crow::request &req, const bool isCreation);
 crow::response handle_user_schedule(const crow::request &req);
+crow::response handle_event_search(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -73,6 +74,7 @@ int32_t main(void)
   CROW_ROUTE(app, "/task-creation").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, true); });
   CROW_ROUTE(app, "/task-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, false); });
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
+  CROW_ROUTE(app, "/task-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_search(req); });
 
   app.port(61919).multithreaded().run();
 }
@@ -236,6 +238,34 @@ crow::response handle_user_schedule(const crow::request &req)
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].duration;
     ret[i]["id"] = currentTasks[i].id;
+  }
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_event_search(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId") || !body.has("input"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const std::string &input = body["input"].s();
+
+  size_t userId;
+  get_user_id_from_session_id(sessionId, &userId);
+
+  local_list<event_info, maxEventsPerUser> searchResults;
+  if (LS_FAILED(event_search_for_user(userId, input.c_str(), &searchResults)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  crow::json::wvalue ret;
+  for (int8_t i = 0; i < searchResults.count; i++)
+  {
+    ret[i]["name"] = searchResults[i].name;
+    ret[i]["duration"] = searchResults[i].duration;
+    ret[i]["id"] = searchResults[i].id;
   }
 
   return crow::response(crow::status::OK, ret);

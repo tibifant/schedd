@@ -104,7 +104,9 @@ lsResult create_new_user(const char *username, const local_list<uint64_t, DaysPe
     strncpy(usr.username, username, LS_ARRAYSIZE(usr.username));
 
     lsAssert(LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay) == pAvailableTimePerDay->count);
-    lsMemcpy(&usr.availableTimeInMinutesPerDay, &pAvailableTimePerDay->values, LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay));
+    //lsMemcpy(&usr.availableTimeInMinutesPerDay, &pAvailableTimePerDay->values, LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay));
+    for (size_t i = 0; i < LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay); i++)
+      usr.availableTimeInMinutesPerDay[i] = *local_list_get(pAvailableTimePerDay, i);
 
     // Add user to pool
     size_t _unused;
@@ -205,9 +207,12 @@ lsResult set_events_for_user(const int32_t sessionId)
     event poepePutzt;
     strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
     poepePutzt.duration = 20;
+    local_list_add(&poepePutzt.userIds, &userId);
+
     event poepeKocht;
     strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepePutzt.name));
     poepeKocht.duration = 100;
+    local_list_add(&poepeKocht.userIds, &userId);
 
     size_t putzEventId;
     pool_add(&_Events, poepePutzt, &putzEventId);
@@ -235,6 +240,58 @@ lsResult replace_task(const size_t id, const event evnt)
   }
 
   _EventChangingStatus++;
+
+  return result;
+}
+
+lsResult event_search_for_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults)
+{
+  lsResult result = lsR_Success;
+
+  local_list<size_t, maxEventsPerUser> eventIds;
+  LS_ERROR_CHECK(get_all_event_ids_for_user(userId, &eventIds));
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &_item : eventIds)
+    {
+      event *pEvent = pool_get(&_Events, _item);
+
+      if (strstr(pEvent->name, searchTerm) != nullptr)
+      {
+        event_info info;
+        info.id = _item;
+        strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
+        info.duration = pEvent->duration;
+
+        local_list_add(pOutSearchResults, &info);
+      }
+    }
+  }
+
+epilogue:
+  return result;
+}
+
+lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxEventsPerUser> *pOutEventIds)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_item : _Events)
+    {
+      for (const auto &_id : _item.pItem->userIds)
+      {
+        if (_id == userId)
+          local_list_add(pOutEventIds, _item.index);
+      }
+    }
+  }
 
   return result;
 }

@@ -64,7 +64,7 @@ struct user
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
 lsResult create_new_user(const char *username, const local_list<uint64_t, DaysPerWeek> *pAvailableTimePerDay);
 lsResult add_new_task(event evnt);
-lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId);
+lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUserId);
 
 struct event_info
 {
@@ -74,6 +74,11 @@ struct event_info
 };
 
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents);
+
+constexpr size_t maxEventsPerUser = 128;
+lsResult event_search_for_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults); 
+
+lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxEventsPerUser> *pOutEventIds);
 
 lsResult set_events_for_user(const int32_t sessionId);
 lsResult replace_task(const size_t id, const event evnt);

@@ -77,6 +77,13 @@
         parent.appendChild(elem);
         return elem;
       }
+      
+      function removeChildNodesByClass(parent, className) {
+        var elements = parent.getElementsByClassName(className);
+
+        for (let i = 0; i < elements.length; i++)
+          elements[i].parentElement.removeChild(elements[i]);
+      }
 
 ///////////////////////////////////////////////////////////////////////////////////////
       
@@ -250,9 +257,12 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
       function show_task_search() {
-        document.getElementsByClassName("task_search")[0].display = "block";
+        document.getElementsByClassName("task_search")[0].style.display = "block";
         
         document.getElementById("submit_search_button").addEventListener('click', () => {
+          // TODO: clear list when searching again!
+          removeChildNodesByClass(document.getElementById('task_search_results'), 'li'); // this ain't working
+
           let input = document.getElementById("task_search_input").value;
           let searchObj = { "sessionId": get_session_token(), "input": input };
           load_backend_url("task-search", onTaskSearchSuccess, searchObj, task_search_failure);
@@ -260,7 +270,9 @@
 
         function onTaskSearchSuccess(obj) {
           for (const item of obj) {
-            append_element(document.getElementById('task_search_results'), 'li', name + ' (' +  duration + ' minutes)');
+            let name = item.name;
+            let duration = item.duration;
+            append_element(document.getElementById('task_search_results'), 'li', '', name + ' (' +  duration + ' minutes)');
           }
         }
       }
@@ -361,7 +373,7 @@
       </div>
     </div>
     <div class="task_search">
-      <box>
+      <div class="box">
         <failure_message id="task_search_failure">
           <p>Task Search Failure!</p>
         </failure_message>
@@ -369,7 +381,7 @@
         <input type="text" id="task_search_input"></input></br>
         <button id="submit_search_button">search</button><br>
         <ul id="task_search_results"></ul>
-      </box>
+      </div>
     </div>
     <div class="schedule">
       <div class="box">
