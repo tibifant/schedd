@@ -260,8 +260,8 @@
         document.getElementsByClassName("task_search")[0].style.display = "block";
         
         document.getElementById("submit_search_button").addEventListener('click', () => {
-          // TODO: clear list when searching again!
-          removeChildNodesByClass(document.getElementById('task_search_results'), 'li'); // this ain't working
+          // Clear list when searching again!
+          document.getElementById('task_search_results').innerHTML = '';
 
           let input = document.getElementById("task_search_input").value;
           let searchObj = { "sessionId": get_session_token(), "input": input };
