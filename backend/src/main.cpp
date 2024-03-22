@@ -61,8 +61,12 @@ int32_t main(void)
   cors.global().origin("*");
 #endif
 
-  const uint64_t poepesAvailableHours[7] = {60, 60, 60, 60, 60, 120, 120};
-  create_new_user("poepe", poepesAvailableHours);
+  local_list<uint64_t, DaysPerWeek> poepesAvailableHours;
+  constexpr uint64_t pupusTime = 60 * 3;
+  for (size_t i = 0; i < DaysPerWeek; i++)
+    local_list_add(&poepesAvailableHours, &pupusTime);
+
+  create_new_user("poepe", &poepesAvailableHours);
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
@@ -102,17 +106,21 @@ crow::response handle_user_registration(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   const std::string &username = body["username"].s();
-  uint64_t availableTime[7];
+  local_list<uint64_t, DaysPerWeek> availableTime;
 
-  size_t idx = 0; // pls coc tell me how to do this properly
   for (const auto time : body["availableTime"])
-    availableTime[idx++] = time.i();
+  {
+    if (time.i() < 0 || time.i() > 24 * 60)
+      return crow::response(crow::status::BAD_REQUEST);
 
-  if (LS_FAILED(create_new_user(username.c_str(), availableTime)))
+    lsAssert(time.i() >= 0);
+    local_list_add(&availableTime, (uint64_t)time.i());
+  }
+
+  if (LS_FAILED(create_new_user(username.c_str(), &availableTime)))
     return crow::response(crow::status::FORBIDDEN);
 
   int32_t sessionId;
-
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
 
@@ -144,7 +152,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   // TODO: Possibilty to add other users
 
   event evnt;
-  uint64_t userId;
+  size_t userId;
 
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::BAD_REQUEST);
@@ -173,8 +181,6 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
   uint8_t executionDayFlags = wF_None;
 
-  constexpr size_t DaysPerWeek = 7;
-
   for (size_t i = 0; i < DaysPerWeek; i++)
     executionDayFlags |= ((uint8_t)executionDays[i] << i);
 
@@ -197,7 +203,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
     if (!body.has("id"))
       return crow::response(crow::status::BAD_REQUEST);
 
-    uint64_t id = body["id"].i();
+    size_t id = body["id"].i();
 
     if (LS_FAILED(replace_task(id, evnt)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
@@ -220,9 +226,8 @@ crow::response handle_user_schedule(const crow::request &req)
 
   set_events_for_user(sessionId);
 
-  local_list<event, maxEventsPerUserPerDay> currentTasks;
-  local_list<uint64_t, maxEventsPerUserPerDay> ids;
-  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks, &ids)))
+  local_list<event_info, maxEventsPerUserPerDay> currentTasks;
+  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
     return crow::response(crow::status::BAD_REQUEST);
 
   crow::json::wvalue ret;
@@ -230,7 +235,7 @@ crow::response handle_user_schedule(const crow::request &req)
   {
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].duration;
-    ret[i]["id"] = ids[i];
+    ret[i]["id"] = currentTasks[i].id;
   }
 
   return crow::response(crow::status::OK, ret);

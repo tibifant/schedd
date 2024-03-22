@@ -23,7 +23,7 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
   {
     std::scoped_lock lock(_ThreadLock);
 
-    uint64_t userId = 0; // If no value is assigned there's a warning, but we won't ever use this uninitilaized as we would not pass the `error_if`.
+    size_t userId = 0; // If no value is assigned there's a warning, but we won't ever use this uninitilaized as we would not pass the `error_if`.
     user usr;
     bool userNotFound = true;
 
@@ -82,19 +82,15 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
   return result;
 }
 
-lsResult create_new_user(const char *username, const uint64_t availableTimePerDay[7])
+lsResult create_new_user(const char *username, const local_list<uint64_t, DaysPerWeek> *pAvailableTimePerDay)
 {
   lsResult result = lsR_Success;
 
-  user newUser;
+  user usr;
 
-  constexpr size_t daysOfWeek = 7; // for real? we're crying if i define this after these error ifs?
-
-  LS_ERROR_IF(strlen(username) + 1 > LS_ARRAYSIZE(newUser.username), lsR_ArgumentOutOfBounds);
+  LS_ERROR_IF(strlen(username) + 1 > LS_ARRAYSIZE(usr.username), lsR_ArgumentOutOfBounds);
   LS_ERROR_IF(strlen(username) == 0, lsR_InvalidParameter);
-
-  for (size_t i = 0; i < daysOfWeek; i++)
-    LS_ERROR_IF(availableTimePerDay[i] > 24 * 60, lsR_ArgumentOutOfBounds);
+  // aivailableTimePerDay gets checked at the function call. 
 
   // Scope Lock
   {
@@ -107,14 +103,14 @@ lsResult create_new_user(const char *username, const uint64_t availableTimePerDa
     }
 
     // Set username and available time of new user.
-    strncpy(newUser.username, username, LS_ARRAYSIZE(newUser.username));
+    strncpy(usr.username, username, LS_ARRAYSIZE(usr.username));
     
-    for (size_t i = 0; i < LS_ARRAYSIZE(newUser.availableTimeInMinutesPerDay); i++) // TODO: coooc? how does one do this nicely?
-      newUser.availableTimeInMinutesPerDay[i] = availableTimePerDay[i];
+    lsAssert(LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay) == pAvailableTimePerDay->count);
+    lsMemcpy(&usr.availableTimeInMinutesPerDay, &pAvailableTimePerDay->values, LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay));
 
     // Add user to pool
     size_t _unused;
-    LS_DEBUG_ERROR_ASSERT(pool_add(&_Users, newUser, &_unused));
+    LS_DEBUG_ERROR_ASSERT(pool_add(&_Users, usr, &_unused));
   }
 
   _UserChangingStatus++;
@@ -123,7 +119,7 @@ epilogue:
   return result;
 }
 
-lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ uint64_t *pUserId)
+lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUserId)
 {
   lsResult result = lsR_Success;
 
@@ -167,11 +163,11 @@ epilogue:
   return result;
 }
 
-lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event, maxEventsPerUserPerDay> *pOutCurrentEvents, _Out_ local_list<uint64_t, maxEventsPerUserPerDay> *pOutIds)
+lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents)
 {
   lsResult result = lsR_Success;
 
-  uint64_t userId;
+  size_t userId;
   LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
   
     // Scope Lock
@@ -182,11 +178,15 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
     
     for (const auto &_item : pUser->tasksForCurrentDay)
     {
-      local_list_add(pOutCurrentEvents, *pool_get(&_Events, _item));
-      // TODO: return ids of the tasks
-    }
+      event *pEvent = pool_get(&_Events, _item);
 
-    *pOutIds = pUser->tasksForCurrentDay;
+      event_info info;
+      info.id = _item;
+      strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
+      info.duration = pEvent->duration;
+     
+      local_list_add(pOutCurrentEvents, &info);
+    }
   }
 
 epilogue:
@@ -197,7 +197,7 @@ lsResult set_events_for_user(const int32_t sessionId)
 {
   lsResult result = lsR_Success;
 
-  uint64_t userId;
+  size_t userId;
   LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
 
   // Scope Lock
@@ -211,9 +211,9 @@ lsResult set_events_for_user(const int32_t sessionId)
     strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepePutzt.name));
     poepeKocht.duration = 100;
 
-    uint64_t putzEventId;
+    size_t putzEventId;
     pool_add(&_Events, poepePutzt, &putzEventId);
-    uint64_t kochEventId;
+    size_t kochEventId;
     pool_add(&_Events, poepeKocht, &kochEventId);
 
     user *pUser = pool_get(&_Users, userId);
@@ -225,7 +225,7 @@ epilogue:
   return result;
 }
 
-lsResult replace_task(uint64_t id, event evnt)
+lsResult replace_task(const size_t id, const event evnt)
 {
   lsResult result = lsR_Success;
 
@@ -241,7 +241,7 @@ lsResult replace_task(uint64_t id, event evnt)
   return result;
 }
 
-//bool check_event_duration_compatibilty(uint64_t userId, uint64_t duration, weekday_flags executionDays)
+//bool check_event_duration_compatibilty(size_t userId, uint64_t duration, weekday_flags executionDays)
 //{
 //  bool isCompatible = false;
 //
