@@ -56,14 +56,14 @@ struct user
 {
   char username[256];
   local_list<session_token, maxSessionsPerUser> sessionTokens;
-  uint64_t availableTimeInMinutesPerDay[7];
+  local_list<time_span_t, DaysPerWeek> availableTimeInMinutesPerDay;
   local_list<uint64_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event
   local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
 };
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
-lsResult create_new_user(const char *username, const local_list<uint64_t, DaysPerWeek> *pAvailableTimePerDay);
-lsResult add_new_task(event evnt);
+lsResult add_new_user(const user usr);
+lsResult add_new_event(event evnt);
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUserId);
 
 struct event_info
@@ -83,7 +83,9 @@ lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t
 lsResult set_events_for_user(const int32_t sessionId);
 lsResult replace_task(const size_t id, const event evnt);
 
+bool check_for_user_name_duplication(const char *username);
 //bool check_event_duration_compatibilty(size_t userId, uint64_t duration, weekday_flags executionDays);
 
 time_point_t get_current_time();
 time_span_t time_span_from_days(const size_t days);
+time_span_t time_span_from_minutes(const size_t minutes);

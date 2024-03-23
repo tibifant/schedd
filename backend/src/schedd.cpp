@@ -82,40 +82,20 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
   return result;
 }
 
-lsResult create_new_user(const char *username, const local_list<uint64_t, DaysPerWeek> *pAvailableTimePerDay)
+lsResult add_new_user(const user usr)
 {
   lsResult result = lsR_Success;
-
-  user usr;
-
-  LS_ERROR_IF(strlen(username) + 1 > LS_ARRAYSIZE(usr.username), lsR_ArgumentOutOfBounds);
-  LS_ERROR_IF(strlen(username) == 0, lsR_InvalidParameter);
-  // aivailableTimePerDay gets checked at the function call. 
 
   // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
 
-    // Check for duplication of usernames
-    for (const auto &&_item : _Users)
-      LS_ERROR_IF((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0), lsR_InvalidParameter);
-
-    // Set username and available time of new user.
-    strncpy(usr.username, username, LS_ARRAYSIZE(usr.username));
-
-    lsAssert(LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay) == pAvailableTimePerDay->count);
-    //lsMemcpy(&usr.availableTimeInMinutesPerDay, &pAvailableTimePerDay->values, LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay));
-    for (size_t i = 0; i < LS_ARRAYSIZE(usr.availableTimeInMinutesPerDay); i++)
-      usr.availableTimeInMinutesPerDay[i] = *local_list_get(pAvailableTimePerDay, i);
-
-    // Add user to pool
     size_t _unused;
     LS_DEBUG_ERROR_ASSERT(pool_add(&_Users, usr, &_unused));
   }
 
   _UserChangingStatus++;
 
-epilogue:
   return result;
 }
 
@@ -146,7 +126,7 @@ epilogue:
   return result;
 }
 
-lsResult add_new_task(event evnt)
+lsResult add_new_event(event evnt)
 {
   lsResult result = lsR_Success;
 
@@ -154,12 +134,11 @@ lsResult add_new_task(event evnt)
     std::scoped_lock lock(_ThreadLock);
 
     size_t _unused;
-    LS_ERROR_CHECK(pool_add(&_Events, &evnt, &_unused));
+    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, &evnt, &_unused));
   }
 
   _EventChangingStatus++;
 
-epilogue:
   return result;
 }
 
@@ -296,6 +275,19 @@ lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t
   return result;
 }
 
+bool check_for_user_name_duplication(const char *username)
+{
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_item : _Users)
+      if ((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0))
+        return false;
+  }
+  return true;
+}
+
 //bool check_event_duration_compatibilty(size_t userId, uint64_t duration, weekday_flags executionDays)
 //{
 //  bool isCompatible = false;
@@ -332,4 +324,11 @@ time_span_t time_span_from_days(const size_t days)
   constexpr int64_t day_to_unix_timestamp = 60 * 60 * 24;
 
   return (time_span_t)(day_to_unix_timestamp * days);
+}
+
+time_span_t time_span_from_minutes(const size_t minutes)
+{
+  constexpr int64_t minute_to_unix_timestamp = 60;
+
+  return (time_span_t)(minute_to_unix_timestamp * minutes);
 }

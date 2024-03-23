@@ -62,12 +62,13 @@ int32_t main(void)
   cors.global().origin("*");
 #endif
 
-  local_list<uint64_t, DaysPerWeek> poepesAvailableHours;
-  constexpr uint64_t pupusTime = 60 * 3;
+  user poepe;
+  strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
+  const time_span_t pupusTime = time_span_from_minutes(120);
   for (size_t i = 0; i < DaysPerWeek; i++)
-    local_list_add(&poepesAvailableHours, &pupusTime);
+    local_list_add(&poepe.availableTimeInMinutesPerDay, &pupusTime);
 
-  create_new_user("poepe", &poepesAvailableHours);
+  add_new_user(poepe);
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
@@ -107,20 +108,30 @@ crow::response handle_user_registration(const crow::request &req)
   if (!body || !body.has("username") || !body.has("availableTime"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const std::string &username = body["username"].s();
-  local_list<uint64_t, DaysPerWeek> availableTime;
+  user usr;
 
-  for (const auto time : body["availableTime"])
+  // username
+  const std::string &username = body["username"].s();
+  if (username.length() + 1 > LS_ARRAYSIZE(usr.username) || username.length() == 0)
+    return crow::response(crow::status::BAD_REQUEST);
+
+  if (!(check_for_user_name_duplication(username.c_str())))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
+
+  // available time per day
+  for (const auto &_item : body["availableTime"])
   {
-    if (time.i() < 0 || time.i() > 24 * 60)
+    if (_item.i() < 0 || _item.i() > 24 * 60)
       return crow::response(crow::status::BAD_REQUEST);
 
-    lsAssert(time.i() >= 0);
-    local_list_add(&availableTime, (uint64_t)time.i());
+    lsAssert(_item.i() >= 0);
+    local_list_add(&usr.availableTimeInMinutesPerDay, time_span_from_minutes(_item.i()));
   }
 
-  if (LS_FAILED(create_new_user(username.c_str(), &availableTime)))
-    return crow::response(crow::status::FORBIDDEN);
+  if (LS_FAILED(add_new_user(usr)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   int32_t sessionId;
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
@@ -197,7 +208,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
   if (isCreation)
   {
-    if (LS_FAILED(add_new_task(evnt)))
+    if (LS_FAILED(add_new_event(evnt)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
   else
