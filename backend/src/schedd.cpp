@@ -223,6 +223,40 @@ lsResult replace_task(const size_t id, const event evnt)
   return result;
 }
 
+lsResult set_event_last_modified_time(const size_t eventId)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    event *pEvent = pool_get(&_Events, eventId);
+    pEvent->lastCompletedTime = get_current_time();
+  }
+
+  _EventChangingStatus++;
+
+  return result;
+}
+
+lsResult add_completed_task(const size_t eventId, const size_t userId)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    user *pUser = pool_get(&_Users, userId);
+    local_list_add(&pUser->completedTasksForCurrentDay, &eventId);
+  }
+
+  _UserChangingStatus++;
+
+  return result;
+}
+
 lsResult event_search_for_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults)
 {
   lsResult result = lsR_Success;

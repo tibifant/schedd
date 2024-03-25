@@ -57,8 +57,8 @@ struct user
   char username[256];
   local_list<session_token, maxSessionsPerUser> sessionTokens;
   local_list<time_span_t, DaysPerWeek> availableTimeInMinutesPerDay;
-  local_list<uint64_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event
-  local_list<uint8_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
+  local_list<size_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event
+  local_list<size_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
 };
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
@@ -82,6 +82,8 @@ lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t
 
 lsResult set_events_for_user(const int32_t sessionId);
 lsResult replace_task(const size_t id, const event evnt);
+lsResult set_event_last_modified_time(const size_t eventId);
+lsResult add_completed_task(const size_t eventId, const size_t userId);
 
 bool check_for_user_name_duplication(const char *username);
 //bool check_event_duration_compatibilty(size_t userId, uint64_t duration, weekday_flags executionDays);

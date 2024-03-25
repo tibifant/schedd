@@ -48,6 +48,7 @@ crow::response handle_user_registration(const crow::request &req);
 crow::response handle_task_creation_modification(const crow::request &req, const bool isCreation);
 crow::response handle_user_schedule(const crow::request &req);
 crow::response handle_event_search(const crow::request &req);
+crow::response handle_event_completed(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -76,6 +77,7 @@ int32_t main(void)
   CROW_ROUTE(app, "/task-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, false); });
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
   CROW_ROUTE(app, "/task-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_search(req); });
+  CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req); });
 
   app.port(61919).multithreaded().run();
 }
@@ -110,7 +112,7 @@ crow::response handle_user_registration(const crow::request &req)
 
   user usr;
 
-  // username
+  // Username
   const std::string &username = body["username"].s();
   if (username.length() + 1 > LS_ARRAYSIZE(usr.username) || username.length() == 0)
     return crow::response(crow::status::BAD_REQUEST);
@@ -120,7 +122,7 @@ crow::response handle_user_registration(const crow::request &req)
 
   strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
 
-  // available time per day
+  // Available Time per Day
   for (const auto &_item : body["availableTime"])
   {
     if (_item.i() < 0 || _item.i() > 24 * 60)
@@ -218,6 +220,8 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
     size_t id = body["id"].i();
 
+    evnt.lastModifiedTime = get_current_time();
+
     if (LS_FAILED(replace_task(id, evnt)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
@@ -265,7 +269,8 @@ crow::response handle_event_search(const crow::request &req)
   const std::string &input = body["input"].s();
 
   size_t userId;
-  get_user_id_from_session_id(sessionId, &userId);
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
+    return crow::response(crow::status::BAD_REQUEST);
 
   local_list<event_info, maxEventsPerUser> searchResults;
   if (LS_FAILED(event_search_for_user(userId, input.c_str(), &searchResults)))
@@ -278,6 +283,36 @@ crow::response handle_event_search(const crow::request &req)
     ret[i]["duration"] = searchResults[i].duration;
     ret[i]["id"] = searchResults[i].id;
   }
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_event_completed(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId") || !body.has("taskId"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  const size_t eventId = body["taskId"].i();
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
+
+  event evnt;
+
+  if (LS_FAILED(set_event_last_modified_time(eventId)))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  size_t userId;
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  // TODO: Do we want to remove the task from tasks for today list?
+  // TODO: Return completed Tasks
+  if (LS_FAILED(add_completed_task(eventId, userId)))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  crow::json::wvalue ret;
+  ret["success"] = true;
 
   return crow::response(crow::status::OK, ret);
 }
