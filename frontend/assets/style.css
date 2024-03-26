@@ -97,6 +97,10 @@ div.task_search {
   display: none;
 }
 
+div.task {
+  display: none;
+}
+
 failure_message {
   display: none;
   color: #ffad10;

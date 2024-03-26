@@ -157,14 +157,6 @@
         document.getElementById("show_add_task_button").addEventListener('click', () => {
           show_task_creation();
         });
-
-        document.getElementById("show_edit_task_button").addEventListener('click', () => {
-          show_task_modification();
-        });
-
-        document.getElementById("mark_as_done_button").addEventListener('click', () => {
-          show_task_done();
-        });
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -205,7 +197,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function show_task_modification() {
+      function show_task_modification(id) {
         document.getElementsByClassName("task_creation")[0].style.display = "block";
 
         // TODO: set values to the current values of the tasks
@@ -227,7 +219,7 @@
           let taskWeight = document.getElementById("task_weight").value;
           let taskWeightFactor = document.getElementById("task_weight_factor").value;
 
-          let taskObject = { "id": 0, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
+          let taskObject = { "id": id, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task_creation")[0].style.display = "none";
@@ -240,8 +232,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function show_task_done() {
-        load_backend_url('task-done', onTaskDoneSuccess, { "sessionId": get_session_token(), "taskId": 0 }, task_done_failure)
+      function show_task_done(id) {
+        load_backend_url('task-done', onTaskDoneSuccess, { "sessionId": get_session_token(), "taskId": id }, task_done_failure)
 
         function onTaskDoneSuccess(obj) {
           document.getElementById("success").style.display = "block";
@@ -269,7 +261,16 @@
           for (const item of obj) {
             let name = item.name;
             let duration = item.duration;
-            append_element(document.getElementById('current_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
+            let elem = append_element(document.getElementById('current_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
+
+            (() => {
+              let e = elem;
+              let i = item;
+
+              e.onclick = () => {
+                show_task(i.id);
+              };
+            })();
           }
         }
       }
@@ -296,13 +297,36 @@
           for (const item of obj) {
             let name = item.name;
             let duration = item.duration;
-            append_element(document.getElementById('task_search_results'), 'li', '', name + ' (' +  duration + ' minutes)');
+            let elem = append_element(document.getElementById('task_search_results'), 'li', '', name + ' (' +  duration + ' minutes)');
+            
+            (() => {
+              let e = elem;
+              let i = item;
+
+              e.onclick = () => {
+                show_task(i.id);
+              };
+            })();
           }
         }
       }
 
       function task_search_failure() {
         document.getElementById("task_search_failure").style.display = "block";
+      }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function show_task(id) {
+        document.getElementsByClassName('task')[0].style.display = "block";
+
+        document.getElementById("show_edit_task_button").addEventListener('click', () => {
+          show_task_modification(id);
+        });
+
+        document.getElementById("mark_as_done_button").addEventListener('click', () => {
+          show_task_done(id);
+        });
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -393,14 +417,22 @@
       <div class="box">
         <h1>Welcome to Schedd!</h1>
         <button id="show_add_task_button">Add new Task</button>
-        <button id="mark_as_done_button">Done</button>
-        <button id="show_edit_task_button">Edit Task</button><br>
         <failure_message id="task_done_failure">
           <p>Mark Task as done Failure!</p>
         </failure_message>
         <failure_message id="success">
           <p>SUCCESS!</p>
         </failure_message>
+      </div>
+    </div>
+    <div class="task">
+      <div class="box">
+        <failure_message id="show_task_failure">
+          <p>Failure!</p>
+        </failure_message>
+        <!-- task details -->
+        <button id="mark_as_done_button">Done</button>
+        <button id="show_edit_task_button">Edit Task</button><br>
       </div>
     </div>
     <div class="task_search">
