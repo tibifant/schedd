@@ -49,6 +49,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 crow::response handle_user_schedule(const crow::request &req);
 crow::response handle_event_search(const crow::request &req);
 crow::response handle_event_completed(const crow::request &req);
+crow::response handle_task_details(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -78,6 +79,7 @@ int32_t main(void)
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
   CROW_ROUTE(app, "/task-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_search(req); });
   CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req); });
+  CROW_ROUTE(app, "/task").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_details(req); });
 
   app.port(61919).multithreaded().run();
 }
@@ -258,7 +260,7 @@ crow::response handle_user_schedule(const crow::request &req)
   return crow::response(crow::status::OK, ret);
 }
 
-crow::response handle_event_search(const crow::request &req)
+crow::response handle_event_search(const crow::request &req) // coc? what bad stuff is lino doing?
 {
   auto body = crow::json::load(req.body);
 
@@ -273,7 +275,7 @@ crow::response handle_event_search(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   local_list<event_info, maxEventsPerUser> searchResults;
-  if (LS_FAILED(event_search_for_user(userId, input.c_str(), &searchResults)))
+  if (LS_FAILED(search_events_by_user(userId, input.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret;
@@ -297,8 +299,6 @@ crow::response handle_event_completed(const crow::request &req)
   const size_t eventId = body["taskId"].i();
   const int32_t sessionId = (int32_t)body["sessionId"].i();
 
-  event evnt;
-
   if (LS_FAILED(set_event_last_modified_time(eventId)))
     return crow::response(crow::status::BAD_REQUEST);
 
@@ -313,6 +313,39 @@ crow::response handle_event_completed(const crow::request &req)
 
   crow::json::wvalue ret;
   ret["success"] = true;
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_task_details(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("taskId"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  const size_t taskId = body["taskId"].i();
+
+  event *pEvent;
+  lsAlloc(&pEvent, sizeof(event));
+  if (LS_FAILED(get_event(taskId, pEvent)))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  crow::json::wvalue ret;
+
+  char *name;
+  lsAlloc(&name, LS_ARRAYSIZE(pEvent->name));
+  strncpy(name, pEvent->name, LS_ARRAYSIZE(pEvent->name));
+  ret["name"] = name;
+
+  ret["duration"] = pEvent->duration / 60;
+
+  for (int8_t i = 0; i < DaysPerWeek; i++)
+    ret["executionDays"][i] = (bool)(pEvent->possibleExecutionDays & (1 << i));
+
+  ret["repetition"] = pEvent->repetitionTimeSpan / (60 * 60 * 24);
+  ret["weight"] = pEvent->weight;
+  ret["weightFactor"] = pEvent->weightGrowthFactor;
 
   return crow::response(crow::status::OK, ret);
 }

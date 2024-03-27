@@ -76,7 +76,7 @@ struct event_info
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents);
 
 constexpr size_t maxEventsPerUser = 128;
-lsResult event_search_for_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults); 
+lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults); 
 
 lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxEventsPerUser> *pOutEventIds);
 
@@ -84,6 +84,7 @@ lsResult set_events_for_user(const int32_t sessionId);
 lsResult replace_task(const size_t id, const event evnt);
 lsResult set_event_last_modified_time(const size_t eventId);
 lsResult add_completed_task(const size_t eventId, const size_t userId);
+lsResult get_event(const size_t taskId, _Out_ event *pEvent);
 
 bool check_for_user_name_duplication(const char *username);
 //bool check_event_duration_compatibilty(size_t userId, uint64_t duration, weekday_flags executionDays);

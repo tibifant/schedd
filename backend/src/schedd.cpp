@@ -257,7 +257,7 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
   return result;
 }
 
-lsResult event_search_for_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults)
+lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults)
 {
   lsResult result = lsR_Success;
 
@@ -304,6 +304,20 @@ lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t
           local_list_add(pOutEventIds, _item.index);
       }
     }
+  }
+
+  return result;
+}
+
+lsResult get_event(const size_t taskId, _Out_ event *pEvent)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    pEvent = pool_get(&_Events, taskId);
   }
 
   return result;

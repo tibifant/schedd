@@ -197,41 +197,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function show_task_modification(id) {
-        document.getElementsByClassName("task_creation")[0].style.display = "block";
-
-        // TODO: set values to the current values of the tasks
-        // TODO: handle id
-
-        document.getElementById("create_task_button").addEventListener('click', () => {
-          let sessionToken = get_session_token();
-          let taskName = document.getElementById("task_name").value;
-          let taskDuration = document.getElementById("task_duration").value;
-          let taskExecutionDays = [];
-          taskExecutionDays[0] = document.getElementById("task_execution_days_monday").checked;
-          taskExecutionDays[1] = document.getElementById("task_execution_days_tuesdays").checked;
-          taskExecutionDays[2] = document.getElementById("task_execution_days_wendesday").checked;
-          taskExecutionDays[3] = document.getElementById("task_execution_days_thursday").checked;
-          taskExecutionDays[4] = document.getElementById("task_execution_days_friday").checked;
-          taskExecutionDays[5] = document.getElementById("task_execution_days_saturday").checked;
-          taskExecutionDays[6] = document.getElementById("task_execution_days_sunday").checked;
-          let taskRepition = document.getElementById("task_repetition").value;
-          let taskWeight = document.getElementById("task_weight").value;
-          let taskWeightFactor = document.getElementById("task_weight_factor").value;
-
-          let taskObject = { "id": id, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
-
-          function onTaskCreationSuccess(obj) {
-            document.getElementsByClassName("task_creation")[0].style.display = "none";
-            //show_user_schedule();
-          }
-
-          load_backend_url("task-edit", onTaskCreationSuccess, taskObject, task_creation_failure)
-        })
-      }
-
-///////////////////////////////////////////////////////////////////////////////////////
-
       function show_task_done(id) {
         load_backend_url('task-done', onTaskDoneSuccess, { "sessionId": get_session_token(), "taskId": id }, task_done_failure)
 
@@ -319,14 +284,73 @@
 
       function show_task(id) {
         document.getElementsByClassName('task')[0].style.display = "block";
+        
+        load_backend_url('task', onTaskDetailsSuccess, { 'taskId': id }, task_details_failure);
 
-        document.getElementById("show_edit_task_button").addEventListener('click', () => {
-          show_task_modification(id);
-        });
+        function onTaskDetailsSuccess(obj) {
+          // Set values of chosen task
+          document.getElementById("task_name").value = obj.name;
+          document.getElementById("task_duration").value = obj.duration;
+          document.getElementById("task_execution_days_monday").checked = obj.executionDays[0];
+          document.getElementById("task_execution_days_tuesdays").checked = obj.executionDays[1];
+          document.getElementById("task_execution_days_wendesday").checked = obj.executionDays[2];
+          document.getElementById("task_execution_days_thursday").checked = obj.executionDays[3];
+          document.getElementById("task_execution_days_friday").checked = obj.executionDays[4];
+          document.getElementById("task_execution_days_saturday").checked = obj.executionDays[5];
+          document.getElementById("task_execution_days_sunday").checked = obj.executionDays[6];
+          document.getElementById("task_repetition").value = obj.repetition;
+          document.getElementById("task_weight").value = obj.weigth;
+          document.getElementById("task_weight_factor").value = obj.weightFactor;
+
+          document.getElementById("edit_task_button").addEventListener('click', () => {
+            submit_task_modification(id);
+          });
+        }
 
         document.getElementById("mark_as_done_button").addEventListener('click', () => {
           show_task_done(id);
         });
+      }
+
+      function task_details_failure() {
+        document.getElementById("task_details_failure").style.display = "block";
+      }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function submit_task_modification(id) {
+        document.getElementsByClassName("task_creation")[0].style.display = "block";
+
+        // TODO: set values to the current values of the tasks
+        // TODO: handle id
+
+        let sessionToken = get_session_token();
+        let taskName = document.getElementById("task_name").value;
+        let taskDuration = document.getElementById("task_duration").value;
+        let taskExecutionDays = [];
+        taskExecutionDays[0] = document.getElementById("task_execution_days_monday").checked;
+        taskExecutionDays[1] = document.getElementById("task_execution_days_tuesdays").checked;
+        taskExecutionDays[2] = document.getElementById("task_execution_days_wendesday").checked;
+        taskExecutionDays[3] = document.getElementById("task_execution_days_thursday").checked;
+        taskExecutionDays[4] = document.getElementById("task_execution_days_friday").checked;
+        taskExecutionDays[5] = document.getElementById("task_execution_days_saturday").checked;
+        taskExecutionDays[6] = document.getElementById("task_execution_days_sunday").checked;
+        let taskRepition = document.getElementById("task_repetition").value;
+        let taskWeight = document.getElementById("task_weight").value;
+        let taskWeightFactor = document.getElementById("task_weight_factor").value;
+
+        let taskObject = { "id": id, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
+
+        function onTaskEditSuccess(obj) {
+          document.getElementsByClassName("task_details")[0].style.display = "none";
+          //show_user_schedule();
+        }
+
+        load_backend_url("task-edit", onTaskEditSuccess, taskObject, task_edit_failure)
+      }
+
+      function task_edit_failure() {
+        document.getElementById('task_edit_failure').style.display = 'block';
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -430,9 +454,33 @@
         <failure_message id="show_task_failure">
           <p>Failure!</p>
         </failure_message>
+        <failure_message id="task_details_failure">
+          <p>Failure Loading Task Details!</p>
+        </failure_message>
+        <failure_message id="task_edit_failure">
+          <p>Failure Submitting Changes!</p>
+        </failure_message>
         <!-- task details -->
-        <button id="mark_as_done_button">Done</button>
-        <button id="show_edit_task_button">Edit Task</button><br>
+        <button id="mark_as_done_button">Mark as Done</button></br></br>
+        <label for="task_name">What's the name of the task?</label>
+        <input type="text" id="task_name"></input></br>
+        <label for="task_duration">How long does the task take? (in minutes)</label>
+        <input type="number" min="1" max="1440" id="task_duration"></input></br> <!-- This should be handled differently -->
+        <label>On which days can the task be executed?</label></br>
+        <input type="checkbox" id="task_execution_days_monday">On Mondays</input></br>
+        <input type="checkbox" id="task_execution_days_tuesdays">On Tuesdays</input></br>
+        <input type="checkbox" id="task_execution_days_wendesday">On Wendesdays</input></br>
+        <input type="checkbox" id="task_execution_days_thursday">On Thursdays</input></br>
+        <input type="checkbox" id="task_execution_days_friday">On Fridays</input></br>
+        <input type="checkbox" id="task_execution_days_saturday">On Saturdays</input></br>
+        <input type="checkbox" id="task_execution_days_sunday">On Sundays</input></br>
+        <label for="task_repetition">After which timespan should the task be repeated? (in days)</label> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
+        <input type="number" min="0" id="task_repetition"></input><br>
+        <label for="task_weight">How important is the task? (Number between 0 and 100)</label>
+        <input type="number" min="0" max="100" id="task_weight"></input><br>
+        <label for="task_weight_factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
+        <input type="number" min="0" max="100" id="task_weight_factor"></input><br>
+        <button id="edit_task_button">Submit changes</button><br>
       </div>
     </div>
     <div class="task_search">
