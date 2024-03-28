@@ -336,7 +336,7 @@
         let taskObject = { "id": id, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
         function onTaskEditSuccess(obj) {
-          document.getElementsByClassName("task_details")[0].style.display = "none";
+          document.getElementsByClassName("task")[0].style.display = "none";
           //show_user_schedule();
         }
 

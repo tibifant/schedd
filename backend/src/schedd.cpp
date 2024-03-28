@@ -218,7 +218,7 @@ lsResult replace_task(const size_t id, const event evnt)
     std::scoped_lock lock(_ThreadLock);
     
     LS_DEBUG_ERROR_ASSERT(pool_insertAt(&_Events, evnt, id, true));
-    //*pool_get(&_Events, id) = evnt;
+    //*pool_get(&_Events, id) = evnt; // what's wrong with this?
   }
 
   _EventChangingStatus++;
