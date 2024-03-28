@@ -68,7 +68,7 @@ int32_t main(void)
   strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
   const time_span_t pupusTime = time_span_from_minutes(120);
   for (size_t i = 0; i < DaysPerWeek; i++)
-    local_list_add(&poepe.availableTimeInMinutesPerDay, &pupusTime);
+    local_list_add(&poepe.availableTimeInMinutesPerDay, pupusTime);
 
   add_new_user(poepe);
 
@@ -141,6 +141,9 @@ crow::response handle_user_registration(const crow::request &req)
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
 
+  if (LS_FAILED(set_events_for_user(sessionId)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
   crow::json::wvalue ret;
   ret["session_id"] = sessionId;
 
@@ -206,7 +209,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   if (duration > 24 * 60 || duration < 1)
     return crow::response(crow::status::BAD_REQUEST);
 
-  evnt.duration = duration;
+  evnt.durationTimeSpan = time_span_from_minutes(duration);
 
   evnt.creationTime = get_current_time();
 
@@ -243,8 +246,6 @@ crow::response handle_user_schedule(const crow::request &req)
 
   int32_t sessionId = (int32_t)body["sessionId"].i();
 
-  set_events_for_user(sessionId);
-
   local_list<event_info, maxEventsPerUserPerDay> currentTasks;
   if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
     return crow::response(crow::status::BAD_REQUEST);
@@ -253,7 +254,7 @@ crow::response handle_user_schedule(const crow::request &req)
   for (int8_t i = 0; i < currentTasks.count; i++)
   {
     ret[i]["name"] = currentTasks[i].name;
-    ret[i]["duration"] = currentTasks[i].duration;
+    ret[i]["duration"] = currentTasks[i].durationInMinutes;
     ret[i]["id"] = currentTasks[i].id;
   }
 
@@ -274,7 +275,7 @@ crow::response handle_event_search(const crow::request &req) // coc? what bad st
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::BAD_REQUEST);
 
-  local_list<event_info, maxEventsPerUser> searchResults;
+  local_list<event_info, maxSearchResults> searchResults; // TODO: get event_infos in a for loop for less memory usage?
   if (LS_FAILED(search_events_by_user(userId, input.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
@@ -282,7 +283,7 @@ crow::response handle_event_search(const crow::request &req) // coc? what bad st
   for (int8_t i = 0; i < searchResults.count; i++)
   {
     ret[i]["name"] = searchResults[i].name;
-    ret[i]["duration"] = searchResults[i].duration;
+    ret[i]["duration"] = searchResults[i].durationInMinutes;
     ret[i]["id"] = searchResults[i].id;
   }
 
@@ -326,26 +327,22 @@ crow::response handle_task_details(const crow::request &req)
 
   const size_t taskId = body["taskId"].i();
 
-  event *pEvent;
-  lsAlloc(&pEvent, sizeof(event));
-  if (LS_FAILED(get_event(taskId, pEvent)))
+  event evnt;
+  if (LS_FAILED(get_event(taskId, &evnt)))
     return crow::response(crow::status::BAD_REQUEST);
 
   crow::json::wvalue ret;
 
-  char *name;
-  lsAlloc(&name, LS_ARRAYSIZE(pEvent->name));
-  strncpy(name, pEvent->name, LS_ARRAYSIZE(pEvent->name));
-  ret["name"] = name;
+  ret["name"] = evnt.name;
 
-  ret["duration"] = pEvent->duration / 60;
+  ret["duration"] = evnt.durationTimeSpan / 60;
 
   for (int8_t i = 0; i < DaysPerWeek; i++)
-    ret["executionDays"][i] = (bool)(pEvent->possibleExecutionDays & (1 << i));
+    ret["executionDays"][i] = !!(evnt.possibleExecutionDays & (1 << i));
 
-  ret["repetition"] = pEvent->repetitionTimeSpan / (60 * 60 * 24);
-  ret["weight"] = pEvent->weight;
-  ret["weightFactor"] = pEvent->weightGrowthFactor;
+  ret["repetition"] = evnt.repetitionTimeSpan / (60 * 60 * 24);
+  ret["weight"] = evnt.weight;
+  ret["weightFactor"] = evnt.weightGrowthFactor;
 
   return crow::response(crow::status::OK, ret);
 }

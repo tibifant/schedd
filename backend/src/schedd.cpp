@@ -134,7 +134,7 @@ lsResult add_new_event(event evnt)
     std::scoped_lock lock(_ThreadLock);
 
     size_t _unused;
-    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, &evnt, &_unused));
+    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, evnt, &_unused));
   }
 
   _EventChangingStatus++;
@@ -162,9 +162,9 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
       event_info info;
       info.id = _item;
       strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
-      info.duration = pEvent->duration;
+      info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
      
-      local_list_add(pOutCurrentEvents, &info);
+      local_list_add(pOutCurrentEvents, info);
     }
   }
 
@@ -185,23 +185,25 @@ lsResult set_events_for_user(const int32_t sessionId)
     
     event poepePutzt;
     strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
-    poepePutzt.duration = 20;
-    local_list_add(&poepePutzt.userIds, &userId);
+    poepePutzt.durationTimeSpan = time_span_from_minutes(20);
+    local_list_add(&poepePutzt.userIds, userId);
 
     event poepeKocht;
-    strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepePutzt.name));
-    poepeKocht.duration = 100;
-    local_list_add(&poepeKocht.userIds, &userId);
+    strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepeKocht.name));
+    poepeKocht.durationTimeSpan = time_span_from_minutes(100);
+    local_list_add(&poepeKocht.userIds, userId);
 
     size_t putzEventId;
-    pool_add(&_Events, poepePutzt, &putzEventId);
+    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, poepePutzt, &putzEventId));
     size_t kochEventId;
-    pool_add(&_Events, poepeKocht, &kochEventId);
+    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, poepeKocht, &kochEventId));
 
     user *pUser = pool_get(&_Users, userId);
     local_list_add(&pUser->tasksForCurrentDay, putzEventId);
     local_list_add(&pUser->tasksForCurrentDay, kochEventId);
   }
+
+  _UserChangingStatus++;
 
 epilogue:
   return result;
@@ -249,7 +251,7 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
     std::scoped_lock lock(_ThreadLock);
 
     user *pUser = pool_get(&_Users, userId);
-    local_list_add(&pUser->completedTasksForCurrentDay, &eventId);
+    local_list_add(&pUser->completedTasksForCurrentDay, eventId);
   }
 
   _UserChangingStatus++;
@@ -257,11 +259,11 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
   return result;
 }
 
-lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults)
+lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults)
 {
   lsResult result = lsR_Success;
 
-  local_list<size_t, maxEventsPerUser> eventIds;
+  local_list<size_t, maxSearchResults> eventIds;
   LS_ERROR_CHECK(get_all_event_ids_for_user(userId, &eventIds));
 
   // Scope Lock
@@ -277,9 +279,9 @@ lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out
         event_info info;
         info.id = _item;
         strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
-        info.duration = pEvent->duration;
+        info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
 
-        local_list_add(pOutSearchResults, &info);
+        local_list_add(pOutSearchResults, info);
       }
     }
   }
@@ -288,7 +290,7 @@ epilogue:
   return result;
 }
 
-lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxEventsPerUser> *pOutEventIds)
+lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxSearchResults> *pOutEventIds)
 {
   lsResult result = lsR_Success;
 
@@ -317,7 +319,7 @@ lsResult get_event(const size_t taskId, _Out_ event *pEvent)
   {
     std::scoped_lock lock(_ThreadLock);
 
-    pEvent = pool_get(&_Events, taskId);
+    *pEvent = *pool_get(&_Events, taskId);
   }
 
   return result;
@@ -374,9 +376,23 @@ time_span_t time_span_from_days(const size_t days)
   return (time_span_t)(day_to_unix_timestamp * days);
 }
 
+size_t days_from_time_span(const time_span_t timeSpan)
+{
+  constexpr int64_t day_to_unix_timestamp = 60 * 60 * 24;
+
+  return (size_t)(timeSpan / day_to_unix_timestamp);
+}
+
 time_span_t time_span_from_minutes(const size_t minutes)
 {
   constexpr int64_t minute_to_unix_timestamp = 60;
 
   return (time_span_t)(minute_to_unix_timestamp * minutes);
+}
+
+size_t minutes_from_time_span(const time_span_t timeSpan)
+{
+  constexpr int64_t minute_to_unix_timestamp = 60;
+
+  return (size_t)(timeSpan / minute_to_unix_timestamp);
 }

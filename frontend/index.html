@@ -223,16 +223,16 @@
         function onGetCurrentTasksSuccess(obj) {
           document.getElementsByClassName("schedule")[0].style.display = "block";
 
+          let parent = document.getElementById('current_tasks');
           for (const item of obj) {
             let name = item.name;
             let duration = item.duration;
-            let elem = append_element(document.getElementById('current_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
+            let elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
 
             (() => {
-              let e = elem;
               let i = item;
 
-              e.onclick = () => {
+              elem.onclick = () => {
                 show_task(i.id);
               };
             })();
@@ -265,10 +265,9 @@
             let elem = append_element(document.getElementById('task_search_results'), 'li', '', name + ' (' +  duration + ' minutes)');
             
             (() => {
-              let e = elem;
               let i = item;
 
-              e.onclick = () => {
+              elem.onclick = () => {
                 show_task(i.id);
               };
             })();
@@ -289,18 +288,18 @@
 
         function onTaskDetailsSuccess(obj) {
           // Set values of chosen task
-          document.getElementById("task_name").value = obj.name;
-          document.getElementById("task_duration").value = obj.duration;
-          document.getElementById("task_execution_days_monday").checked = obj.executionDays[0];
-          document.getElementById("task_execution_days_tuesdays").checked = obj.executionDays[1];
-          document.getElementById("task_execution_days_wendesday").checked = obj.executionDays[2];
-          document.getElementById("task_execution_days_thursday").checked = obj.executionDays[3];
-          document.getElementById("task_execution_days_friday").checked = obj.executionDays[4];
-          document.getElementById("task_execution_days_saturday").checked = obj.executionDays[5];
-          document.getElementById("task_execution_days_sunday").checked = obj.executionDays[6];
-          document.getElementById("task_repetition").value = obj.repetition;
-          document.getElementById("task_weight").value = obj.weigth;
-          document.getElementById("task_weight_factor").value = obj.weightFactor;
+          document.getElementById("task_name_edit").value = obj.name;
+          document.getElementById("task_duration_edit").value = obj.duration;
+          document.getElementById("task_execution_days_monday_edit").checked = obj.executionDays[0];
+          document.getElementById("task_execution_days_tuesdays_edit").checked = obj.executionDays[1];
+          document.getElementById("task_execution_days_wendesday_edit").checked = obj.executionDays[2];
+          document.getElementById("task_execution_days_thursday_edit").checked = obj.executionDays[3];
+          document.getElementById("task_execution_days_friday_edit").checked = obj.executionDays[4];
+          document.getElementById("task_execution_days_saturday_edit").checked = obj.executionDays[5];
+          document.getElementById("task_execution_days_sunday_edit").checked = obj.executionDays[6];
+          document.getElementById("task_repetition_edit").value = obj.repetition;
+          document.getElementById("task_weight_edit").value = obj.weigth;
+          document.getElementById("task_weight_factor_edit").value = obj.weightFactor;
 
           document.getElementById("edit_task_button").addEventListener('click', () => {
             submit_task_modification(id);
@@ -325,19 +324,19 @@
         // TODO: handle id
 
         let sessionToken = get_session_token();
-        let taskName = document.getElementById("task_name").value;
-        let taskDuration = document.getElementById("task_duration").value;
+        let taskName = document.getElementById("task_name_edit").value;
+        let taskDuration = document.getElementById("task_duration_edit").value;
         let taskExecutionDays = [];
-        taskExecutionDays[0] = document.getElementById("task_execution_days_monday").checked;
-        taskExecutionDays[1] = document.getElementById("task_execution_days_tuesdays").checked;
-        taskExecutionDays[2] = document.getElementById("task_execution_days_wendesday").checked;
-        taskExecutionDays[3] = document.getElementById("task_execution_days_thursday").checked;
-        taskExecutionDays[4] = document.getElementById("task_execution_days_friday").checked;
-        taskExecutionDays[5] = document.getElementById("task_execution_days_saturday").checked;
-        taskExecutionDays[6] = document.getElementById("task_execution_days_sunday").checked;
-        let taskRepition = document.getElementById("task_repetition").value;
-        let taskWeight = document.getElementById("task_weight").value;
-        let taskWeightFactor = document.getElementById("task_weight_factor").value;
+        taskExecutionDays[0] = document.getElementById("task_execution_days_monday_edit").checked;
+        taskExecutionDays[1] = document.getElementById("task_execution_days_tuesdays_edit").checked;
+        taskExecutionDays[2] = document.getElementById("task_execution_days_wendesday_edit").checked;
+        taskExecutionDays[3] = document.getElementById("task_execution_days_thursday_edit").checked;
+        taskExecutionDays[4] = document.getElementById("task_execution_days_friday_edit").checked;
+        taskExecutionDays[5] = document.getElementById("task_execution_days_saturday_edit").checked;
+        taskExecutionDays[6] = document.getElementById("task_execution_days_sunday_edit").checked;
+        let taskRepition = document.getElementById("task_repetition_edit").value;
+        let taskWeight = document.getElementById("task_weight_edit").value;
+        let taskWeightFactor = document.getElementById("task_weight_factor_edit").value;
 
         let taskObject = { "id": id, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
 
@@ -462,24 +461,24 @@
         </failure_message>
         <!-- task details -->
         <button id="mark_as_done_button">Mark as Done</button></br></br>
-        <label for="task_name">What's the name of the task?</label>
-        <input type="text" id="task_name"></input></br>
-        <label for="task_duration">How long does the task take? (in minutes)</label>
-        <input type="number" min="1" max="1440" id="task_duration"></input></br> <!-- This should be handled differently -->
+        <label for="task_name_edit">What's the name of the task?</label>
+        <input type="text" id="task_name_edit"></input></br>
+        <label for="task_duration_edit">How long does the task take? (in minutes)</label>
+        <input type="number" min="1" max="1440" id="task_duration_edit"></input></br> <!-- This should be handled differently -->
         <label>On which days can the task be executed?</label></br>
-        <input type="checkbox" id="task_execution_days_monday">On Mondays</input></br>
-        <input type="checkbox" id="task_execution_days_tuesdays">On Tuesdays</input></br>
-        <input type="checkbox" id="task_execution_days_wendesday">On Wendesdays</input></br>
-        <input type="checkbox" id="task_execution_days_thursday">On Thursdays</input></br>
-        <input type="checkbox" id="task_execution_days_friday">On Fridays</input></br>
-        <input type="checkbox" id="task_execution_days_saturday">On Saturdays</input></br>
-        <input type="checkbox" id="task_execution_days_sunday">On Sundays</input></br>
-        <label for="task_repetition">After which timespan should the task be repeated? (in days)</label> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
-        <input type="number" min="0" id="task_repetition"></input><br>
-        <label for="task_weight">How important is the task? (Number between 0 and 100)</label>
-        <input type="number" min="0" max="100" id="task_weight"></input><br>
-        <label for="task_weight_factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
-        <input type="number" min="0" max="100" id="task_weight_factor"></input><br>
+        <input type="checkbox" id="task_execution_days_monday_edit">On Mondays</input></br>
+        <input type="checkbox" id="task_execution_days_tuesdays_edit">On Tuesdays</input></br>
+        <input type="checkbox" id="task_execution_days_wendesday_edit">On Wendesdays</input></br>
+        <input type="checkbox" id="task_execution_days_thursday_edit">On Thursdays</input></br>
+        <input type="checkbox" id="task_execution_days_friday_edit">On Fridays</input></br>
+        <input type="checkbox" id="task_execution_days_saturday_edit">On Saturdays</input></br>
+        <input type="checkbox" id="task_execution_days_sunday_edit">On Sundays</input></br>
+        <label for="task_repetition_edit">After which timespan should the task be repeated? (in days)</label> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
+        <input type="number" min="0" id="task_repetition_edit"></input><br>
+        <label for="task_weight_edit">How important is the task? (Number between 0 and 100)</label>
+        <input type="number" min="0" max="100" id="task_weight_edit"></input><br>
+        <label for="task_weight_factor_edit">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
+        <input type="number" min="0" max="100" id="task_weight_factor_edit"></input><br>
         <button id="edit_task_button">Submit changes</button><br>
       </div>
     </div>
@@ -498,7 +497,7 @@
       <div class="box">
         <h1>Your tasks for today</h1>
         <failure_message id="user_schedule_failure">
-          <p>Failure!</p>
+          <p>Failure Loading Tasks!</p>
         </failure_message>
         <ul id="current_tasks"></ul>
         <h1>Your completed tasks for today</h1>

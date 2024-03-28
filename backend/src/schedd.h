@@ -28,7 +28,7 @@ enum weekday_flags : uint8_t
 struct event
 {
   char name[256];
-  uint64_t duration;
+  uint64_t durationTimeSpan;
   local_list<size_t, maxUsersPerEvent> userIds;
   uint64_t weight, weightGrowthFactor;
   weekday_flags possibleExecutionDays; // 1 bit for each day + 1 extra
@@ -70,15 +70,15 @@ struct event_info
 {
   size_t id;
   char name[256];
-  uint64_t duration;
+  size_t durationInMinutes;
 };
 
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents);
 
-constexpr size_t maxEventsPerUser = 128;
-lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxEventsPerUser> *pOutSearchResults); 
+constexpr size_t maxSearchResults = 64;
+lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults);
 
-lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxEventsPerUser> *pOutEventIds);
+lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxSearchResults> *pOutEventIds);
 
 lsResult set_events_for_user(const int32_t sessionId);
 lsResult replace_task(const size_t id, const event evnt);
@@ -91,4 +91,6 @@ bool check_for_user_name_duplication(const char *username);
 
 time_point_t get_current_time();
 time_span_t time_span_from_days(const size_t days);
+size_t days_from_time_span(const time_span_t timeSpan);
 time_span_t time_span_from_minutes(const size_t minutes);
+size_t minutes_from_time_span(const time_span_t timeSpan);
