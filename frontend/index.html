@@ -298,7 +298,7 @@
           document.getElementById("task_execution_days_saturday_edit").checked = obj.executionDays[5];
           document.getElementById("task_execution_days_sunday_edit").checked = obj.executionDays[6];
           document.getElementById("task_repetition_edit").value = obj.repetition;
-          document.getElementById("task_weight_edit").value = obj.weigth;
+          document.getElementById("task_weight_edit").value = obj.weight;
           document.getElementById("task_weight_factor_edit").value = obj.weightFactor;
 
           document.getElementById("edit_task_button").addEventListener('click', () => {
@@ -318,11 +318,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
       function submit_task_modification(id) {
-        document.getElementsByClassName("task_creation")[0].style.display = "block";
-
-        // TODO: set values to the current values of the tasks
-        // TODO: handle id
-
         let sessionToken = get_session_token();
         let taskName = document.getElementById("task_name_edit").value;
         let taskDuration = document.getElementById("task_duration_edit").value;
@@ -461,6 +456,7 @@
         </failure_message>
         <!-- task details -->
         <button id="mark_as_done_button">Mark as Done</button></br></br>
+        <p>You can edit the details.</p>
         <label for="task_name_edit">What's the name of the task?</label>
         <input type="text" id="task_name_edit"></input></br>
         <label for="task_duration_edit">How long does the task take? (in minutes)</label>

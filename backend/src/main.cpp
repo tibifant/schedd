@@ -154,7 +154,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight"))
+  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight") || !body.has("weightFactor"))
     return crow::response(crow::status::BAD_REQUEST);
 
   const int32_t sessionId = (int32_t)body["sessionId"].i();
@@ -167,7 +167,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   
   for (const auto &b : body["possibleExecutionDays"])
     if (LS_FAILED(local_list_add(&executionDays, b.b())))
-      return crow::response(crow::status::BAD_REQUEST);
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   // TODO: Possibilty to add other users
 
@@ -177,7 +177,8 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::BAD_REQUEST);
   
-  local_list_add(&evnt.userIds, userId);
+  if(LS_FAILED(local_list_add(&evnt.userIds, userId)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   if (eventName.length() == 0 || eventName.length() > LS_ARRAYSIZE(evnt.name))
     return crow::response(crow::status::BAD_REQUEST);
