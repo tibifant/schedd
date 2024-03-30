@@ -172,6 +172,32 @@ epilogue:
   return result;
 }
 
+lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    user usr = *pool_get(&_Users, userId);
+    
+    for (const auto &_item : usr.completedTasksForCurrentDay)
+    {
+      event evnt = *pool_get(&_Events, _item);
+
+      event_info info;
+      info.id = _item;
+      info.durationInMinutes = minutes_from_time_span(evnt.durationTimeSpan);
+      strncpy(info.name, evnt.name, LS_ARRAYSIZE(info.name));
+
+      local_list_add(pOutCompletedTasks, info);
+    }
+  }
+
+  return result;
+}
+
 lsResult set_events_for_user(const int32_t sessionId)
 {
   lsResult result = lsR_Success;

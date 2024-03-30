@@ -96,7 +96,6 @@
           function onLoginSuccess(obj) {
             set_session_token(obj.session_id);
             document.getElementsByClassName("login")[0].style.display = "none";
-            //show_task_creation();
             show_overview();
           };
 
@@ -203,11 +202,11 @@
         function onTaskDoneSuccess(obj) {
           document.getElementById("success").style.display = "block";
 
-          //for (const item of obj) {
-          //  let name = item.name;
-          //  let duration = item.duration;
-          //  append_element(document.getElementById('completed_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
-          //}
+          for (const item of obj) {
+            let name = item.name;
+            let duration = item.duration;
+            append_element(document.getElementById('completed_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
+          }
         }
       }
 

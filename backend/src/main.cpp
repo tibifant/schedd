@@ -309,12 +309,21 @@ crow::response handle_event_completed(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   // TODO: Do we want to remove the task from tasks for today list?
-  // TODO: Return completed Tasks
   if (LS_FAILED(add_completed_task(eventId, userId)))
     return crow::response(crow::status::BAD_REQUEST);
 
+  local_list <event_info, maxEventsPerUserPerDay> completedTasks;
+
+  if (LS_FAILED(get_completed_events_for_current_day(userId, &completedTasks))) // TODO: get event_infos in a for loop for less memory usage?
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
   crow::json::wvalue ret;
-  ret["success"] = true;
+  for (int8_t i = 0; i < completedTasks.count; i++)
+  {
+    ret[i]["name"] = completedTasks[i].name;
+    ret[i]["duration"] = completedTasks[i].durationInMinutes;
+    ret[i]["id"] = completedTasks[i].id;
+  }
 
   return crow::response(crow::status::OK, ret);
 }

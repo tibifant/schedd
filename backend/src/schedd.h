@@ -49,7 +49,7 @@ struct user_info
   size_t userId;
 };
 
-constexpr size_t maxEventsPerUserPerDay = 32;
+constexpr size_t maxEventsPerUserPerDay = 64;
 constexpr size_t maxSessionsPerUser = 8;
 
 struct user
@@ -73,7 +73,8 @@ struct event_info
   size_t durationInMinutes;
 };
 
-lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents);
+lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents); 
+lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks);
 
 constexpr size_t maxSearchResults = 64;
 lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults);
