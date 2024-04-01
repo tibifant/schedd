@@ -163,9 +163,9 @@
       function show_task_creation() {
         document.getElementsByClassName("task_creation")[0].style.display = "block";
 
-        let userSearchResults = get_selected_search_results();
+        let userSearchResults = user_search();
 
-        function submit_new_task(userSearchResults) {
+        function submit_new_task() {
           let sessionToken = get_session_token();
           let taskName = document.getElementById("task_name").value;
           let taskDuration = document.getElementById("task_duration").value;
@@ -191,7 +191,7 @@
         }
 
         document.getElementById("create_task_button").addEventListener('click', () => {
-          submit_new_task(userSearchResults)
+          submit_new_task()
         })
       }
       
@@ -199,7 +199,12 @@
         document.getElementById("task_creation_failure").style.display = "block";
       }
 
-      function get_selected_search_results() {
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function user_search() {
+        // Clear list!
+        //document.getElementById('user_search_results').innerHTML = '';
+
         let selectedSearchResults = [];
 
         document.getElementById("submit_user_search_button").addEventListener('click', () => {
@@ -378,7 +383,12 @@
             })();
           }
 
+          document.getElementById("show_user_search_task_edit_button").addEventListener('click', () => {
+            userIds = userIds.concat(user_search());
+          });
+
           document.getElementById("edit_task_button").addEventListener('click', () => {
+            document.getElementsByClassName('user_search')[0].style.display = 'none';
             submit_task_modification(taskId, userIds);
           });
         }
@@ -505,7 +515,7 @@
         <failure_message id="user_search_failure">
           <p>User Search Failure!</p>
         </failure_message>
-        <label for="user_search_input">Search for users to add</label></br>
+        <label for="user_search_input">Search for users and click in their name to assign them to the task</label></br>
         <input type="text" id="user_search_input"></input>
         <button id="submit_user_search_button">search</button><br>
         <ul id="user_search_results"></ul>
@@ -557,7 +567,13 @@
         <label for="task_weight_factor_edit">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
         <input type="number" min="0" max="100" id="task_weight_factor_edit"></input><br>
         <p>Assigned Users:</p>
-        <ul id="task_users_edit"></ul>
+        <failure_message id="user_search_failure">
+          <p>User Search Failure!</p>
+        </failure_message>
+        <label for="user_search_input_edit">Search for users and click in their name to assign them to the task</label></br>
+        <input type="text" id="user_search_input_edit"></input>
+        <button id="submit_user_search_button_edit">search</button><br>
+        <ul id="user_search_results_edit"></ul>
         <button id="edit_task_button">Submit changes</button><br>
       </div>
     </div>
