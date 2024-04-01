@@ -183,7 +183,6 @@
 
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task_creation")[0].style.display = "none";
-            //show_user_schedule();
           }
 
           load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_creation_failure)
@@ -200,18 +199,13 @@
         load_backend_url('task-done', onTaskDoneSuccess, { "sessionId": get_session_token(), "taskId": id }, task_done_failure)
 
         function onTaskDoneSuccess(obj) {
-          document.getElementById("success").style.display = "block";
-
-          for (const item of obj) {
-            let name = item.name;
-            let duration = item.duration;
-            append_element(document.getElementById('completed_tasks'), 'li', '', name + ' (' +  duration + ' minutes)');
-          }
+        document.getElementById('task_done_failure').style.display = 'none';
+          document.getElementById('success').style.display = 'block';
         }
       }
 
-      function task_done_failure() {        
-        document.getElementById("task_done_failure").style.display = "block";
+      function task_done_failure() {
+        document.getElementById('task_done_failure').style.display = 'block';
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -220,37 +214,34 @@
         load_backend_url("user-schedule", onGetCurrentTasksSuccess, { "sessionId": get_session_token() }, user_schedule_failure)
       
         function onGetCurrentTasksSuccess(obj) {
-          document.getElementsByClassName('schedule')[0].style.display = "block";
+          document.getElementById('user_schedule_failure').style.display = 'none';
+          document.getElementsByClassName('schedule')[0].style.display = 'block';
 
-          if (obj.noTasks) {
-            document.getElementById("user_schedule_empty").style.display = "block";
-          } else {
           let parent = document.getElementById('current_tasks');
-            for (const item of obj) {
-              let name = item.name;
-              let duration = item.duration;
-              let elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
+          for (const item of obj) {
+            let name = item.name;
+            let duration = item.duration;
+            let elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
 
-              (() => {
-                let i = item;
+            (() => {
+              let i = item;
 
-                elem.onclick = () => {
-                  show_task(i.id);
-                };
-              })();
-            }
+              elem.onclick = () => {
+                show_task(i.id);
+              };
+            })();
           }
         }
       }
 
       function user_schedule_failure() {
-        document.getElementById("user_schedule_failure").style.display = "block";
+        document.getElementById('user_schedule_failure').style.display = 'block';
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
       function show_task_search() {
-        document.getElementsByClassName("task_search")[0].style.display = "block";
+        document.getElementsByClassName('task_search')[0].style.display = 'block';
         
         document.getElementById("submit_search_button").addEventListener('click', () => {
           // Clear list when searching again!
@@ -262,6 +253,8 @@
         });
 
         function onTaskSearchSuccess(obj) {
+          document.getElementById('task_search_failure').style.display = 'none';
+
           for (const item of obj) {
             let name = item.name;
             let duration = item.duration;
@@ -279,17 +272,19 @@
       }
 
       function task_search_failure() {
-        document.getElementById("task_search_failure").style.display = "block";
+        document.getElementById('task_search_failure').style.display = 'block';
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
       function show_task(id) {
-        document.getElementsByClassName('task')[0].style.display = "block";
+        document.getElementsByClassName('task')[0].style.display = 'block';
         
         load_backend_url('task', onTaskDetailsSuccess, { 'taskId': id }, task_details_failure);
 
         function onTaskDetailsSuccess(obj) {
+          document.getElementById('task_details_failure').style.display = 'none';
+
           // Set values of chosen task
           document.getElementById("task_name_edit").value = obj.name;
           document.getElementById("task_duration_edit").value = obj.duration;
@@ -315,7 +310,7 @@
       }
 
       function task_details_failure() {
-        document.getElementById("task_details_failure").style.display = "block";
+        document.getElementById('task_details_failure').style.display = 'block';
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -340,7 +335,6 @@
 
         function onTaskEditSuccess(obj) {
           document.getElementsByClassName("task")[0].style.display = "none";
-          //show_user_schedule();
         }
 
         load_backend_url("task-edit", onTaskEditSuccess, taskObject, task_edit_failure)
@@ -360,8 +354,6 @@
         else {
           show_overview();
         }
-
-        // TODO: Enable / Display buttons only accessible when logged in?
         
         // TODO: Get Current Tasks / Progress / Whatsoever.
       });
@@ -502,8 +494,6 @@
           <p>No tasks for today!</p>
         </failure_message>
         <ul id="current_tasks"></ul>
-        <h1>Your completed tasks for today</h1>
-        <ul id="completed_tasks"></ul>
       </div>
     </div>
   </div>

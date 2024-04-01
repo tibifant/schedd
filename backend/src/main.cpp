@@ -287,15 +287,9 @@ crow::response handle_user_schedule(const crow::request &req)
 
   local_list<event_info, maxEventsPerUserPerDay> currentTasks;
   if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
-    return crow::response(crow::status::BAD_REQUEST);
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
-  crow::json::wvalue ret;
-
-  if (currentTasks.count == 0)
-  {
-    ret["noTasks"] = true;
-    return crow::response(crow::status::OK, ret);    
-  }
+  crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
   for (int8_t i = 0; i < currentTasks.count; i++)
   {
@@ -325,7 +319,8 @@ crow::response handle_event_search(const crow::request &req) // coc? what bad st
   if (LS_FAILED(search_events_by_user(userId, input.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
-  crow::json::wvalue ret;
+  crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
+
   for (int8_t i = 0; i < searchResults.count; i++)
   {
     ret[i]["name"] = searchResults[i].name;
@@ -364,12 +359,7 @@ crow::response handle_event_completed(const crow::request &req)
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret;
-  for (int8_t i = 0; i < completedTasks.count; i++)
-  {
-    ret[i]["name"] = completedTasks[i].name;
-    ret[i]["duration"] = completedTasks[i].durationInMinutes;
-    ret[i]["id"] = completedTasks[i].id;
-  }
+  ret["success"] = true;
 
   return crow::response(crow::status::OK, ret);
 }
