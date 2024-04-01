@@ -213,22 +213,27 @@
         function onUserSearchSuccess(obj) {
           document.getElementById('task_search_failure').style.display = 'none';
 
-          for (const item of obj) {
-            let elem = append_element(document.getElementById('user_search_results'), 'li', '', item.name);
+          for (let i = 0; i < obj.length; i++) {
+            let elem = append_element(document.getElementById('user_search_results'), 'li', '', obj[i].name);
             
             (() => {
-              let i = item;
+              let u = obj[i];
+              let idx = i;
               const isSelectedColor = '#a8a8a8';
-              // TODO: Possibility to unselect users
 
               for (const s of selectedSearchResults)
-                if (i.id == s)
+                if (u.id == s)
                   elem.style.color = isSelectedColor;
 
               elem.onclick = () => {
-                selectedSearchResults.push(i.id);
-                elem.style.color = isSelectedColor;
-              }
+                if (selectedSearchResults.includes(u.id)) {
+                  selectedSearchResults.splice(idx, 1);
+                  elem.style.color = '#fff';
+                } else {
+                  selectedSearchResults.push(u.id);
+                  elem.style.color = isSelectedColor;
+                }
+              };
             })();
           }
         }
