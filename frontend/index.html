@@ -220,21 +220,25 @@
         load_backend_url("user-schedule", onGetCurrentTasksSuccess, { "sessionId": get_session_token() }, user_schedule_failure)
       
         function onGetCurrentTasksSuccess(obj) {
-          document.getElementsByClassName("schedule")[0].style.display = "block";
+          document.getElementsByClassName('schedule')[0].style.display = "block";
 
+          if (obj.noTasks) {
+            document.getElementById("user_schedule_empty").style.display = "block";
+          } else {
           let parent = document.getElementById('current_tasks');
-          for (const item of obj) {
-            let name = item.name;
-            let duration = item.duration;
-            let elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
+            for (const item of obj) {
+              let name = item.name;
+              let duration = item.duration;
+              let elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
 
-            (() => {
-              let i = item;
+              (() => {
+                let i = item;
 
-              elem.onclick = () => {
-                show_task(i.id);
-              };
-            })();
+                elem.onclick = () => {
+                  show_task(i.id);
+                };
+              })();
+            }
           }
         }
       }
@@ -493,6 +497,9 @@
         <h1>Your tasks for today</h1>
         <failure_message id="user_schedule_failure">
           <p>Failure Loading Tasks!</p>
+        </failure_message>
+        <failure_message id="user_schedule_empty">
+          <p>No tasks for today!</p>
         </failure_message>
         <ul id="current_tasks"></ul>
         <h1>Your completed tasks for today</h1>

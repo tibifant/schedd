@@ -290,6 +290,13 @@ crow::response handle_user_schedule(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   crow::json::wvalue ret;
+
+  if (currentTasks.count == 0)
+  {
+    ret["noTasks"] = true;
+    return crow::response(crow::status::OK, ret);    
+  }
+
   for (int8_t i = 0; i < currentTasks.count; i++)
   {
     ret[i]["name"] = currentTasks[i].name;
