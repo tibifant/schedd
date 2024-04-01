@@ -194,22 +194,20 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
+  if (!body || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
   const uint64_t repetitionTimeSpan = body["repetitionTimeSpan"].i();
   const uint64_t weight = body["weight"].i();
   const uint64_t weightFactor = body["weightFactor"].i();
   local_list<bool, 7> executionDays;
+  local_list<size_t, maxUsersPerEvent> userIds;
   
   for (const auto &b : body["possibleExecutionDays"])
     if (LS_FAILED(local_list_add(&executionDays, b.b())))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
-
-  local_list<size_t, maxUsersPerEvent> userIds;
 
   for (const auto &i : body["userIds"])
   {
@@ -223,19 +221,9 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   }
 
   event evnt;
-  size_t userId;
-
-  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
-    return crow::response(crow::status::BAD_REQUEST);
-  
-  if(LS_FAILED(local_list_add(&evnt.userIds, userId)))
-    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   for (const auto &_item : userIds)
   {
-    if (_item == userId)
-      continue;
-
     if (LS_FAILED(local_list_add(&evnt.userIds, _item)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
@@ -306,7 +294,7 @@ crow::response handle_user_schedule(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   int32_t sessionId = (int32_t)body["sessionId"].i();
-
+  
   local_list<event_info, maxEventsPerUserPerDay> currentTasks;
   if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
@@ -327,18 +315,14 @@ crow::response handle_event_search(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("sessionId") || !body.has("input"))
+  if (!body || !body.has("input"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
   const std::string &input = body["input"].s();
 
-  size_t userId;
-  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
-    return crow::response(crow::status::BAD_REQUEST);
-
   local_list<event_info, maxSearchResults> searchResults;
-  if (LS_FAILED(search_events_by_user(userId, input.c_str(), &searchResults)))
+
+  if (LS_FAILED(search_events(input.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);

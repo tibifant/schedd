@@ -303,6 +303,31 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
   return result;
 }
 
+lsResult search_events(const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_item : _Events)
+    {
+      if (strstr(_item.pItem->name, searchTerm) != nullptr)
+      {
+        event_info info;
+        info.id = _item.index;
+        strncpy(info.name, _item.pItem->name, LS_ARRAYSIZE(info.name));
+        info.durationInMinutes = minutes_from_time_span(_item.pItem->durationTimeSpan);
+
+        local_list_add(pOutSearchResults, info);
+      }
+    }    
+  }
+
+  return result;
+}
+
 lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults)
 {
   lsResult result = lsR_Success;

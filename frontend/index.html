@@ -163,7 +163,7 @@
       function show_task_creation() {
         document.getElementsByClassName("task_creation")[0].style.display = "block";
 
-        let userSearchResults = user_search();
+        let userSearchResults = get_selected_search_results();
 
         function submit_new_task(userSearchResults) {
           let sessionToken = get_session_token();
@@ -181,7 +181,7 @@
           let taskWeight = document.getElementById("task_weight").value;
           let taskWeightFactor = document.getElementById("task_weight_factor").value;
           
-          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor, "userIds": userSearchResults };
+          let taskObject = { "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor, "userIds": userSearchResults };
           
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task_creation")[0].style.display = "none";
@@ -199,7 +199,7 @@
         document.getElementById("task_creation_failure").style.display = "block";
       }
 
-      function user_search() {
+      function get_selected_search_results() {
         let selectedSearchResults = [];
 
         document.getElementById("submit_user_search_button").addEventListener('click', () => {
@@ -218,15 +218,16 @@
             
             (() => {
               let i = item;
+              const isSelectedColor = '#a8a8a8';
               // TODO: Possibility to unselect users
 
               for (const s of selectedSearchResults)
                 if (i.id == s)
-                  elem.style.color = '#a8a8a8';
+                  elem.style.color = isSelectedColor;
 
               elem.onclick = () => {
                 selectedSearchResults.push(i.id);
-                elem.style.color = '#a8a8a8';
+                elem.style.color = isSelectedColor;
               }
             })();
           }
@@ -294,7 +295,7 @@
           document.getElementById('task_search_results').innerHTML = '';
 
           let input = document.getElementById("task_search_input").value;
-          let searchObj = { "sessionId": get_session_token(), "input": input };
+          let searchObj = { "input": input };
           load_backend_url("task-search", onTaskSearchSuccess, searchObj, task_search_failure);
         });
 
@@ -350,10 +351,26 @@
           // List clean-up
           document.getElementById('task_users_edit').innerHTML = '';
 
-          for (const u of obj.users) {
-            append_element(document.getElementById('task_users_edit'), 'li', '', u.name);
-            // TODO: Change selected user ids.
-            userIds.push(u.id);
+          for (let i = 0; i < obj.users.length; i++) {
+            let elem = append_element(document.getElementById('task_users_edit'), 'li', '', obj.users[i].name);
+            const isSelectedColor = '#a8a8a8';
+            elem.style.color = isSelectedColor;
+            
+            (() => {
+              let idx = i;
+              let u = obj.users[i];
+              userIds.push(u.id);
+
+              elem.onclick = () => {
+                if (userIds.includes(u.id)) {
+                  userIds.splice(idx, 1);
+                  elem.style.color = '#fff';
+                } else {
+                  userIds.push(u.id);
+                  elem.style.color = isSelectedColor;
+                }
+              };           
+            })();
           }
 
           document.getElementById("edit_task_button").addEventListener('click', () => {
@@ -388,7 +405,7 @@
         let taskWeight = document.getElementById("task_weight_edit").value;
         let taskWeightFactor = document.getElementById("task_weight_factor_edit").value;
 
-        let taskObject = { "id": taskId, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor, "userIds": userIds };
+        let taskObject = { "id": taskId, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor, "userIds": userIds };
 
         function onTaskEditSuccess(obj) {
           document.getElementsByClassName("task")[0].style.display = "none";

@@ -85,6 +85,7 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
 lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks);
 
 constexpr size_t maxSearchResults = 32;
+lsResult search_events(const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults);
 lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults);
 lsResult search_users(const char *searchTerm, _Out_ local_list<user_info, maxSearchResults> *pOutSearchResults);
 
