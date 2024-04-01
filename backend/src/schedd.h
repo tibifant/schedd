@@ -79,6 +79,8 @@ struct user_info
   char name[256];
 };
 
+lsResult get_user_info(const size_t userId, _Out_ user_info *pOutInfo);
+
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents); 
 lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks);
 

@@ -218,13 +218,13 @@
             
             (() => {
               let i = item;
+              // TODO: Possibility to unselect users
 
               for (const s of selectedSearchResults)
                 if (i.id == s)
                   elem.style.color = '#a8a8a8';
 
               elem.onclick = () => {
-                // TODO: make obvious that a user has been added (when showing up in search results again)
                 selectedSearchResults.push(i.id);
                 elem.style.color = '#a8a8a8';
               }
@@ -323,10 +323,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function show_task(id) {
+      function show_task(taskId) {
         document.getElementsByClassName('task')[0].style.display = 'block';
         
-        load_backend_url('task', onTaskDetailsSuccess, { 'taskId': id }, task_details_failure);
+        load_backend_url('task', onTaskDetailsSuccess, { 'taskId': taskId }, task_details_failure);
 
         function onTaskDetailsSuccess(obj) {
           document.getElementById('task_details_failure').style.display = 'none';
@@ -345,8 +345,19 @@
           document.getElementById("task_weight_edit").value = obj.weight;
           document.getElementById("task_weight_factor_edit").value = obj.weightFactor;
 
+          let userIds = [];
+
+          // List clean-up
+          document.getElementById('task_users_edit').innerHTML = '';
+
+          for (const u of obj.users) {
+            append_element(document.getElementById('task_users_edit'), 'li', '', u.name);
+            // TODO: Change selected user ids.
+            userIds.push(u.id);
+          }
+
           document.getElementById("edit_task_button").addEventListener('click', () => {
-            submit_task_modification(id);
+            submit_task_modification(taskId, userIds);
           });
         }
 
@@ -361,7 +372,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function submit_task_modification(id) {
+      function submit_task_modification(taskId, userIds) {
         let sessionToken = get_session_token();
         let taskName = document.getElementById("task_name_edit").value;
         let taskDuration = document.getElementById("task_duration_edit").value;
@@ -377,7 +388,7 @@
         let taskWeight = document.getElementById("task_weight_edit").value;
         let taskWeightFactor = document.getElementById("task_weight_factor_edit").value;
 
-        let taskObject = { "id": id, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
+        let taskObject = { "id": taskId, "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor, "userIds": userIds };
 
         function onTaskEditSuccess(obj) {
           document.getElementsByClassName("task")[0].style.display = "none";
@@ -523,6 +534,8 @@
         <input type="number" min="0" max="100" id="task_weight_edit"></input><br>
         <label for="task_weight_factor_edit">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
         <input type="number" min="0" max="100" id="task_weight_factor_edit"></input><br>
+        <p>Assigned Users:</p>
+        <ul id="task_users_edit"></ul>
         <button id="edit_task_button">Submit changes</button><br>
       </div>
     </div>

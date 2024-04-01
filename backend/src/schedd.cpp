@@ -99,6 +99,23 @@ lsResult add_new_user(const user usr)
   return result;
 }
 
+lsResult get_user_info(const size_t userId, _Out_ user_info *pOutInfo)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    user usr = *pool_get(&_Users, userId);
+
+    pOutInfo->id = userId;
+    strncpy(pOutInfo->name, usr.username, LS_ARRAYSIZE(pOutInfo->name));
+  }
+
+  return result;
+}
+
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUserId)
 {
   lsResult result = lsR_Success;

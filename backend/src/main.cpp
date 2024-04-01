@@ -427,14 +427,27 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["name"] = evnt.name;
 
-  ret["duration"] = evnt.durationTimeSpan / 60;
+  ret["duration"] = minutes_from_time_span(evnt.durationTimeSpan);
 
   for (int8_t i = 0; i < DaysPerWeek; i++)
     ret["executionDays"][i] = !!(evnt.possibleExecutionDays & (1 << i));
 
-  ret["repetition"] = evnt.repetitionTimeSpan / (60 * 60 * 24);
+  ret["repetition"] = days_from_time_span(evnt.repetitionTimeSpan);
   ret["weight"] = evnt.weight;
   ret["weightFactor"] = evnt.weightGrowthFactor;
+
+  ret["users"] = crow::json::rvalue(crow::json::type::List);
+
+  for (int8_t i = 0; i < evnt.userIds.count; i++)
+  {
+    user_info info;
+
+    if (LS_FAILED(get_user_info(evnt.userIds[i], &info)))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+    ret["users"][i]["name"] = info.name;
+    ret["users"][i]["id"] = info.id;
+  }
 
   return crow::response(crow::status::OK, ret);
 }
