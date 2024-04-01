@@ -43,7 +43,7 @@ struct session_token
 
 constexpr size_t maxUserAmount = 64;
 
-struct user_info
+struct user_id_info
 {
   int32_t sessionId;
   size_t userId;
@@ -73,11 +73,18 @@ struct event_info
   char name[256];
 };
 
+struct user_info
+{
+  size_t id;
+  char name[256];
+};
+
 lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents); 
 lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks);
 
 constexpr size_t maxSearchResults = 32;
 lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults);
+lsResult search_users(const char *searchTerm, _Out_ local_list<user_info, maxSearchResults> *pOutSearchResults);
 
 lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxSearchResults> *pOutEventIds);
 

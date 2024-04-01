@@ -163,7 +163,9 @@
       function show_task_creation() {
         document.getElementsByClassName("task_creation")[0].style.display = "block";
 
-        document.getElementById("create_task_button").addEventListener('click', () => {
+        let userSearchResults = user_search();
+
+        function submit_new_task(userSearchResults) {
           let sessionToken = get_session_token();
           let taskName = document.getElementById("task_name").value;
           let taskDuration = document.getElementById("task_duration").value;
@@ -178,19 +180,59 @@
           let taskRepition = document.getElementById("task_repetition").value;
           let taskWeight = document.getElementById("task_weight").value;
           let taskWeightFactor = document.getElementById("task_weight_factor").value;
-
-          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor };
-
+          
+          let taskObject = { "sessionId": sessionToken, "name": taskName, "duration": taskDuration, "possibleExecutionDays": taskExecutionDays, "repetitionTimeSpan": taskRepition, "weight": taskWeight, "weightFactor": taskWeightFactor, "userIds": userSearchResults };
+          
           function onTaskCreationSuccess(obj) {
             document.getElementsByClassName("task_creation")[0].style.display = "none";
           }
 
           load_backend_url("task-creation", onTaskCreationSuccess, taskObject, task_creation_failure)
+        }
+
+        document.getElementById("create_task_button").addEventListener('click', () => {
+          submit_new_task(userSearchResults)
         })
       }
       
       function task_creation_failure() {
         document.getElementById("task_creation_failure").style.display = "block";
+      }
+
+      function user_search() {
+        let selectedSearchResults = [];
+
+        document.getElementById("submit_user_search_button").addEventListener('click', () => {
+          // Clear list when searching again!
+          document.getElementById('user_search_results').innerHTML = '';
+
+          let input = document.getElementById("user_search_input").value;
+          load_backend_url("user-search", onUserSearchSuccess, { "input": input }, user_search_failure);
+        });
+
+        function onUserSearchSuccess(obj) {
+          document.getElementById('task_search_failure').style.display = 'none';
+
+          for (const item of obj) {
+            let elem = append_element(document.getElementById('user_search_results'), 'li', '', item.name);
+            
+            (() => {
+              let i = item;
+
+              elem.onclick = () => {
+                // TODO: make obvious that a user has been added (when showing up in search results again)
+                selectedSearchResults.push(item.id);
+                elem.style.color = '#a8a8a8';
+              }
+            })();
+          }
+        }
+
+        return selectedSearchResults;
+      }
+
+      function user_search_failure() {
+        document.getElementById('user_search_failure').style.display = "block";
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -243,7 +285,7 @@
       function show_task_search() {
         document.getElementsByClassName('task_search')[0].style.display = 'block';
         
-        document.getElementById("submit_search_button").addEventListener('click', () => {
+        document.getElementById("submit_event_search_button").addEventListener('click', () => {
           // Clear list when searching again!
           document.getElementById('task_search_results').innerHTML = '';
 
@@ -381,7 +423,7 @@
         </failure_message>
         <label for="new_username">Username</label></br>
         <input type="text" id="new_username"></input>
-        <h2>On which days do you have how much available time for schedd_tasks?</h2>
+        <h2>How much available time for schedd_tasks do you have on each day?</h2>
         <label for="user_time_info_monday">On Mondays (in minutes)</label></br>
         <input type="number" min="0" max="1440" id="user_time_info_monday"></input><br>
         <label for="user_time_info_tuesday">On Tuesdays (in minutes)</label></br>
@@ -423,6 +465,13 @@
         <input type="number" min="0" max="100" id="task_weight"></input><br>
         <label for="task_weight_factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
         <input type="number" min="0" max="100" id="task_weight_factor"></input><br>
+        <failure_message id="user_search_failure">
+          <p>User Search Failure!</p>
+        </failure_message>
+        <label for="user_search_input">Search for users to add</label></br>
+        <input type="text" id="user_search_input"></input>
+        <button id="submit_user_search_button">search</button><br>
+        <ul id="user_search_results"></ul>
         <button id="create_task_button">create new task</button>
       </div>
     </div>
@@ -480,7 +529,7 @@
         </failure_message>
         <label for="task_search_input">Search for a task</label></br>
         <input type="text" id="task_search_input"></input>
-        <button id="submit_search_button">search</button><br>
+        <button id="submit_event_search_button">search</button><br>
         <ul id="task_search_results"></ul>
       </div>
     </div>

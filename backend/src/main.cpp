@@ -47,6 +47,7 @@ crow::response handle_login(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
 crow::response handle_task_creation_modification(const crow::request &req, const bool isCreation);
 crow::response handle_user_schedule(const crow::request &req);
+crow::response handle_user_search(const crow::request &req);
 crow::response handle_event_search(const crow::request &req);
 crow::response handle_event_completed(const crow::request &req);
 crow::response handle_task_details(const crow::request &req);
@@ -87,6 +88,7 @@ int32_t main(void)
   CROW_ROUTE(app, "/task-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, false); });
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
   CROW_ROUTE(app, "/task-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_search(req); });
+  CROW_ROUTE(app, "/user-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_search(req); });
   CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req); });
   CROW_ROUTE(app, "/task").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_details(req); });
 
@@ -192,7 +194,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight") || !body.has("weightFactor"))
+  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
     return crow::response(crow::status::BAD_REQUEST);
 
   const int32_t sessionId = (int32_t)body["sessionId"].i();
@@ -207,7 +209,18 @@ crow::response handle_task_creation_modification(const crow::request &req, const
     if (LS_FAILED(local_list_add(&executionDays, b.b())))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
-  // TODO: Possibilty to add other users
+  local_list<size_t, maxUsersPerEvent> userIds;
+
+  for (const auto &i : body["userIds"])
+  {
+    lsAssert(i.i() >= 0);
+
+    if (i.i() < 0)
+      return crow::response(crow::status::BAD_REQUEST);;
+
+    if (LS_FAILED(local_list_add(&userIds, (size_t)i.i())))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+  }
 
   event evnt;
   size_t userId;
@@ -217,6 +230,15 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   
   if(LS_FAILED(local_list_add(&evnt.userIds, userId)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  for (const auto &_item : userIds)
+  {
+    if (_item == userId)
+      continue;
+
+    if (LS_FAILED(local_list_add(&evnt.userIds, _item)))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+  }
 
   if (eventName.length() == 0 || eventName.length() > LS_ARRAYSIZE(evnt.name))
     return crow::response(crow::status::BAD_REQUEST);
@@ -301,7 +323,7 @@ crow::response handle_user_schedule(const crow::request &req)
   return crow::response(crow::status::OK, ret);
 }
 
-crow::response handle_event_search(const crow::request &req) // coc? what bad stuff is lino doing?
+crow::response handle_event_search(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
@@ -315,7 +337,7 @@ crow::response handle_event_search(const crow::request &req) // coc? what bad st
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::BAD_REQUEST);
 
-  local_list<event_info, maxSearchResults> searchResults; // TODO: get event_infos in a for loop for less memory usage?
+  local_list<event_info, maxSearchResults> searchResults;
   if (LS_FAILED(search_events_by_user(userId, input.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
@@ -325,6 +347,30 @@ crow::response handle_event_search(const crow::request &req) // coc? what bad st
   {
     ret[i]["name"] = searchResults[i].name;
     ret[i]["duration"] = searchResults[i].durationInMinutes;
+    ret[i]["id"] = searchResults[i].id;
+  }
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_user_search(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("input"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  const std::string &input = body["input"].s();
+
+  local_list<user_info, maxSearchResults> searchResults;
+  if (LS_FAILED(search_users(input.c_str(), &searchResults)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
+
+  for (int8_t i = 0; i < searchResults.count; i++)
+  {
+    ret[i]["name"] = searchResults[i].name;
     ret[i]["id"] = searchResults[i].id;
   }
 
@@ -355,7 +401,7 @@ crow::response handle_event_completed(const crow::request &req)
   local_list <event_info, maxEventsPerUserPerDay> completedTasks;
 
   // get this with schedule if even at all
-  if (LS_FAILED(get_completed_events_for_current_day(userId, &completedTasks))) // TODO: get event_infos in a for loop for less memory usage?
+  if (LS_FAILED(get_completed_events_for_current_day(userId, &completedTasks)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret;

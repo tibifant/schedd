@@ -6,7 +6,7 @@
 static std::mutex _ThreadLock;
 
 static pool<user> _Users;
-static local_list<user_info, maxUserAmount *maxSessionsPerUser> _UserInfo;
+static local_list<user_id_info, maxUserAmount *maxSessionsPerUser> _UserInfo;
 
 static pool<event> _Events;
 
@@ -68,7 +68,7 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
         local_list_add(&usr.sessionTokens, token);
         
         // Add User Info to List
-        user_info userInfo;
+        user_id_info userInfo;
         userInfo.sessionId = *pOutSessionId;
         userInfo.userId = userId;
         local_list_add(&_UserInfo, userInfo); // TODO: Either cap the amount of maximum users or handle having no free slot for another userInfo!
@@ -299,14 +299,14 @@ lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out
 
     for (const auto &_item : eventIds)
     {
-      event *pEvent = pool_get(&_Events, _item);
+      event evnt = *pool_get(&_Events, _item);
 
-      if (strstr(pEvent->name, searchTerm) != nullptr)
+      if (strstr(evnt.name, searchTerm) != nullptr)
       {
         event_info info;
         info.id = _item;
-        strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
-        info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
+        strncpy(info.name, evnt.name, LS_ARRAYSIZE(info.name));
+        info.durationInMinutes = minutes_from_time_span(evnt.durationTimeSpan);
 
         local_list_add(pOutSearchResults, info);
       }
@@ -314,6 +314,30 @@ lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out
   }
 
 epilogue:
+  return result;
+}
+
+lsResult search_users(const char *searchTerm, _Out_ local_list<user_info, maxSearchResults> *pOutSearchResults)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_item : _Users)
+    {
+      if (strstr(_item.pItem->username, searchTerm))
+      {
+        user_info info;
+        info.id = _item.index;
+        strncpy(info.name, _item.pItem->username, LS_ARRAYSIZE(info.name));
+
+        local_list_add(pOutSearchResults, info);
+      }
+    }
+  }
+
   return result;
 }
 
