@@ -203,16 +203,16 @@
 
       function user_search() {
         // Clear list!
-        //document.getElementById('user_search_results').innerHTML = '';
+        document.getElementById('user_search_results').innerHTML = '';
 
         let selectedSearchResults = [];
 
-        document.getElementById("submit_user_search_button").addEventListener('click', () => {
+        document.getElementById('submit_user_search_button').addEventListener('click', () => {
           // Clear list when searching again!
           document.getElementById('user_search_results').innerHTML = '';
 
           let input = document.getElementById("user_search_input").value;
-          load_backend_url("user-search", onUserSearchSuccess, { "input": input }, user_search_failure);
+          load_backend_url('user-search', onUserSearchSuccess, { 'input': input }, user_search_failure);
         });
 
         function onUserSearchSuccess(obj) {
