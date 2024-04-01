@@ -53,16 +53,16 @@ crow::response handle_task_details(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
 
+std::atomic<bool> _IsRunning = true;
+std::thread *pAsyncTasksThread = nullptr;
+
+void async_tasks();
+
+//////////////////////////////////////////////////////////////////////////
+
 int32_t main(void)
 {
-  crow::App<crow::CORSHandler> app;
-
-  auto &cors = app.get_middleware<crow::CORSHandler>();
-#ifndef SCHEDD_LOCALHOST
-  cors.global().origin(SCHEDD_HOSTNAME);
-#else
-  cors.global().origin("*");
-#endif
+  // TODO: Deserialize.
 
   user poepe;
   strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
@@ -71,6 +71,15 @@ int32_t main(void)
     local_list_add(&poepe.availableTimeInMinutesPerDay, pupusTime);
 
   add_new_user(poepe);
+
+  crow::App<crow::CORSHandler> app;
+
+  auto &cors = app.get_middleware<crow::CORSHandler>();
+#ifndef SCHEDD_LOCALHOST
+  cors.global().origin(SCHEDD_HOSTNAME);
+#else
+  cors.global().origin("*");
+#endif
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
@@ -81,8 +90,37 @@ int32_t main(void)
   CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req); });
   CROW_ROUTE(app, "/task").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_details(req); });
 
+  pAsyncTasksThread = new std::thread(async_tasks);
+
   app.port(61919).multithreaded().run();
+
+  _IsRunning = false;
 }
+//////////////////////////////////////////////////////////////////////////
+
+void async_tasks()
+{
+  constexpr size_t WaitTimeSeconds = 20;
+
+  while (true)
+  {
+    for (size_t i = 0; i < WaitTimeSeconds; i++) // To not lock up for 20 seconds.
+    {
+      if (!_IsRunning)
+        return;
+
+#ifdef _WIN32
+      Sleep(1000);
+#else
+#fail Sleep Not Implemented.
+#endif
+    }
+
+    // TODO: If Changed: Serialize.
+    // TODO: If Changed: Reschedule.
+  }
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 crow::response handle_login(const crow::request &req)
@@ -314,6 +352,7 @@ crow::response handle_event_completed(const crow::request &req)
 
   local_list <event_info, maxEventsPerUserPerDay> completedTasks;
 
+  // get this with schedule if even at all
   if (LS_FAILED(get_completed_events_for_current_day(userId, &completedTasks))) // TODO: get event_infos in a for loop for less memory usage?
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
