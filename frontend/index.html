@@ -219,9 +219,13 @@
             (() => {
               let i = item;
 
+              for (const s of selectedSearchResults)
+                if (i.id == s)
+                  elem.style.color = '#a8a8a8';
+
               elem.onclick = () => {
                 // TODO: make obvious that a user has been added (when showing up in search results again)
-                selectedSearchResults.push(item.id);
+                selectedSearchResults.push(i.id);
                 elem.style.color = '#a8a8a8';
               }
             })();
