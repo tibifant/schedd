@@ -194,12 +194,12 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetitionTimeSpan") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
+  if (!body || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetition") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
     return crow::response(crow::status::BAD_REQUEST);
 
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
-  const uint64_t repetitionTimeSpan = body["repetitionTimeSpan"].i();
+  const uint64_t repetitionInDays = body["repetition"].i();
   const uint64_t weight = body["weight"].i();
   const uint64_t weightFactor = body["weightFactor"].i();
   local_list<bool, 7> executionDays;
@@ -233,10 +233,10 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
   strncpy(evnt.name, eventName.c_str(), LS_ARRAYSIZE(evnt.name));
 
-  if (repetitionTimeSpan < 0)
+  if (repetitionInDays < 0)
     return crow::response(crow::status::BAD_REQUEST);
 
-  evnt.repetitionTimeSpan = time_span_from_days(repetitionTimeSpan);
+  evnt.repetitionTimeSpan = time_span_from_days(repetitionInDays);
 
   if (weight < 0 || weight > 100)
     return crow::response(crow::status::BAD_REQUEST);
@@ -315,14 +315,14 @@ crow::response handle_event_search(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("input"))
+  if (!body || !body.has("query"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const std::string &input = body["input"].s();
+  const std::string &query = body["query"].s();
 
   local_list<event_info, maxSearchResults> searchResults;
 
-  if (LS_FAILED(search_events(input.c_str(), &searchResults)))
+  if (LS_FAILED(search_events(query.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
@@ -341,13 +341,13 @@ crow::response handle_user_search(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("input"))
+  if (!body || !body.has("query"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const std::string &input = body["input"].s();
+  const std::string &query = body["query"].s();
 
   local_list<user_info, maxSearchResults> searchResults;
-  if (LS_FAILED(search_users(input.c_str(), &searchResults)))
+  if (LS_FAILED(search_users(query.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
