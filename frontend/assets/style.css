@@ -106,6 +106,10 @@ div.task {
   display: none;
 }
 
+li.selected {
+  color: #a8a8a8
+}
+
 failure_message {
   display: none;
   color: #ffad10;

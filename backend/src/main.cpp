@@ -382,12 +382,6 @@ crow::response handle_event_completed(const crow::request &req)
   if (LS_FAILED(add_completed_task(eventId, userId)))
     return crow::response(crow::status::BAD_REQUEST);
 
-  local_list <event_info, maxEventsPerUserPerDay> completedTasks;
-
-  // get this with schedule if even at all
-  if (LS_FAILED(get_completed_events_for_current_day(userId, &completedTasks)))
-    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
-
   crow::json::wvalue ret;
   ret["success"] = true;
 

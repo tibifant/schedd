@@ -361,8 +361,9 @@
 
           for (let i = 0; i < obj.users.length; i++) {
             let elem = append_element(document.getElementById('task_users_edit'), 'li', '', obj.users[i].name);
-            const isSelectedColor = '#a8a8a8'; // TODO!
-            elem.style.color = isSelectedColor;
+            //const isSelectedColor = '#a8a8a8'; // TODO!
+            //elem.style.color = isSelectedColor;
+            elem.className = 'selected';
             
             (() => {
               let idx = i;
@@ -372,10 +373,12 @@
               elem.onclick = () => {
                 if (event.userIds.includes(u.id)) {
                   event.userIds.splice(idx, 1);
-                  elem.style.color = '#fff';
+                  //elem.style.color = '#fff';
+                  elem.className = 'li';
                 } else {
                   event.userIds.push(u.id);
-                  elem.style.color = isSelectedColor;
+                  //elem.style.color = isSelectedColor;
+                  elem.className = 'selected';
                 }
               };           
             })();
