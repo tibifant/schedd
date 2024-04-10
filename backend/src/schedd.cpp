@@ -30,16 +30,39 @@ struct sortable_event
   }
 };
 
+struct current_time
+{
+  weekday_flags current_day;
+  time_point_t current_time;
+};
+
 void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 {
   small_list<sortable_event, 128> events;
-  user usr = *pool_get(&_Users, userId);
+  const current_time time = get_current_day_and_time();
 
-  for (const auto &_item : _Events)
+  for (const auto &&_item : _Events)
   {
     // TODO: Only add events that are eligible for today
-    const auto score = get_score_for_event(_item.pItem);
-    small_lsit_add(&events, sortable_event(_item.index, score));
+    // Is User Participating in Event?
+    bool foundUserId = false;
+    for (const auto &uId : _item.pItem->userIds)
+    {
+      if (userId == uId)
+      {
+        foundUserId = true;
+        break;
+      }
+    }
+
+
+    if (foundUserId)
+    {
+      // Is Event executable on current weekday?
+      // Has Event been executed long enough ago?
+      const auto score = get_score_for_event(_item.pItem);
+      small_lsit_add(&events, sortable_event(_item.index, score));
+    }
   }
 
   small_list_sort(events);
@@ -500,6 +523,16 @@ bool check_for_user_name_duplication(const char *username)
 time_point_t get_current_time()
 {
   return (time_point_t)time(nullptr);
+}
+
+current_time get_current_day_and_time()
+{
+  time_t t = time(nullptr);
+  size_t day = localtime(&t)->tm_wday; // Days since Sunday
+
+  current_time time;
+  time.current_day = (weekday_flags)(1 << (day + 1));
+  time.current_time = time_point_t(t);
 }
 
 time_span_t time_span_from_days(const size_t days)

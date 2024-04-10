@@ -63,7 +63,7 @@ struct user
 {
   char username[256];
   local_list<session_token, maxSessionsPerUser> sessionTokens;
-  local_list<time_span_t, DaysPerWeek> availableTimeInMinutesPerDay;
+  local_list<time_span_t, DaysPerWeek> availableTimePerDay;
   local_list<size_t, maxEventsPerUserPerDay> tasksForCurrentDay; // index of the event
   local_list<size_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
 };
