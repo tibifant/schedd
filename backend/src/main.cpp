@@ -40,6 +40,7 @@ namespace asio
 //////////////////////////////////////////////////////////////////////////
 
 #include "schedd.h"
+#include "small_list.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -49,7 +50,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 crow::response handle_user_schedule(const crow::request &req);
 crow::response handle_user_search(const crow::request &req);
 crow::response handle_event_search(const crow::request &req);
-crow::response handle_event_completed(const crow::request &req);
+crow::response handle_event_completed(const crow::request &req, const bool needsReschdule);
 crow::response handle_task_details(const crow::request &req);
 
 //////////////////////////////////////////////////////////////////////////
@@ -89,7 +90,8 @@ int32_t main(void)
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
   CROW_ROUTE(app, "/task-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_search(req); });
   CROW_ROUTE(app, "/user-search").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_search(req); });
-  CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req); });
+  CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req, false); });
+  CROW_ROUTE(app, "/task-done-reschedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req, true); });
   CROW_ROUTE(app, "/task").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_details(req); });
 
   pAsyncTasksThread = new std::thread(async_tasks);
@@ -121,6 +123,41 @@ void async_tasks()
     // TODO: If Changed: Serialize.
     // TODO: If Changed: Reschedule.
   }
+}
+
+struct sortable_event
+{
+  size_t event_id;
+  size_t score;
+
+  inline sortable_event(const size_t event_id, const size_t score) : event_id(event_id), score(score) {}
+
+  inline bool operator > (const sortable_event &other) // Operator switched (> -> <) so it gets sorted from high to low in `small_list_sort`
+  {
+    return (score < other.score);
+  }
+
+  inline bool operator < (const sortable_event &other) // Operator switched (< -> >) so it gets sorted from high to low in `small_list_sort`
+  {
+    return (score > other.score);
+  }
+};
+
+void reschedule_events()
+{
+  small_list<sortable_event, 128> events;
+
+  for (const auto &_item : userEvents)
+  {
+    // TODO: Only add events that are eligible for today
+    const auto score = get_score_for_event(_item.pItem);
+    small_lsit_add(&events, sortable_event(_item.index, score));
+  }
+
+  small_list_sort(events);
+
+  // TODO: Pick.
+  // TODO: Error handling.
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -194,9 +231,10 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetition") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
+  if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetition") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
     return crow::response(crow::status::BAD_REQUEST);
 
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
   const uint64_t repetitionInDays = body["repetition"].i();
@@ -204,6 +242,10 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   const uint64_t weightFactor = body["weightFactor"].i();
   local_list<bool, 7> executionDays;
   local_list<size_t, maxUsersPerEvent> userIds;
+
+  size_t __unused;
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
+    return crow::response(crow::status::FORBIDDEN);
   
   for (const auto &b : body["possibleExecutionDays"])
     if (LS_FAILED(local_list_add(&executionDays, b.b())))
@@ -293,10 +335,15 @@ crow::response handle_user_schedule(const crow::request &req)
   if (!body || !body.has("sessionId"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  int32_t sessionId = (int32_t)body["sessionId"].i();
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
+
+  size_t userId;
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
+    return crow::response(crow::status::FORBIDDEN);
   
+  // TODO: This needs a flag for already completed tasks
   local_list<event_info, maxEventsPerUserPerDay> currentTasks;
-  if (LS_FAILED(get_current_events_from_session_id(sessionId, &currentTasks)))
+  if (LS_FAILED(get_current_events_from_user_id(userId, &currentTasks)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
@@ -315,10 +362,15 @@ crow::response handle_event_search(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("query"))
+  if (!body || !body.has("sessionId") || !body.has("query"))
     return crow::response(crow::status::BAD_REQUEST);
 
   const std::string &query = body["query"].s();
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
+
+  size_t __unused;
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
+    return crow::response(crow::status::FORBIDDEN);
 
   local_list<event_info, maxSearchResults> searchResults;
 
@@ -341,8 +393,14 @@ crow::response handle_user_search(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("query"))
+  if (!body || !body.has("sessionId") || !body.has("query"))
     return crow::response(crow::status::BAD_REQUEST);
+
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
+
+  size_t __unused;
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
+    return crow::response(crow::status::FORBIDDEN);
 
   const std::string &query = body["query"].s();
 
@@ -361,7 +419,7 @@ crow::response handle_user_search(const crow::request &req)
   return crow::response(crow::status::OK, ret);
 }
 
-crow::response handle_event_completed(const crow::request &req)
+crow::response handle_event_completed(const crow::request &req, const bool needsReschdule)
 {
   auto body = crow::json::load(req.body);
 
@@ -376,11 +434,13 @@ crow::response handle_event_completed(const crow::request &req)
 
   size_t userId;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
-    return crow::response(crow::status::BAD_REQUEST);
+    return crow::response(crow::status::FORBIDDEN);
 
-  // TODO: Do we want to remove the task from tasks for today list?
   if (LS_FAILED(add_completed_task(eventId, userId)))
     return crow::response(crow::status::BAD_REQUEST);
+
+  if (needsReschdule)
+    _ExplicitlyRequestsReschedule++;
 
   crow::json::wvalue ret;
   ret["success"] = true;
@@ -392,10 +452,15 @@ crow::response handle_task_details(const crow::request &req)
 {
   auto body = crow::json::load(req.body);
 
-  if (!body || !body.has("taskId"))
+  if (!body || !body.has("sessionId") || !body.has("taskId"))
     return crow::response(crow::status::BAD_REQUEST);
 
   const size_t taskId = body["taskId"].i();
+  const int32_t sessionId = (int32_t)body["sessionId"].i();
+
+  size_t __unused;
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
+    return crow::response(crow::status::FORBIDDEN);
 
   event evnt;
   if (LS_FAILED(get_event(taskId, &evnt)))

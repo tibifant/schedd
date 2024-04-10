@@ -5,6 +5,10 @@
 #include "local_list.h"
 #include "pool.h"
 
+static std::atomic<size_t> _UserChangingStatus = 0;
+static std::atomic<size_t> _EventChangingStatus = 0;
+static std::atomic<size_t> _ExplicitlyRequestsReschedule = 0;
+
 constexpr size_t DaysPerWeek = 7;
 
 constexpr size_t maxUsersPerEvent = 16;
@@ -81,8 +85,8 @@ struct user_info
 
 lsResult get_user_info(const size_t userId, _Out_ user_info *pOutInfo);
 
-lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents); 
-lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks);
+lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents);
+lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks);
 
 constexpr size_t maxSearchResults = 32;
 lsResult search_events(const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults);

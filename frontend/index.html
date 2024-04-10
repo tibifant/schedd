@@ -56,7 +56,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      let event = { 'id': '', 'name': '', 'duration': 0, 'possibleExecutionDays': '', 'repetition': 0, 'weight': 0, 'weightFactor': 0, 'userIds': '' };
+      let event = { 'id': '', 'userIds': [] };
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -170,9 +170,10 @@
 
       function submit_new_task() {
         document.getElementById('user_search_failure').style.display = "none";
+        let obj = {};
 
-        event.name = document.getElementById("task_name").value;
-        event.duration = document.getElementById("task_duration").value;
+        obj.name = document.getElementById("task_name").value;
+        obj.duration = document.getElementById("task_duration").value;
         let taskExecutionDays = [];
         taskExecutionDays[0] = document.getElementById("task_execution_days_monday").checked;
         taskExecutionDays[1] = document.getElementById("task_execution_days_tuesdays").checked;
@@ -181,17 +182,19 @@
         taskExecutionDays[4] = document.getElementById("task_execution_days_friday").checked;
         taskExecutionDays[5] = document.getElementById("task_execution_days_saturday").checked;
         taskExecutionDays[6] = document.getElementById("task_execution_days_sunday").checked;
-        event.possibleExecutionDays = taskExecutionDays;
-        event.repetition = document.getElementById("task_repetition").value;
-        event.weight = document.getElementById("task_weight").value;
-        event.weightFactor = document.getElementById("task_weight_factor").value;
-          
+        obj.possibleExecutionDays = taskExecutionDays;
+        obj.repetition = document.getElementById("task_repetition").value;
+        obj.weight = document.getElementById("task_weight").value;
+        obj.weightFactor = document.getElementById("task_weight_factor").value;
+        obj.userIds = event.userIds;
+        obj.sessionId = get_session_token();
+
         function onTaskCreationSuccess(obj) {
           document.getElementsByClassName("task_creation")[0].style.display = "none";
           document.getElementsByClassName('user_search')[0].style.display = 'none';
         }
 
-        load_backend_url("task-creation", onTaskCreationSuccess, event, task_creation_failure)
+        load_backend_url("task-creation", onTaskCreationSuccess, obj, task_creation_failure)
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +218,7 @@
           for (let i = 0; i < obj.length; i++) {
             let elem = append_element(document.getElementById('user_search_results'), 'li', '', obj[i].name);
             
-            (() => {
+            (() => { // TODO: Do this properly
               let u = obj[i];
               let idx = i;
 
@@ -239,13 +242,13 @@
         }
 
         let query = document.getElementById('user_search_query').value;
-        load_backend_url('user-search', onUserSearchSuccess, { 'query': query }, user_search_failure);
+        load_backend_url('user-search', onUserSearchSuccess, { 'sessionId': get_session_token(), 'query': query }, user_search_failure);
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function show_task_done() {
-        load_backend_url('task-done', onTaskDoneSuccess, { "sessionId": get_session_token(), "taskId": event.id }, task_done_failure)
+      function submit_task_done() {
+        load_backend_url('task-done', onTaskDoneSuccess, { "sessionId": get_session_token(), "taskId": event.id }, task_done_failure);
 
         function onTaskDoneSuccess(obj) {
           document.getElementById('task_done_failure').style.display = 'none';
@@ -255,6 +258,18 @@
 
       function task_done_failure() {
         document.getElementById('task_done_failure').style.display = 'block';
+      }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function submit_task_done_reschedule() {
+        load_backend_url('task-done-reschedule', onTaskDoneReschduleSuccess, { "sessionId": get_session_token(), "taskId": event.id }, task_done_failure);
+
+        function onTaskDoneReschduleSuccess(obj) {
+          document.getElementById('task_done_failure').style.display = 'none';
+          document.getElementById('success').style.display = 'block';
+          show_user_schedule(); // reload user schedule
+        }
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -303,8 +318,8 @@
         document.getElementById('task_search_results').innerHTML = '';
 
         let query = document.getElementById("task_search_query").value;
-        let searchObj = { "query": query };
-        load_backend_url("task-search", onTaskSearchSuccess, searchObj, task_search_failure);
+
+        load_backend_url("task-search", onTaskSearchSuccess, { "sessionId": get_session_token(), "query": query }, task_search_failure);
 
         function onTaskSearchSuccess(obj) {
           document.getElementById('task_search_failure').style.display = 'none';
@@ -334,7 +349,7 @@
       function show_task() {
         document.getElementsByClassName('task')[0].style.display = 'block';
         
-        load_backend_url('task', onTaskDetailsSuccess, { 'taskId': event.id }, task_details_failure);
+        load_backend_url('task', onTaskDetailsSuccess, { 'sessionId': get_session_token(), 'taskId': event.id }, task_details_failure);
 
         function onTaskDetailsSuccess(obj) {
           document.getElementById('task_details_failure').style.display = 'none';
@@ -362,7 +377,7 @@
             let elem = append_element(document.getElementById('task_users_edit'), 'li', '', obj.users[i].name);
             elem.className = 'selected';
             
-            (() => {
+            (() => { // TODO: Do this properly
               let idx = i;
               let u = obj.users[i];
               event.userIds.push(u.id);
@@ -395,8 +410,9 @@
       function submit_task_modification() {
         document.getElementsByClassName('user_search')[0].style.display = 'none';
 
-        event.name = document.getElementById("task_name_edit").value;
-        event.duration = document.getElementById("task_duration_edit").value;
+        let obj = {};
+        obj.name = document.getElementById("task_name_edit").value;
+        obj.duration = document.getElementById("task_duration_edit").value;
         let taskExecutionDays = [];
         taskExecutionDays[0] = document.getElementById("task_execution_days_monday_edit").checked;
         taskExecutionDays[1] = document.getElementById("task_execution_days_tuesdays_edit").checked;
@@ -405,17 +421,20 @@
         taskExecutionDays[4] = document.getElementById("task_execution_days_friday_edit").checked;
         taskExecutionDays[5] = document.getElementById("task_execution_days_saturday_edit").checked;
         taskExecutionDays[6] = document.getElementById("task_execution_days_sunday_edit").checked;
-        event.possibleExecutionDays = taskExecutionDays;
-        event.repetition = document.getElementById("task_repetition_edit").value;
-        event.weight = document.getElementById("task_weight_edit").value;
-        event.weightFactor = document.getElementById("task_weight_factor_edit").value;
+        obj.possibleExecutionDays = taskExecutionDays;
+        obj.repetition = document.getElementById("task_repetition_edit").value;
+        obj.weight = document.getElementById("task_weight_edit").value;
+        obj.weightFactor = document.getElementById("task_weight_factor_edit").value;
+        obj.userIds = event.userIds;
+        obj.id = event.id;
+        obj.sessionId = get_session_token();
 
         function onTaskEditSuccess(obj) {
           document.getElementsByClassName("task")[0].style.display = "none";
           document.getElementsByClassName('user_search')[0].style.display = 'none';
         }
 
-        load_backend_url("task-edit", onTaskEditSuccess, event, task_edit_failure)
+        load_backend_url("task-edit", onTaskEditSuccess, obj, task_edit_failure)
       }
 
       function task_edit_failure() {
@@ -440,7 +459,8 @@
         document.getElementById('submit_event_search_button').addEventListener('click', on_task_search_click);
 
         document.getElementById("edit_task_button").addEventListener('click', on_task_edit_click);
-        document.getElementById("mark_as_done_button").addEventListener('click', show_task_done);
+        document.getElementById("mark_as_done_button").addEventListener('click', submit_task_done);
+        document.getElementById("mark_as_done_add_new_button").addEventListener('click', submit_task_done_reschedule);
 
         if (!is_logged_in()) {
           show_login_screen();
@@ -552,7 +572,8 @@
           <p>Failure Submitting Changes!</p>
         </failure_message>
         <!-- task details -->
-        <button id="mark_as_done_button">Mark as Done</button></br></br>
+        <button id="mark_as_done_button">Mark as Done</button></br>
+        <button id="mark_as_done_add_new_button">Mark as Done and schedule new Task for Today</button></br></br>
         <p>You can edit the details.</p>
         <label for="task_name_edit">What's the name of the task?</label>
         <input type="text" id="task_name_edit"></input></br>

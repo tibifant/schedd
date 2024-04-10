@@ -10,9 +10,6 @@ static local_list<user_id_info, maxUserAmount *maxSessionsPerUser> _UserInfo;
 
 static pool<event> _Events;
 
-static std::atomic<uint64_t> _UserChangingStatus = 0;
-static std::atomic<uint64_t> _EventChangingStatus = 0;
-
 //////////////////////////////////////////////////////////////////////////
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId)
@@ -159,12 +156,9 @@ lsResult add_new_event(event evnt)
   return result;
 }
 
-lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents)
+lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents)
 {
   lsResult result = lsR_Success;
-
-  size_t userId;
-  LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
   
   // Scope Lock
   {
@@ -181,7 +175,7 @@ lsResult get_current_events_from_session_id(const int32_t sessionId, _Out_ local
       strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
       info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
      
-      local_list_add(pOutCurrentEvents, info);
+      LS_ERROR_CHECK(local_list_add(pOutCurrentEvents, info));
     }
   }
 
@@ -189,7 +183,7 @@ epilogue:
   return result;
 }
 
-lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks)
+lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks)
 {
   lsResult result = lsR_Success;
 
@@ -208,10 +202,11 @@ lsResult get_completed_events_for_current_day(size_t userId, _Out_ local_list<ev
       info.durationInMinutes = minutes_from_time_span(evnt.durationTimeSpan);
       strncpy(info.name, evnt.name, LS_ARRAYSIZE(info.name));
 
-      local_list_add(pOutCompletedTasks, info);
+      LS_ERROR_CHECK(local_list_add(pOutCompletedTasks, info));
     }
   }
 
+epilogue:
   return result;
 }
 
@@ -229,12 +224,12 @@ lsResult set_events_for_user(const int32_t sessionId)
     event poepePutzt;
     strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
     poepePutzt.durationTimeSpan = time_span_from_minutes(20);
-    local_list_add(&poepePutzt.userIds, userId);
+    LS_ERROR_CHECK(local_list_add(&poepePutzt.userIds, userId));
 
     event poepeKocht;
     strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepeKocht.name));
     poepeKocht.durationTimeSpan = time_span_from_minutes(100);
-    local_list_add(&poepeKocht.userIds, userId);
+    LS_ERROR_CHECK(local_list_add(&poepeKocht.userIds, userId));
 
     size_t putzEventId;
     LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, poepePutzt, &putzEventId));
@@ -242,8 +237,8 @@ lsResult set_events_for_user(const int32_t sessionId)
     LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, poepeKocht, &kochEventId));
 
     user *pUser = pool_get(&_Users, userId);
-    local_list_add(&pUser->tasksForCurrentDay, putzEventId);
-    local_list_add(&pUser->tasksForCurrentDay, kochEventId);
+    LS_ERROR_CHECK(local_list_add(&pUser->tasksForCurrentDay, putzEventId));
+    LS_ERROR_CHECK(local_list_add(&pUser->tasksForCurrentDay, kochEventId));
   }
 
   _UserChangingStatus++;
@@ -295,11 +290,10 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
     std::scoped_lock lock(_ThreadLock);
 
     user *pUser = pool_get(&_Users, userId);
-    local_list_add(&pUser->completedTasksForCurrentDay, eventId);
+    LS_ERROR_CHECK(local_list_add(&pUser->completedTasksForCurrentDay, eventId));
   }
 
-  _UserChangingStatus++;
-
+epilogue:
   return result;
 }
 
@@ -320,11 +314,12 @@ lsResult search_events(const char *searchTerm, _Out_ local_list<event_info, maxS
         strncpy(info.name, _item.pItem->name, LS_ARRAYSIZE(info.name));
         info.durationInMinutes = minutes_from_time_span(_item.pItem->durationTimeSpan);
 
-        local_list_add(pOutSearchResults, info);
+        LS_ERROR_CHECK(local_list_add(pOutSearchResults, info));
       }
     }    
   }
 
+epilogue:
   return result;
 }
 
@@ -350,7 +345,7 @@ lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out
         strncpy(info.name, evnt.name, LS_ARRAYSIZE(info.name));
         info.durationInMinutes = minutes_from_time_span(evnt.durationTimeSpan);
 
-        local_list_add(pOutSearchResults, info);
+        LS_ERROR_CHECK(local_list_add(pOutSearchResults, info));
       }
     }
   }
@@ -375,11 +370,12 @@ lsResult search_users(const char *searchTerm, _Out_ local_list<user_info, maxSea
         info.id = _item.index;
         strncpy(info.name, _item.pItem->username, LS_ARRAYSIZE(info.name));
 
-        local_list_add(pOutSearchResults, info);
+        LS_ERROR_CHECK(local_list_add(pOutSearchResults, info));
       }
     }
   }
 
+epilogue:
   return result;
 }
 
@@ -396,11 +392,12 @@ lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t
       for (const auto &_id : _item.pItem->userIds)
       {
         if (_id == userId)
-          local_list_add(pOutEventIds, _item.index);
+          LS_ERROR_CHECK(local_list_add(pOutEventIds, _item.index));
       }
     }
   }
 
+epilogue:
   return result;
 }
 
