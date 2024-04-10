@@ -4,10 +4,13 @@
 
 #include "local_list.h"
 #include "pool.h"
+#include "small_list.h"
 
 static std::atomic<size_t> _UserChangingStatus = 0;
 static std::atomic<size_t> _EventChangingStatus = 0;
 static std::atomic<size_t> _ExplicitlyRequestsReschedule = 0;
+
+void reschedule_events_for_user(const size_t userId); // Assumes mutex lock
 
 constexpr size_t DaysPerWeek = 7;
 

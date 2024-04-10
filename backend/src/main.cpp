@@ -40,7 +40,6 @@ namespace asio
 //////////////////////////////////////////////////////////////////////////
 
 #include "schedd.h"
-#include "small_list.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -123,41 +122,6 @@ void async_tasks()
     // TODO: If Changed: Serialize.
     // TODO: If Changed: Reschedule.
   }
-}
-
-struct sortable_event
-{
-  size_t event_id;
-  size_t score;
-
-  inline sortable_event(const size_t event_id, const size_t score) : event_id(event_id), score(score) {}
-
-  inline bool operator > (const sortable_event &other) // Operator switched (> -> <) so it gets sorted from high to low in `small_list_sort`
-  {
-    return (score < other.score);
-  }
-
-  inline bool operator < (const sortable_event &other) // Operator switched (< -> >) so it gets sorted from high to low in `small_list_sort`
-  {
-    return (score > other.score);
-  }
-};
-
-void reschedule_events()
-{
-  small_list<sortable_event, 128> events;
-
-  for (const auto &_item : userEvents)
-  {
-    // TODO: Only add events that are eligible for today
-    const auto score = get_score_for_event(_item.pItem);
-    small_lsit_add(&events, sortable_event(_item.index, score));
-  }
-
-  small_list_sort(events);
-
-  // TODO: Pick.
-  // TODO: Error handling.
 }
 
 //////////////////////////////////////////////////////////////////////////

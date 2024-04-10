@@ -12,6 +12,49 @@ static pool<event> _Events;
 
 //////////////////////////////////////////////////////////////////////////
 
+struct sortable_event
+{
+  size_t event_id;
+  size_t score;
+
+  inline sortable_event(const size_t event_id, const size_t score) : event_id(event_id), score(score) {}
+
+  inline bool operator > (const sortable_event &other) // Operator switched (> -> <) so it gets sorted from high to low in `small_list_sort`
+  {
+    return (score < other.score);
+  }
+
+  inline bool operator < (const sortable_event &other) // Operator switched (< -> >) so it gets sorted from high to low in `small_list_sort`
+  {
+    return (score > other.score);
+  }
+};
+
+void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
+{
+  small_list<sortable_event, 128> events;
+  user usr = *pool_get(&_Users, userId);
+
+  for (const auto &_item : _Events)
+  {
+    // TODO: Only add events that are eligible for today
+    const auto score = get_score_for_event(_item.pItem);
+    small_lsit_add(&events, sortable_event(_item.index, score));
+  }
+
+  small_list_sort(events);
+
+  // TODO: Pick.
+  // TODO: Error handling.
+}
+
+// struct that has current weekday and unix time stamo (windows functions (ifndef msvc or static assert fals, ask coco))
+// #ifndef _WIN32
+// #fail not implemented
+// #endif
+
+//////////////////////////////////////////////////////////////////////////
+
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId)
 {
   lsResult result = lsR_Success;
