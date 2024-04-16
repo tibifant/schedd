@@ -69,7 +69,7 @@ int32_t main(void)
   strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
   const time_span_t pupusTime = time_span_from_minutes(120);
   for (size_t i = 0; i < DaysPerWeek; i++)
-    local_list_add(&poepe.availableTimeInMinutesPerDay, pupusTime);
+    local_list_add(&poepe.availableTimePerDay, pupusTime);
 
   add_new_user(poepe);
 
@@ -172,7 +172,7 @@ crow::response handle_user_registration(const crow::request &req)
       return crow::response(crow::status::BAD_REQUEST);
 
     lsAssert(_item.i() >= 0);
-    local_list_add(&usr.availableTimeInMinutesPerDay, time_span_from_minutes(_item.i()));
+    local_list_add(&usr.availableTimePerDay, time_span_from_minutes(_item.i()));
   }
 
   if (LS_FAILED(add_new_user(usr)))

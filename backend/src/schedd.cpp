@@ -55,6 +55,7 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
       }
     }
 
+    if (_item.pItem->possibleExecutionDays & time.current_day) // oh lino think
 
     if (foundUserId)
     {
