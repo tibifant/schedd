@@ -681,12 +681,12 @@ inline const T &small_list<T, internal_count>::operator[](const size_t index) co
 
 //////////////////////////////////////////////////////////////////////////
 
-template<typename T, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
-inline void small_list_sort(small_list<T> &l)
+template<typename T, size_t internal_count, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
+inline void small_list_sort(small_list<T, internal_count> &l)
 {
   struct _internal
   {
-    static void dualPivotQuickSort_partition(small_list<T> &l, const int64_t low, const int64_t high, int64_t *pRightPivot, int64_t *pLeftPivot)
+    static void dualPivotQuickSort_partition(small_list<T, internal_count> &l, const int64_t low, const int64_t high, int64_t *pRightPivot, int64_t *pLeftPivot)
     {
       TLessFunc _less = TLessFunc();
       TGreaterFunc _greater = TGreaterFunc();
@@ -737,7 +737,7 @@ inline void small_list_sort(small_list<T> &l)
       *pRightPivot = g;
     }
 
-    static void quickSort(small_list<T> &l, const int64_t start, const int64_t end)
+    static void quickSort(small_list<T, internal_count> &l, const int64_t start, const int64_t end)
     {
       if (start < end)
       {
@@ -756,18 +756,18 @@ inline void small_list_sort(small_list<T> &l)
     _internal::quickSort(l, 0, l.count - 1);
 }
 
-template<typename T, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
-inline void small_list_sort_descending(small_list<T> &l)
+template<typename T, size_t internal_count, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
+inline void small_list_sort_descending(small_list<T, internal_count> &l)
 {
   return small_list_sort<T, TGreaterFunc, TLessFunc>(l);
 }
 
-template<typename T, typename TComparable>
-inline void small_list_sort(small_list<T> &l, const std::function<TComparable (const T &value)> &toComparable)
+template<typename T, size_t internal_count, typename TComparable>
+inline void small_list_sort(small_list<T, internal_count> &l, const std::function<TComparable (const T &value)> &toComparable)
 {
   struct _internal
   {
-    static void dualPivotQuickSort_partition(small_list<T> &l, const int64_t low, const int64_t high, int64_t *pRightPivot, int64_t *pLeftPivot, const std::function<TComparable(const T &value)> &toComparable)
+    static void dualPivotQuickSort_partition(small_list<T, internal_count> &l, const int64_t low, const int64_t high, int64_t *pRightPivot, int64_t *pLeftPivot, const std::function<TComparable(const T &value)> &toComparable)
     {
       if (toComparable(l[low]) > toComparable(l[high]))
         std::swap(l[low], l[high]);
@@ -815,7 +815,7 @@ inline void small_list_sort(small_list<T> &l, const std::function<TComparable (c
       *pRightPivot = g;
     }
 
-    static void quickSort(small_list<T> &l, const int64_t start, const int64_t end, const std::function<TComparable(const T &value)> &toComparable)
+    static void quickSort(small_list<T, internal_count> &l, const int64_t start, const int64_t end, const std::function<TComparable(const T &value)> &toComparable)
     {
       if (start < end)
       {
@@ -834,8 +834,8 @@ inline void small_list_sort(small_list<T> &l, const std::function<TComparable (c
     _internal::quickSort(l, 0, l.count - 1, toComparable);
 }
 
-template <typename T, typename TComparable, typename TGreater = std::greater<TComparable>>
-inline void small_list_to_heap_percolate_recursive(small_list<T> &l, const size_t idx, const size_t count, const std::function<TComparable(const T &value)> &toComparable)
+template <typename T, size_t internal_count, typename TComparable, typename TGreater = std::greater<TComparable>>
+inline void small_list_to_heap_percolate_recursive(small_list<T, internal_count> &l, const size_t idx, const size_t count, const std::function<TComparable(const T &value)> &toComparable)
 {
   TGreater _greater;
 
@@ -873,17 +873,17 @@ inline void small_list_to_heap_percolate_recursive(small_list<T> &l, const size_
   }
 }
 
-template <typename T, typename TComparable, typename TGreater = std::greater<TComparable>>
-inline void small_list_to_heap(small_list<T> &l, const std::function<TComparable(const T &value)> &toComparable, const size_t count)
+template <typename T, size_t internal_count, typename TComparable, typename TGreater = std::greater<TComparable>>
+inline void small_list_to_heap(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable, const size_t count)
 {
   for (int64_t i = count / 2 - 1; i >= 0; i--)
     small_list_to_heap_percolate_recursive(l, i, count, toComparable);
 }
 
-template <typename T, typename TComparable, typename TGreater = std::greater<TComparable>>
-inline void small_list_to_heap(small_list<T> &l, const std::function<TComparable(const T &value)> &toComparable)
+template <typename T, size_t internal_count, typename TComparable, typename TGreater = std::greater<TComparable>>
+inline void small_list_to_heap(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable)
 {
-  small_list_to_heap<T, TComparable, TGreater>(l, toComparable, l.count);
+  small_list_to_heap<T, internal_count, TComparable, TGreater>(l, toComparable, l.count);
 }
 
 //////////////////////////////////////////////////////////////////////////
