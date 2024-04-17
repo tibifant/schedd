@@ -17,14 +17,15 @@ struct sortable_event
   size_t event_id;
   float_t score; // coc: it's alright to have this as a float, is it?
 
+  inline sortable_event() {}
   inline sortable_event(const size_t event_id, const float_t score) : event_id(event_id), score(score) {}
 
-  inline bool operator < (const sortable_event &other)
+  inline bool operator < (const sortable_event &other) const
   {
     return (score < other.score);
   }
 
-  inline bool operator > (const sortable_event &other)
+  inline bool operator > (const sortable_event &other) const
   {
     return (score > other.score);
   }
@@ -101,7 +102,7 @@ float_t get_score_for_event(const event evnt)
 
   // How many days unitl the next possible execution day after today?
   // TODO: this seems sooo 'lino head overcomplicating the world'... not even sure if it works right now...
-  size_t countUntilNextPossibleDay;
+  size_t countUntilNextPossibleDay = 0;
   bool stoppedAtSunday = false;
 
   lsAssert(evnt.possibleExecutionDays != wF_None);

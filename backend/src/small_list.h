@@ -759,7 +759,7 @@ inline void small_list_sort(small_list<T, internal_count> &l)
 template<typename T, size_t internal_count, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
 inline void small_list_sort_descending(small_list<T, internal_count> &l)
 {
-  return small_list_sort<T, TGreaterFunc, TLessFunc>(l);
+  return small_list_sort<T, internal_count, TGreaterFunc, TLessFunc>(l);
 }
 
 template<typename T, size_t internal_count, typename TComparable>
