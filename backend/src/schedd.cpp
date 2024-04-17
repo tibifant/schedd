@@ -30,6 +30,10 @@ struct sortable_event
   }
 };
 
+#ifndef _WIN32
+#fail not implemented
+#endif
+
 struct current_time
 {
   weekday_flags current_day;
@@ -43,26 +47,30 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
   for (const auto &&_item : _Events)
   {
-    // TODO: Only add events that are eligible for today
-    // Is User Participating in Event?
-    bool foundUserId = false;
-    for (const auto &uId : _item.pItem->userIds)
+    // Is Event executable on current weekday?
+    if (_item.pItem->possibleExecutionDays & time.current_day)
     {
-      if (userId == uId)
+      // Is event due today?
+      if (_item.pItem->lastCompletedTime + _item.pItem->repetitionTimeSpan >= time.current_time || _item.pItem->lastCompletedTime == 0)
       {
-        foundUserId = true;
-        break;
+        // Is User Participating in Event?
+        bool foundUserId = false;
+        for (const auto &uId : _item.pItem->userIds)
+        {
+          if (userId == uId)
+          {
+            foundUserId = true;
+            break;
+          }
+        }
+
+        if (foundUserId)
+        {
+          // TODO? does event fit in avaliable time slot of user for today, but will be checked later on
+          const auto score = get_score_for_event(*_item.pItem);
+          small_list_add(&events, sortable_event(_item.index, score));
+        }
       }
-    }
-
-    if (_item.pItem->possibleExecutionDays & time.current_day) // oh lino think
-
-    if (foundUserId)
-    {
-      // Is Event executable on current weekday?
-      // Has Event been executed long enough ago?
-      const auto score = get_score_for_event(_item.pItem);
-      small_lsit_add(&events, sortable_event(_item.index, score));
     }
   }
 
@@ -72,10 +80,37 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
   // TODO: Error handling.
 }
 
-// struct that has current weekday and unix time stamo (windows functions (ifndef msvc or static assert fals, ask coco))
-// #ifndef _WIN32
-// #fail not implemented
-// #endif
+size_t get_score_for_event(const event evnt)
+{
+  time_point_t currentTime = get_current_time();
+  // pretend it won't be executed today
+  // weight
+  size_t score = evnt.weight;
+
+  size_t diffTodayTarget;
+
+  if (evnt.lastCompletedTime == 0)
+    diffTodayTarget = currentTime - evnt.creationTime; // this is not completely accurate as the day of creation may hasn't been a possible execution day
+  else
+    diffTodayTarget = currentTime - (evnt.lastCompletedTime + evnt.repetitionTimeSpan);
+  // difference between lastDoneDate and next day that is possible from today on
+
+  if (evnt.repetitionTimeSpan == 0)
+  {
+    // handle differently (just check when next execution day will be reached
+  }
+  else
+  {
+    size_t repetitionInDays = days_from_time_span(evnt.repetitionTimeSpan);
+
+    for (int8_t i = repetitionInDays; i >= 0; i--)
+    {
+      // check if following days are in question as execution days, if not use currentDay + repetitionTimeSpan as next due date
+    }
+
+    // calculate weightFactor: score += timeThatWouldPassIfTaskIsNotExecutedToday * weightFactor (maybe scale down weightFactor as it ranges to 100 atm)
+  }
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -468,7 +503,7 @@ epilogue:
   return result;
 }
 
-lsResult get_event(const size_t taskId, _Out_ event *pEvent)
+lsResult get_event(const size_t id, _Out_ event *pEvent)
 {
   lsResult result = lsR_Success;
 
@@ -476,7 +511,7 @@ lsResult get_event(const size_t taskId, _Out_ event *pEvent)
   {
     std::scoped_lock lock(_ThreadLock);
 
-    *pEvent = *pool_get(&_Events, taskId);
+    *pEvent = *pool_get(&_Events, id);
   }
 
   return result;

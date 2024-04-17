@@ -40,7 +40,7 @@ struct event
   uint64_t weight, weightGrowthFactor;
   weekday_flags possibleExecutionDays; // 1 bit for each day + 1 extra
   time_span_t repetitionTimeSpan; // if 0: don't repeat!
-  time_point_t creationTime, lastCompletedTime, lastModifiedTime;
+  time_point_t creationTime, lastCompletedTime, lastModifiedTime; // if lastCompletedTime == 0: hasn;t been executed so far.
 };
 
 struct session_token

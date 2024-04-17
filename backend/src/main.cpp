@@ -266,10 +266,12 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
   evnt.durationTimeSpan = time_span_from_minutes(duration);
 
-  evnt.creationTime = get_current_time();
-
   if (isCreation)
   {
+    evnt.creationTime = get_current_time();
+    evnt.lastCompletedTime = 0;
+    evnt.lastModifiedTime = 0;
+
     if (LS_FAILED(add_new_event(evnt)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
@@ -280,6 +282,12 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
     size_t id = body["id"].i();
 
+    event oldEvent;
+    if (LS_FAILED(get_event(id, &oldEvent)))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+    evnt.creationTime = oldEvent.creationTime;
+    evnt.lastCompletedTime = oldEvent.lastCompletedTime;
     evnt.lastModifiedTime = get_current_time();
 
     if (LS_FAILED(replace_task(id, evnt)))
