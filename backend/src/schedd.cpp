@@ -15,10 +15,10 @@ static pool<event> _Events;
 struct sortable_event
 {
   size_t event_id;
-  uint64_t score; // coc: it's alright to have this as a float, is it?
+  uint64_t score;
 
   inline sortable_event() {}
-  inline sortable_event(const size_t event_id, const float_t score) : event_id(event_id), score(score) {}
+  inline sortable_event(const size_t event_id, const uint64_t score) : event_id(event_id), score(score) {}
 
   inline bool operator < (const sortable_event &other) const
   {
@@ -74,7 +74,6 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
         if (foundUserId)
         {
-          // TODO? does event fit in avaliable time slot of user for today, but will be checked later on
           const auto score = get_score_for_event(*_item.pItem);
           small_list_add(&events, sortable_event(_item.index, score));
         }
@@ -84,22 +83,22 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
   small_list_sort_descending(events);
 
-  // TODO: Pick.
-  user usr = *pool_get(&_Users, userId);
-  local_list_clear(&usr.tasksForCurrentDay);
+  // Pick.
+  user *pUser = pool_get(&_Users, userId);
+  local_list_clear(&pUser->tasksForCurrentDay);
 
-  time_span_t usedTime = 0;
+  time_span_t availableTime = pUser->availableTimePerDay[time.dayIndex];
 
-  for (const auto &_item : events) // ehh?
+  for (const auto &_item : events)
   {
-    if (usedTime <= usr.availableTimePerDay[time.dayIndex])
+    if (availableTime >= 0)
     {
       event evnt = *pool_get(&_Events, _item.event_id);
 
-      if (evnt.durationTimeSpan <= usr.availableTimePerDay[time.dayIndex])
+      if (evnt.durationTimeSpan <= availableTime)
       {
-        local_list_add(&usr.tasksForCurrentDay, _item.event_id);
-        usedTime += evnt.durationTimeSpan;
+        local_list_add(&pUser->tasksForCurrentDay, _item.event_id);
+        availableTime -= evnt.durationTimeSpan;
       }
     }
     else
@@ -109,6 +108,7 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
   }
 
   // TODO: Error handling.
+  // Should it be an error if we couldn't schedule any task?
 }
 
 uint64_t get_score_for_event(const event evnt)
@@ -163,7 +163,7 @@ uint64_t get_score_for_event(const event evnt)
   // How many repetition time spans fit into the timeperiod from last and next possible execution (after today)?
   size_t dueTime = days_from_time_span(diffTodayTarget) + countUntilNextPossibleDay;
   size_t repetitionInDays = days_from_time_span(evnt.repetitionTimeSpan);
-  uint64_t dueTimePeriodCount = (float_t)(dueTime % repetitionInDays);
+  uint64_t dueTimePeriodCount = dueTime % repetitionInDays;
   dueTimePeriodCount += 100 * ((dueTime - dueTimePeriodCount * repetitionInDays) / repetitionInDays);
 
   return evnt.weight + dueTimePeriodCount * evnt.weightGrowthFactor;

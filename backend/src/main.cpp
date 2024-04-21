@@ -313,6 +313,9 @@ crow::response handle_user_schedule(const crow::request &req)
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::FORBIDDEN);
   
+  // TEMPORARY: Reschedule.
+  reschedule_events_for_user(userId);
+
   // TODO: This needs a flag for already completed tasks
   local_list<event_info, maxEventsPerUserPerDay> currentTasks;
   if (LS_FAILED(get_current_events_from_user_id(userId, &currentTasks)))
