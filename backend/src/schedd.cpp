@@ -86,18 +86,25 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
   // TODO: Pick.
   user usr = *pool_get(&_Users, userId);
-  time_span_t availableTime = usr.availableTimePerDay[time.dayIndex];
-
   local_list_clear(&usr.tasksForCurrentDay);
+
+  time_span_t usedTime = 0;
 
   for (const auto &_item : events) // ehh?
   {
-    event evnt = *pool_get(&_Events, _item.event_id);
-
-    if (evnt.durationTimeSpan <= availableTime)
+    if (usedTime <= usr.availableTimePerDay[time.dayIndex])
     {
-      local_list_add(&usr.tasksForCurrentDay, _item.event_id);
-      availableTime -= evnt.durationTimeSpan;
+      event evnt = *pool_get(&_Events, _item.event_id);
+
+      if (evnt.durationTimeSpan <= usr.availableTimePerDay[time.dayIndex])
+      {
+        local_list_add(&usr.tasksForCurrentDay, _item.event_id);
+        usedTime += evnt.durationTimeSpan;
+      }
+    }
+    else
+    {
+      break;
     }
   }
 
