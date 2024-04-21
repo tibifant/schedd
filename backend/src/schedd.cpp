@@ -15,7 +15,7 @@ static pool<event> _Events;
 struct sortable_event
 {
   size_t event_id;
-  float_t score; // coc: it's alright to have this as a float, is it?
+  uint64_t score; // coc: it's alright to have this as a float, is it?
 
   inline sortable_event() {}
   inline sortable_event(const size_t event_id, const float_t score) : event_id(event_id), score(score) {}
@@ -38,11 +38,11 @@ struct sortable_event
 
 struct time_info
 {
-  weekday_flags day;
+  size_t dayIndex;
   time_point_t time;
 };
 
-float_t get_score_for_event(const event evnt);
+uint64_t get_score_for_event(const event evnt);
 time_info get_current_day_and_time();
 
 //////////////////////////////////////////////////////////////////////////
@@ -51,11 +51,12 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 {
   small_list<sortable_event, 128> events;
   const time_info time = get_current_day_and_time();
+  weekday_flags today = (weekday_flags)(1 << time.dayIndex);
 
   for (const auto &&_item : _Events)
   {
     // Is Event executable on current weekday?
-    if (_item.pItem->possibleExecutionDays & time.day)
+    if (_item.pItem->possibleExecutionDays & today)
     {
       // Is event due today?
       if (_item.pItem->lastCompletedTime + _item.pItem->repetitionTimeSpan >= time.time || _item.pItem->lastCompletedTime == 0)
@@ -84,10 +85,26 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
   small_list_sort_descending(events);
 
   // TODO: Pick.
+  user usr = *pool_get(&_Users, userId);
+  time_span_t availableTime = usr.availableTimePerDay[time.dayIndex];
+
+  local_list_clear(&usr.tasksForCurrentDay);
+
+  for (const auto &_item : events) // ehh?
+  {
+    event evnt = *pool_get(&_Events, _item.event_id);
+
+    if (evnt.durationTimeSpan <= availableTime)
+    {
+      local_list_add(&usr.tasksForCurrentDay, _item.event_id);
+      availableTime -= evnt.durationTimeSpan;
+    }
+  }
+
   // TODO: Error handling.
 }
 
-float_t get_score_for_event(const event evnt)
+uint64_t get_score_for_event(const event evnt)
 {
   // pretend it won't be executed today...
 
@@ -102,20 +119,22 @@ float_t get_score_for_event(const event evnt)
 
   // How many days unitl the next possible execution day after today?
   // TODO: this seems sooo 'lino head overcomplicating the world'... not even sure if it works right now...
+  // TODO: use bitscan reverse
+  weekday_flags today = (weekday_flags)(1 << currentTime.dayIndex); // TODO simplify stuff as we now know the dayIndex!
   size_t countUntilNextPossibleDay = 0;
   bool stoppedAtSunday = false;
 
   lsAssert(evnt.possibleExecutionDays != wF_None);
   for (size_t i = 0; i < DaysPerWeek; i++)
   {
-    if (currentTime.day << i == wF_Sunday)
+    if (today << i & wF_Sunday)
     {
       stoppedAtSunday = true;
       countUntilNextPossibleDay = i;
       break;
     }
 
-    if (evnt.possibleExecutionDays & (currentTime.day << (i + 1)))
+    if (evnt.possibleExecutionDays & (today << (i + 1)))
     {
       countUntilNextPossibleDay = i + 1;
       break;
@@ -137,8 +156,8 @@ float_t get_score_for_event(const event evnt)
   // How many repetition time spans fit into the timeperiod from last and next possible execution (after today)?
   size_t dueTime = days_from_time_span(diffTodayTarget) + countUntilNextPossibleDay;
   size_t repetitionInDays = days_from_time_span(evnt.repetitionTimeSpan);
-  float_t dueTimePeriodCount = (float_t)(dueTime % repetitionInDays);
-  dueTimePeriodCount += (dueTime - dueTimePeriodCount * repetitionInDays) / repetitionInDays;
+  uint64_t dueTimePeriodCount = (float_t)(dueTime % repetitionInDays);
+  dueTimePeriodCount += 100 * ((dueTime - dueTimePeriodCount * repetitionInDays) / repetitionInDays);
 
   return evnt.weight + dueTimePeriodCount * evnt.weightGrowthFactor;
 }
@@ -598,7 +617,7 @@ time_info get_current_day_and_time()
   size_t day = localtime(&t)->tm_wday; // Days since Sunday
 
   time_info ret;
-  ret.day = day == 0 ? wF_Sunday : (weekday_flags)(1 << (day - 1));
+  ret.dayIndex = day == 0 ? 6 : day + 1;
   ret.time = time_point_t(t);
 
   return ret;

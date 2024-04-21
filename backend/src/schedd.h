@@ -35,7 +35,7 @@ enum weekday_flags : uint8_t
 struct event
 {
   char name[256];
-  uint64_t durationTimeSpan;
+  time_span_t durationTimeSpan;
   local_list<size_t, maxUsersPerEvent> userIds;
   uint64_t weight, weightGrowthFactor;
   weekday_flags possibleExecutionDays; // 1 bit for each day + 1 extra
