@@ -68,6 +68,10 @@ struct user
   local_list<size_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
 };
 
+static pool<user> _Users;
+static pool<event> _Events;
+
+
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
 lsResult add_new_user(const user usr);
 lsResult add_new_event(event evnt);

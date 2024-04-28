@@ -58,6 +58,8 @@ std::atomic<bool> _IsRunning = true;
 std::thread *pAsyncTasksThread = nullptr;
 
 void async_tasks();
+void writeUsersPoolToFile();
+void writeEventsPoolToFile();
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -99,11 +101,16 @@ int32_t main(void)
 
   _IsRunning = false;
 }
+
 //////////////////////////////////////////////////////////////////////////
 
 void async_tasks()
 {
   constexpr size_t WaitTimeSeconds = 20;
+
+  size_t userChangingStatusBefore = 0;
+  size_t eventChangingStatusBefore = 0;
+  size_t explicitlyRequestedRescheduleBefore = 0;
 
   while (true)
   {
@@ -121,9 +128,98 @@ void async_tasks()
 
     // TODO: If Changed: Serialize.
     // TODO: If Changed: Reschedule.
+    if (userChangingStatusBefore < _UserChangingStatus)
+    {
+      // Serialize _Users pool
+      // Does this need a reschedule?
+      writeUsersPoolToFile();
+    }
+
+    if (eventChangingStatusBefore < _EventChangingStatus)
+    {
+      // Serialize _Events pool
+      writeEventsPoolToFile();
+
+      // Reschedule
+      // IS THIS MUTEX LOCKED BECAUSE IT'S ON ITS OWN SEPERATE THREAD? I DON'T KNOW, I'M NOT THAT SMART...
+      for (const auto &&_item : _Users)
+        reschedule_events_for_user(_item.index); // just all users I guess...
+    }
+
+    if (explicitlyRequestedRescheduleBefore < _ExplicitlyRequestsReschedule)
+    {
+      // Reschedule
+      // IS THIS MUTEX LOCKED BECAUSE IT'S ON ITS OWN SEPERATE THREAD? I DON'T KNOW, I'M NOT THAT SMART...
+      for (const auto &&_item : _Users)
+        reschedule_events_for_user(_item.index); // just all users I guess...
+    }
+
+    userChangingStatusBefore = _UserChangingStatus;
+    eventChangingStatusBefore = _EventChangingStatus;
+    explicitlyRequestedRescheduleBefore = _ExplicitlyRequestsReschedule;
   }
 }
+  
+//////////////////////////////////////////////////////////////////////////
 
+void writeUsersPoolToFile()
+{
+  crow::json::wvalue jsonOut;
+
+  for (const auto &&_item : _Users)
+  {
+    // TODO: Do we want this to be an array or use the index as key?
+    int8_t index = (int8_t)_item.index;
+
+    jsonOut[index]["username"] = _item.pItem->username;
+
+    for (int8_t i = 0; i < _item.pItem->sessionTokens.count; i++)
+      jsonOut[index]["sessionTokens"][i]["sessionId"] = _item.pItem->sessionTokens[i].sessionId;
+
+    for (int8_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
+      jsonOut[index]["availableTimePerDay"][i] = _item.pItem->availableTimePerDay[i];
+
+    for (int8_t i = 0; i < _item.pItem->tasksForCurrentDay.count; i++)
+      jsonOut[index]["tasksForCurrentDay"][i] = _item.pItem->tasksForCurrentDay[i];
+
+    for (int8_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
+      jsonOut[index]["completedTasksForCurrentDay"][i] = _item.pItem->completedTasksForCurrentDay[i];
+  }
+
+  FILE *pFile = fopen("userspool.json", "wb");
+  fwrite(&jsonOut.dump(), jsonOut.dump().size(), 1, pFile); // ehh not sure if this is the right function...
+  fclose(pFile);
+}
+
+void writeEventsPoolToFile()
+{
+  crow::json::wvalue jsonOut;
+
+  for (const auto &&_item : _Events)
+  {
+    // TODO: Do we want this to be an array or use the index as key?
+    int8_t index = (int8_t)_item.index;
+
+    jsonOut[index]["name"] = _item.pItem->name;
+    jsonOut[index]["durationTimeSpan"] = _item.pItem->durationTimeSpan;
+
+    for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
+      jsonOut[index]["userIds"][i] = _item.pItem->userIds[i];
+
+    jsonOut[index]["weight"] = _item.pItem->weight;
+    jsonOut[index]["weightGrowthFactor"] = _item.pItem->weightGrowthFactor;
+    jsonOut[index]["possibleExecutionDays"] = _item.pItem->possibleExecutionDays;
+    jsonOut[index]["repetitionTimeSpan"] = _item.pItem->repetitionTimeSpan;
+    jsonOut[index]["lastCompletedTime"] = _item.pItem->lastCompletedTime;
+    jsonOut[index]["lastModifiedTime"] = _item.pItem->lastModifiedTime;
+    jsonOut[index]["creationTime"] = _item.pItem->creationTime;
+  }
+
+  FILE *pFile = fopen("eventpool.json", "wb");
+  fwrite(&jsonOut.dump(), jsonOut.dump().size(), 1, pFile); // ehh not sure if this is the right function...
+  fclose(pFile);
+}
+  
 //////////////////////////////////////////////////////////////////////////
 
 crow::response handle_login(const crow::request &req)

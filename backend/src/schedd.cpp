@@ -5,10 +5,7 @@
 
 static std::mutex _ThreadLock;
 
-static pool<user> _Users;
-static local_list<user_id_info, maxUserAmount *maxSessionsPerUser> _UserInfo;
-
-static pool<event> _Events;
+static local_list<user_id_info, maxUserAmount *maxSessionsPerUser> _UserInfo; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
 
 //////////////////////////////////////////////////////////////////////////
 
