@@ -170,7 +170,8 @@ void writeUsersPoolToFile()
   {
     // TODO: Do we want this to be an array or use the index as key?
     int8_t index = (int8_t)_item.index;
-
+    
+    jsonOut[index]["index"] = _item.index;
     jsonOut[index]["username"] = _item.pItem->username;
 
     for (int8_t i = 0; i < _item.pItem->sessionTokens.count; i++)
