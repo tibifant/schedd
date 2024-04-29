@@ -40,6 +40,7 @@ namespace asio
 //////////////////////////////////////////////////////////////////////////
 
 #include "schedd.h"
+#include "io.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -56,10 +57,11 @@ crow::response handle_task_details(const crow::request &req);
 
 std::atomic<bool> _IsRunning = true;
 std::thread *pAsyncTasksThread = nullptr;
+static std::mutex _ThreadLock;
 
 void async_tasks();
-void writeUsersPoolToFile();
-void writeEventsPoolToFile();
+lsResult writeUsersPoolToFile();
+lsResult writeEventsPoolToFile();
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -126,13 +128,14 @@ void async_tasks()
 #endif
     }
 
-    // TODO: If Changed: Serialize.
-    // TODO: If Changed: Reschedule.
+    // If Changed: Serialize. Reschedule.
     if (userChangingStatusBefore < _UserChangingStatus)
     {
+      std::scoped_lock lock(_ThreadLock);
+      
       // Serialize _Users pool
       // Does this need a reschedule?
-      writeUsersPoolToFile();
+      writeUsersPoolToFile(); // TODO: error handling pls.
     }
 
     if (eventChangingStatusBefore < _EventChangingStatus)
@@ -141,17 +144,23 @@ void async_tasks()
       writeEventsPoolToFile();
 
       // Reschedule
-      // IS THIS MUTEX LOCKED BECAUSE IT'S ON ITS OWN SEPERATE THREAD? I DON'T KNOW, I'M NOT THAT SMART...
-      for (const auto &&_item : _Users)
-        reschedule_events_for_user(_item.index); // just all users I guess...
+      {
+        std::scoped_lock lock(_ThreadLock);
+       
+        for (const auto &&_item : _Users)
+          reschedule_events_for_user(_item.index); // just all users I guess...
+      }
     }
 
     if (explicitlyRequestedRescheduleBefore < _ExplicitlyRequestsReschedule)
     {
       // Reschedule
-      // IS THIS MUTEX LOCKED BECAUSE IT'S ON ITS OWN SEPERATE THREAD? I DON'T KNOW, I'M NOT THAT SMART...
-      for (const auto &&_item : _Users)
-        reschedule_events_for_user(_item.index); // just all users I guess...
+      {
+        std::scoped_lock lock(_ThreadLock);
+
+        for (const auto &&_item : _Users)
+          reschedule_events_for_user(_item.index); // just all users I guess...
+      }
     }
 
     userChangingStatusBefore = _UserChangingStatus;
@@ -162,64 +171,86 @@ void async_tasks()
   
 //////////////////////////////////////////////////////////////////////////
 
-void writeUsersPoolToFile()
+lsResult writeUsersPoolToFile()
 {
-  crow::json::wvalue jsonOut;
+  lsResult result = lsR_Success;
 
-  for (const auto &&_item : _Users)
+  std::string stringOut;
+
+  // Mutex Lock
   {
-    // TODO: Do we want this to be an array or use the index as key?
-    int8_t index = (int8_t)_item.index;
+    std::scoped_lock lock(_ThreadLock);
+    int64_t idx = 0;
+    crow::json::wvalue jsonOut;
+
+    for (const auto &&_item : _Users)
+    {
+      crow::json::wvalue element;
+
+      element["index"] = _item.index;
+      element["username"] = _item.pItem->username;
+
+      for (int64_t i = 0; i < _item.pItem->availableTimePerDay.count; i++) // TODO: eh not sure why this is not ok with int64_t but int8_t
+        element["availableTimePerDay"][i] = _item.pItem->availableTimePerDay[i];
+
+      for (int64_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
+        element["completedTasksForCurrentDay"][i] = _item.pItem->completedTasksForCurrentDay[i];
+
+      jsonOut[idx] = std::move(element);
+      idx++;
+    }
     
-    jsonOut[index]["index"] = _item.index;
-    jsonOut[index]["username"] = _item.pItem->username;
-
-    for (int8_t i = 0; i < _item.pItem->sessionTokens.count; i++)
-      jsonOut[index]["sessionTokens"][i]["sessionId"] = _item.pItem->sessionTokens[i].sessionId;
-
-    for (int8_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
-      jsonOut[index]["availableTimePerDay"][i] = _item.pItem->availableTimePerDay[i];
-
-    for (int8_t i = 0; i < _item.pItem->tasksForCurrentDay.count; i++)
-      jsonOut[index]["tasksForCurrentDay"][i] = _item.pItem->tasksForCurrentDay[i];
-
-    for (int8_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
-      jsonOut[index]["completedTasksForCurrentDay"][i] = _item.pItem->completedTasksForCurrentDay[i];
+    stringOut = jsonOut.dump();
   }
 
-  FILE *pFile = fopen("userspool.json", "wb");
-  fwrite(&jsonOut.dump(), jsonOut.dump().size(), 1, pFile); // ehh not sure if this is the right function...
-  fclose(pFile);
+  LS_ERROR_CHECK(lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size()));
+
+epilogue:
+  return result;
 }
 
-void writeEventsPoolToFile()
+lsResult writeEventsPoolToFile()
 {
-  crow::json::wvalue jsonOut;
+  lsResult result = lsR_Success;
 
-  for (const auto &&_item : _Events)
+  std::string outString;
+
+  // Mutex Lock
   {
-    // TODO: Do we want this to be an array or use the index as key?
-    int8_t index = (int8_t)_item.index;
+    crow::json::wvalue jsonOut;
+    std::scoped_lock lock(_ThreadLock);
+    int64_t idx = 0;
 
-    jsonOut[index]["index"] = _item.index;
-    jsonOut[index]["name"] = _item.pItem->name;
-    jsonOut[index]["durationTimeSpan"] = _item.pItem->durationTimeSpan;
+    for (const auto &&_item : _Events)
+    {
+      crow::json::wvalue element;
 
-    for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
-      jsonOut[index]["userIds"][i] = _item.pItem->userIds[i];
+      jsonOut[idx]["index"] = _item.index;
+      jsonOut[idx]["name"] = _item.pItem->name;
+      jsonOut[idx]["durationTimeSpan"] = _item.pItem->durationTimeSpan;
 
-    jsonOut[index]["weight"] = _item.pItem->weight;
-    jsonOut[index]["weightGrowthFactor"] = _item.pItem->weightGrowthFactor;
-    jsonOut[index]["possibleExecutionDays"] = _item.pItem->possibleExecutionDays;
-    jsonOut[index]["repetitionTimeSpan"] = _item.pItem->repetitionTimeSpan;
-    jsonOut[index]["lastCompletedTime"] = _item.pItem->lastCompletedTime;
-    jsonOut[index]["lastModifiedTime"] = _item.pItem->lastModifiedTime;
-    jsonOut[index]["creationTime"] = _item.pItem->creationTime;
+      for (int64_t i = 0; i < _item.pItem->userIds.count; i++)
+        jsonOut[idx]["userIds"][i] = _item.pItem->userIds[i];
+
+      jsonOut[idx]["weight"] = _item.pItem->weight;
+      jsonOut[idx]["weightGrowthFactor"] = _item.pItem->weightGrowthFactor;
+      jsonOut[idx]["possibleExecutionDays"] = _item.pItem->possibleExecutionDays;
+      jsonOut[idx]["repetitionTimeSpan"] = _item.pItem->repetitionTimeSpan;
+      jsonOut[idx]["lastCompletedTime"] = _item.pItem->lastCompletedTime;
+      jsonOut[idx]["lastModifiedTime"] = _item.pItem->lastModifiedTime;
+      jsonOut[idx]["creationTime"] = _item.pItem->creationTime;
+
+      jsonOut[idx] = std::move(element);
+      idx++;
+    }
+
+    outString = jsonOut.dump();
   }
 
-  FILE *pFile = fopen("eventpool.json", "wb");
-  fwrite(&jsonOut.dump(), jsonOut.dump().size(), 1, pFile); // ehh not sure if this is the right function...
-  fclose(pFile);
+  LS_ERROR_CHECK(lsWriteFile("eventspool.json", outString.c_str(), outString.size()));
+
+epilogue:
+  return result;
 }
   
 //////////////////////////////////////////////////////////////////////////
@@ -421,7 +452,7 @@ crow::response handle_user_schedule(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < currentTasks.count; i++)
+  for (int64_t i = 0; i < currentTasks.count; i++)
   {
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].durationInMinutes;
@@ -452,7 +483,7 @@ crow::response handle_event_search(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < searchResults.count; i++)
+  for (int64_t i = 0; i < searchResults.count; i++)
   {
     ret[i]["name"] = searchResults[i].name;
     ret[i]["duration"] = searchResults[i].durationInMinutes;
@@ -483,7 +514,7 @@ crow::response handle_user_search(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < searchResults.count; i++)
+  for (int64_t i = 0; i < searchResults.count; i++)
   {
     ret[i]["name"] = searchResults[i].name;
     ret[i]["id"] = searchResults[i].id;
@@ -545,7 +576,7 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["duration"] = minutes_from_time_span(evnt.durationTimeSpan);
 
-  for (int8_t i = 0; i < DaysPerWeek; i++)
+  for (int64_t i = 0; i < DaysPerWeek; i++)
     ret["executionDays"][i] = !!(evnt.possibleExecutionDays & (1 << i));
 
   ret["repetition"] = days_from_time_span(evnt.repetitionTimeSpan);
@@ -554,7 +585,7 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["users"] = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < evnt.userIds.count; i++)
+  for (int64_t i = 0; i < evnt.userIds.count; i++)
   {
     user_info info;
 
