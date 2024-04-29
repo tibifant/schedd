@@ -201,6 +201,7 @@ void writeEventsPoolToFile()
     // TODO: Do we want this to be an array or use the index as key?
     int8_t index = (int8_t)_item.index;
 
+    jsonOut[index]["index"] = _item.index;
     jsonOut[index]["name"] = _item.pItem->name;
     jsonOut[index]["durationTimeSpan"] = _item.pItem->durationTimeSpan;
 
