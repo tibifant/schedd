@@ -130,12 +130,18 @@ void async_tasks()
 
     // If Changed: Serialize. Reschedule.
     if (userChangingStatusBefore < _UserChangingStatus)
-    {
-      std::scoped_lock lock(_ThreadLock);
-      
+    {      
       // Serialize _Users pool
-      // Does this need a reschedule?
       writeUsersPoolToFile(); // TODO: error handling pls.
+      
+      // TODO: we only need to reschedule this once if one thing has changed, not also after serialzing events etc.
+      // Reschedule
+      {
+        std::scoped_lock lock(_ThreadLock);
+
+        for (const auto &&_item : _Users)
+          reschedule_events_for_user(_item.index); // just all users I guess...
+      }
     }
 
     if (eventChangingStatusBefore < _EventChangingStatus)
@@ -180,7 +186,7 @@ lsResult writeUsersPoolToFile()
   // Mutex Lock
   {
     std::scoped_lock lock(_ThreadLock);
-    int64_t idx = 0;
+    int idx = 0; // this seems so weird? `'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data` why does int fix it?
     crow::json::wvalue jsonOut;
 
     for (const auto &&_item : _Users)
@@ -190,10 +196,10 @@ lsResult writeUsersPoolToFile()
       element["index"] = _item.index;
       element["username"] = _item.pItem->username;
 
-      for (int64_t i = 0; i < _item.pItem->availableTimePerDay.count; i++) // TODO: eh not sure why this is not ok with int64_t but int8_t
+      for (int8_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
         element["availableTimePerDay"][i] = _item.pItem->availableTimePerDay[i];
 
-      for (int64_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
+      for (int8_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
         element["completedTasksForCurrentDay"][i] = _item.pItem->completedTasksForCurrentDay[i];
 
       jsonOut[idx] = std::move(element);
@@ -203,9 +209,11 @@ lsResult writeUsersPoolToFile()
     stringOut = jsonOut.dump();
   }
 
-  LS_ERROR_CHECK(lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size()));
+  lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size()); // TODO: coc help pls.
+  //if (LS_FAILED(lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size())))
+    //print_error_line("Failed to write users pool to file.\nString that was attempted to write:\n", stringOut); // that's dog shit, we want to know which error...
 
-epilogue:
+//epilogue:
   return result;
 }
 
@@ -219,26 +227,26 @@ lsResult writeEventsPoolToFile()
   {
     crow::json::wvalue jsonOut;
     std::scoped_lock lock(_ThreadLock);
-    int64_t idx = 0;
+    int idx = 0; // this seems so weird? `'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data` why does int fix it?
 
     for (const auto &&_item : _Events)
     {
       crow::json::wvalue element;
 
-      jsonOut[idx]["index"] = _item.index;
-      jsonOut[idx]["name"] = _item.pItem->name;
-      jsonOut[idx]["durationTimeSpan"] = _item.pItem->durationTimeSpan;
+      element["index"] = _item.index;
+      element["name"] = _item.pItem->name;
+      element["durationTimeSpan"] = _item.pItem->durationTimeSpan;
 
-      for (int64_t i = 0; i < _item.pItem->userIds.count; i++)
-        jsonOut[idx]["userIds"][i] = _item.pItem->userIds[i];
+      for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
+        element["userIds"][i] = _item.pItem->userIds[i];
 
-      jsonOut[idx]["weight"] = _item.pItem->weight;
-      jsonOut[idx]["weightGrowthFactor"] = _item.pItem->weightGrowthFactor;
-      jsonOut[idx]["possibleExecutionDays"] = _item.pItem->possibleExecutionDays;
-      jsonOut[idx]["repetitionTimeSpan"] = _item.pItem->repetitionTimeSpan;
-      jsonOut[idx]["lastCompletedTime"] = _item.pItem->lastCompletedTime;
-      jsonOut[idx]["lastModifiedTime"] = _item.pItem->lastModifiedTime;
-      jsonOut[idx]["creationTime"] = _item.pItem->creationTime;
+      element["weight"] = _item.pItem->weight;
+      element["weightGrowthFactor"] = _item.pItem->weightGrowthFactor;
+      element["possibleExecutionDays"] = _item.pItem->possibleExecutionDays;
+      element["repetitionTimeSpan"] = _item.pItem->repetitionTimeSpan;
+      element["lastCompletedTime"] = _item.pItem->lastCompletedTime;
+      element["lastModifiedTime"] = _item.pItem->lastModifiedTime;
+      element["creationTime"] = _item.pItem->creationTime;
 
       jsonOut[idx] = std::move(element);
       idx++;
@@ -247,9 +255,11 @@ lsResult writeEventsPoolToFile()
     outString = jsonOut.dump();
   }
 
-  LS_ERROR_CHECK(lsWriteFile("eventspool.json", outString.c_str(), outString.size()));
+  lsWriteFile("eventspool.json", outString.c_str(), outString.size()); // coc help pls.
+  //if (LS_FAILED(lsWriteFile("eventspool.json", outString.c_str(), outString.size())))
+    //print_error_line("Failed to write events pool to file.\nString that was attempted to write:\n", outString); // that's dog shit, we want to know which error...
 
-epilogue:
+//epilogue:
   return result;
 }
   
@@ -452,7 +462,7 @@ crow::response handle_user_schedule(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int64_t i = 0; i < currentTasks.count; i++)
+  for (int8_t i = 0; i < currentTasks.count; i++)
   {
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].durationInMinutes;
@@ -483,7 +493,7 @@ crow::response handle_event_search(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int64_t i = 0; i < searchResults.count; i++)
+  for (int8_t i = 0; i < searchResults.count; i++)
   {
     ret[i]["name"] = searchResults[i].name;
     ret[i]["duration"] = searchResults[i].durationInMinutes;
@@ -514,7 +524,7 @@ crow::response handle_user_search(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int64_t i = 0; i < searchResults.count; i++)
+  for (int8_t i = 0; i < searchResults.count; i++)
   {
     ret[i]["name"] = searchResults[i].name;
     ret[i]["id"] = searchResults[i].id;
@@ -576,7 +586,7 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["duration"] = minutes_from_time_span(evnt.durationTimeSpan);
 
-  for (int64_t i = 0; i < DaysPerWeek; i++)
+  for (int8_t i = 0; i < DaysPerWeek; i++)
     ret["executionDays"][i] = !!(evnt.possibleExecutionDays & (1 << i));
 
   ret["repetition"] = days_from_time_span(evnt.repetitionTimeSpan);
@@ -585,7 +595,7 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["users"] = crow::json::rvalue(crow::json::type::List);
 
-  for (int64_t i = 0; i < evnt.userIds.count; i++)
+  for (int8_t i = 0; i < evnt.userIds.count; i++)
   {
     user_info info;
 

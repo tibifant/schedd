@@ -380,11 +380,19 @@ lsResult set_events_for_user(const int32_t sessionId)
     event poepePutzt;
     strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
     poepePutzt.durationTimeSpan = time_span_from_minutes(20);
+    poepePutzt.creationTime = get_current_time();
+    poepePutzt.repetitionTimeSpan = time_span_from_days(2);
+    poepePutzt.weight = 99;
+    poepePutzt.weightGrowthFactor = 99;
     LS_ERROR_CHECK(local_list_add(&poepePutzt.userIds, userId));
 
     event poepeKocht;
     strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepeKocht.name));
     poepeKocht.durationTimeSpan = time_span_from_minutes(100);
+    poepeKocht.creationTime = get_current_time();
+    poepeKocht.repetitionTimeSpan = time_span_from_days(7);
+    poepeKocht.weight = 1;
+    poepeKocht.weightGrowthFactor = 1;
     LS_ERROR_CHECK(local_list_add(&poepeKocht.userIds, userId));
 
     size_t putzEventId;
