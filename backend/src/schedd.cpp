@@ -381,6 +381,7 @@ lsResult set_events_for_user(const int32_t sessionId)
     strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
     poepePutzt.durationTimeSpan = time_span_from_minutes(20);
     poepePutzt.creationTime = get_current_time();
+    poepePutzt.lastCompletedTime = 0;
     poepePutzt.repetitionTimeSpan = time_span_from_days(2);
     poepePutzt.weight = 99;
     poepePutzt.weightGrowthFactor = 99;
@@ -390,6 +391,7 @@ lsResult set_events_for_user(const int32_t sessionId)
     strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepeKocht.name));
     poepeKocht.durationTimeSpan = time_span_from_minutes(100);
     poepeKocht.creationTime = get_current_time();
+    poepeKocht.lastCompletedTime = 0;
     poepeKocht.repetitionTimeSpan = time_span_from_days(7);
     poepeKocht.weight = 1;
     poepeKocht.weightGrowthFactor = 1;
@@ -629,7 +631,7 @@ time_info get_current_day_and_time()
   size_t day = localtime(&t)->tm_wday; // Days since Sunday
 
   time_info ret;
-  ret.dayIndex = day == 0 ? 6 : day + 1;
+  ret.dayIndex = day == 0 ? 6 : day - 1;
   ret.time = time_point_t(t);
 
   return ret;
