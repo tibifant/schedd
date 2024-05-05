@@ -56,7 +56,7 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
     if (_item.pItem->possibleExecutionDays & today)
     {
       // Is event due today?
-      if (_item.pItem->lastCompletedTime + _item.pItem->repetitionTimeSpan >= time.time || _item.pItem->lastCompletedTime == 0)
+      if (_item.pItem->lastCompletedTime + _item.pItem->repetitionTimeSpan <= time.time || _item.pItem->lastCompletedTime == 0)
       {
         // Is User Participating in Event?
         bool foundUserId = false;

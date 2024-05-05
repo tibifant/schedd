@@ -129,45 +129,45 @@ void async_tasks()
     }
 
     // If Changed: Serialize. Reschedule.
-    if (userChangingStatusBefore < _UserChangingStatus)
-    {      
-      // Serialize _Users pool
-      writeUsersPoolToFile(); // TODO: error handling pls.
-      
-      // TODO: we only need to reschedule this once if one thing has changed, not also after serialzing events etc.
-      // Reschedule
-      {
-        std::scoped_lock lock(_ThreadLock);
-
-        for (const auto &&_item : _Users)
-          reschedule_events_for_user(_item.index); // just all users I guess...
-      }
-    }
-
-    if (eventChangingStatusBefore < _EventChangingStatus)
-    {
-      // Serialize _Events pool
-      writeEventsPoolToFile();
-
-      // Reschedule
-      {
-        std::scoped_lock lock(_ThreadLock);
-       
-        for (const auto &&_item : _Users)
-          reschedule_events_for_user(_item.index); // just all users I guess...
-      }
-    }
-
-    if (explicitlyRequestedRescheduleBefore < _ExplicitlyRequestsReschedule)
-    {
-      // Reschedule
-      {
-        std::scoped_lock lock(_ThreadLock);
-
-        for (const auto &&_item : _Users)
-          reschedule_events_for_user(_item.index); // just all users I guess...
-      }
-    }
+    //if (userChangingStatusBefore < _UserChangingStatus)
+    //{      
+    //  // Serialize _Users pool
+    //  writeUsersPoolToFile(); // TODO: error handling pls.
+    //  
+    //  // TODO: we only need to reschedule this once if one thing has changed, not also after serialzing events etc.
+    //  // Reschedule
+    //  {
+    //    std::scoped_lock lock(_ThreadLock);
+    //
+    //    for (const auto &&_item : _Users)
+    //      reschedule_events_for_user(_item.index); // just all users I guess...
+    //  }
+    //}
+    //
+    //if (eventChangingStatusBefore < _EventChangingStatus)
+    //{
+    //  // Serialize _Events pool
+    //  writeEventsPoolToFile();
+    //
+    //  // Reschedule
+    //  {
+    //    std::scoped_lock lock(_ThreadLock);
+    //   
+    //    for (const auto &&_item : _Users)
+    //      reschedule_events_for_user(_item.index); // just all users I guess...
+    //  }
+    //}
+    //
+    //if (explicitlyRequestedRescheduleBefore < _ExplicitlyRequestsReschedule)
+    //{
+    //  // Reschedule
+    //  {
+    //    std::scoped_lock lock(_ThreadLock);
+    //
+    //    for (const auto &&_item : _Users)
+    //      reschedule_events_for_user(_item.index); // just all users I guess...
+    //  }
+    //}
 
     userChangingStatusBefore = _UserChangingStatus;
     eventChangingStatusBefore = _EventChangingStatus;
