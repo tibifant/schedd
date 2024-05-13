@@ -63,11 +63,16 @@ void async_tasks();
 void writeUsersPoolToFile();
 void writeEventsPoolToFile();
 
+void deserializeUsersPool();
+void deserialzieEventsPool();
+
 //////////////////////////////////////////////////////////////////////////
 
 int32_t main(void)
 {
   // TODO: Deserialize.
+  deserializeUsersPool();
+  deserialzieEventsPool();
 
   user poepe;
   strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
@@ -96,6 +101,7 @@ int32_t main(void)
   CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req, false); });
   CROW_ROUTE(app, "/task-done-reschedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req, true); });
   CROW_ROUTE(app, "/task").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_details(req); });
+  // TODO: Option to change the user data
 
   pAsyncTasksThread = new std::thread(async_tasks);
 
@@ -169,6 +175,26 @@ void async_tasks()
   
 //////////////////////////////////////////////////////////////////////////
 
+const char *_Index = "index";
+const char *_Username = "username";
+const char *_AvailableTimePerDay = "availableTimePerDay";
+const char *_CompletedTasks = "completedTasksForCurrentDay";
+const char *_FileNameUsers = "userspool.json";
+
+const char *_EventName = "name";
+const char *_DurationTimeSpan = "durationTimeSpan";
+const char *_UsersIds = "userIds";
+const char *_Weight = "weight";
+const char *_WeightFactor = "weightGrowthFactor";
+const char *_PossibleExecutionDays = "possibleExecutionDays";
+const char *_RepetitionTimeSpan = "repetitionTimeSpan";
+const char *_LastCompletedTime = "lastCompletedTime";
+const char *_LastModifiedTime = "lastModifiedTime";
+const char *_CreationTime = "creationTime";
+const char *_FileNameEvents = "eventspool.json";
+
+//////////////////////////////////////////////////////////////////////////
+
 void writeUsersPoolToFile()
 {
   std::string stringOut;
@@ -183,14 +209,14 @@ void writeUsersPoolToFile()
     {
       crow::json::wvalue element;
 
-      element["index"] = _item.index;
-      element["username"] = _item.pItem->username;
+      element[_Index] = _item.index;
+      element[_Username] = _item.pItem->username;
 
       for (int8_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
-        element["availableTimePerDay"][i] = _item.pItem->availableTimePerDay[i];
+        element[_AvailableTimePerDay][i] = _item.pItem->availableTimePerDay[i];
 
       for (int8_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
-        element["completedTasksForCurrentDay"][i] = _item.pItem->completedTasksForCurrentDay[i];
+        element[_CompletedTasks][i] = _item.pItem->completedTasksForCurrentDay[i];
 
       jsonOut[idx] = std::move(element);
       idx++;
@@ -202,7 +228,7 @@ void writeUsersPoolToFile()
   if (stringOut == "null")
     print_error_line("Failed to write users pool to file. File content is 'null'.");
 
-  lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size());
+  lsWriteFile(_FileNameUsers, stringOut.c_str(), stringOut.size());
   if (LS_FAILED(lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size())))
     print_error_line("Failed to write users pool to file."); 
 }
@@ -221,20 +247,20 @@ void writeEventsPoolToFile()
     {
       crow::json::wvalue element;
 
-      element["index"] = _item.index;
-      element["name"] = _item.pItem->name;
-      element["durationTimeSpan"] = _item.pItem->durationTimeSpan;
+      element[_Index] = _item.index;
+      element[_EventName] = _item.pItem->name;
+      element[_DurationTimeSpan] = _item.pItem->durationTimeSpan;
 
       for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
-        element["userIds"][i] = _item.pItem->userIds[i];
+        element[_UsersIds][i] = _item.pItem->userIds[i];
 
-      element["weight"] = _item.pItem->weight;
-      element["weightGrowthFactor"] = _item.pItem->weightGrowthFactor;
-      element["possibleExecutionDays"] = _item.pItem->possibleExecutionDays;
-      element["repetitionTimeSpan"] = _item.pItem->repetitionTimeSpan;
-      element["lastCompletedTime"] = _item.pItem->lastCompletedTime;
-      element["lastModifiedTime"] = _item.pItem->lastModifiedTime;
-      element["creationTime"] = _item.pItem->creationTime;
+      element[_Weight] = _item.pItem->weight;
+      element[_WeightFactor] = _item.pItem->weightGrowthFactor;
+      element[_PossibleExecutionDays] = _item.pItem->possibleExecutionDays;
+      element[_RepetitionTimeSpan] = _item.pItem->repetitionTimeSpan;
+      element[_LastCompletedTime] = _item.pItem->lastCompletedTime;
+      element[_LastModifiedTime] = _item.pItem->lastModifiedTime;
+      element[_CreationTime] = _item.pItem->creationTime;
 
       jsonOut[idx] = std::move(element);
       idx++;
@@ -246,11 +272,69 @@ void writeEventsPoolToFile()
   if (outString == "null")
     print_error_line("Failed to write events pool to file. File content is 'null'.");
 
-  lsWriteFile("eventspool.json", outString.c_str(), outString.size());
+  lsWriteFile(_FileNameEvents, outString.c_str(), outString.size());
   if (LS_FAILED(lsWriteFile("eventspool.json", outString.c_str(), outString.size())))
     print_error_line("Failed to write events pool to file.");
 }
   
+//////////////////////////////////////////////////////////////////////////
+
+void deserializeUsersPool()
+{
+  char *fileContents = nullptr;
+  size_t fileSize;
+
+  if (LS_FAILED(lsReadFile(_FileNameUsers, &fileContents, &fileSize)))
+    print_error_line("Failed to read file", _FileNameUsers);
+
+  const auto &jsonRoot = crow::json::load(fileContents);
+
+  for (const auto &_item : jsonRoot)
+  {
+    size_t index = _item[_Index].i();
+
+    user usr;
+
+    std::string username = _item[_Username].s();
+    if (username.length() == 0)
+      print_error_line("Filecontent of ", _FileNameUsers, " invalid: Lenght of username is 0.");
+
+    strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
+
+    for (const auto _t : _item[_AvailableTimePerDay])
+    {
+      int64_t timeValue = _t.i();
+
+      if (timeValue < 0)
+        print_error_line("Filecontent of ", _FileNameUsers, " invalid: availableTimePerDay < 0 (", timeValue, ")");
+
+      local_list_add(&usr.availableTimePerDay, (time_span_t)timeValue);
+    }
+
+    if (_item.has(_CompletedTasks))
+    {
+      for (const auto &_i : _item[_CompletedTasks])
+      {
+        int64_t eventId = _i.i();
+
+        if (eventId < 0)
+          print_error_line("Filecontent of ", _FileNameUsers, " invalid: eventId of completedTasksForCurrentDay < 0 (", eventId, ")");
+
+        local_list_add(&usr.completedTasksForCurrentDay, (size_t)eventId);
+      }
+    }
+
+    pool_add(&_Users, &usr, &index);
+  }
+
+//epilogue:
+  lsFreePtr(&fileContents);
+}
+
+void deserialzieEventsPool()
+{
+
+}
 //////////////////////////////////////////////////////////////////////////
 
 crow::response handle_login(const crow::request &req)
