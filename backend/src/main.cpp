@@ -60,8 +60,8 @@ std::thread *pAsyncTasksThread = nullptr;
 static std::mutex _ThreadLock;
 
 void async_tasks();
-lsResult writeUsersPoolToFile();
-lsResult writeEventsPoolToFile();
+void writeUsersPoolToFile();
+void writeEventsPoolToFile();
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -128,65 +128,55 @@ void async_tasks()
 #endif
     }
 
-    // If Changed: Serialize. Reschedule.
-    //if (userChangingStatusBefore < _UserChangingStatus)
-    //{      
-    //  // Serialize _Users pool
-    //  writeUsersPoolToFile(); // TODO: error handling pls.
-    //  
-    //  // TODO: we only need to reschedule this once if one thing has changed, not also after serialzing events etc.
-    //  // Reschedule
-    //  {
-    //    std::scoped_lock lock(_ThreadLock);
-    //
-    //    for (const auto &&_item : _Users)
-    //      reschedule_events_for_user(_item.index); // just all users I guess...
-    //  }
-    //}
-    //
-    //if (eventChangingStatusBefore < _EventChangingStatus)
-    //{
-    //  // Serialize _Events pool
-    //  writeEventsPoolToFile();
-    //
-    //  // Reschedule
-    //  {
-    //    std::scoped_lock lock(_ThreadLock);
-    //   
-    //    for (const auto &&_item : _Users)
-    //      reschedule_events_for_user(_item.index); // just all users I guess...
-    //  }
-    //}
-    //
-    //if (explicitlyRequestedRescheduleBefore < _ExplicitlyRequestsReschedule)
-    //{
-    //  // Reschedule
-    //  {
-    //    std::scoped_lock lock(_ThreadLock);
-    //
-    //    for (const auto &&_item : _Users)
-    //      reschedule_events_for_user(_item.index); // just all users I guess...
-    //  }
-    //}
+    const size_t userChangingStatusCurrent = _UserChangingStatus;
+    const size_t eventChangingStatusCurrent = _EventChangingStatus;
+    const size_t explicitlyRequestedRescheduleCurrent = _ExplicitlyRequestsReschedule;
+    bool needsReschdeule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
 
-    userChangingStatusBefore = _UserChangingStatus;
-    eventChangingStatusBefore = _EventChangingStatus;
-    explicitlyRequestedRescheduleBefore = _ExplicitlyRequestsReschedule;
+    // If Changed: Serialize. Reschedule.
+    if (userChangingStatusBefore < userChangingStatusCurrent)
+    {      
+      // Serialize _Users pool
+      writeUsersPoolToFile();
+      
+      needsReschdeule = true;
+    }
+    
+    if (eventChangingStatusBefore < eventChangingStatusCurrent)
+    {
+      // Serialize _Events pool
+      writeEventsPoolToFile();
+    
+      needsReschdeule = true;
+    }
+    
+    if (needsReschdeule)
+    {
+      // Reschedule
+      {
+        std::scoped_lock lock(_ThreadLock);
+    
+        for (const auto &&_item : _Users)
+          reschedule_events_for_user(_item.index); // just all users I guess...
+      }
+    }
+
+    userChangingStatusBefore = userChangingStatusCurrent;
+    eventChangingStatusBefore = eventChangingStatusCurrent;
+    explicitlyRequestedRescheduleBefore = explicitlyRequestedRescheduleCurrent;
   }
 }
   
 //////////////////////////////////////////////////////////////////////////
 
-lsResult writeUsersPoolToFile()
+void writeUsersPoolToFile()
 {
-  lsResult result = lsR_Success;
-
   std::string stringOut;
 
   // Mutex Lock
   {
     std::scoped_lock lock(_ThreadLock);
-    int idx = 0; // this seems so weird? `'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data` why does int fix it?
+    int idx = 0;
     crow::json::wvalue jsonOut;
 
     for (const auto &&_item : _Users)
@@ -209,25 +199,23 @@ lsResult writeUsersPoolToFile()
     stringOut = jsonOut.dump();
   }
 
-  lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size()); // TODO: coc help pls.
-  //if (LS_FAILED(lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size())))
-    //print_error_line("Failed to write users pool to file.\nString that was attempted to write:\n", stringOut); // that's dog shit, we want to know which error...
+  if (stringOut == "null")
+    print_error_line("Failed to write users pool to file. File content is 'null'.");
 
-//epilogue:
-  return result;
+  lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size());
+  if (LS_FAILED(lsWriteFile("userspool.json", stringOut.c_str(), stringOut.size())))
+    print_error_line("Failed to write users pool to file."); 
 }
 
-lsResult writeEventsPoolToFile()
+void writeEventsPoolToFile()
 {
-  lsResult result = lsR_Success;
-
   std::string outString;
 
   // Mutex Lock
   {
     crow::json::wvalue jsonOut;
     std::scoped_lock lock(_ThreadLock);
-    int idx = 0; // this seems so weird? `'argument': conversion from 'int64_t' to 'unsigned int', possible loss of data` why does int fix it?
+    int idx = 0;
 
     for (const auto &&_item : _Events)
     {
@@ -255,12 +243,12 @@ lsResult writeEventsPoolToFile()
     outString = jsonOut.dump();
   }
 
-  lsWriteFile("eventspool.json", outString.c_str(), outString.size()); // coc help pls.
-  //if (LS_FAILED(lsWriteFile("eventspool.json", outString.c_str(), outString.size())))
-    //print_error_line("Failed to write events pool to file.\nString that was attempted to write:\n", outString); // that's dog shit, we want to know which error...
+  if (outString == "null")
+    print_error_line("Failed to write events pool to file. File content is 'null'.");
 
-//epilogue:
-  return result;
+  lsWriteFile("eventspool.json", outString.c_str(), outString.size());
+  if (LS_FAILED(lsWriteFile("eventspool.json", outString.c_str(), outString.size())))
+    print_error_line("Failed to write events pool to file.");
 }
   
 //////////////////////////////////////////////////////////////////////////
@@ -451,9 +439,6 @@ crow::response handle_user_schedule(const crow::request &req)
   size_t userId;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::FORBIDDEN);
-  
-  // TEMPORARY: Reschedule.
-  reschedule_events_for_user(userId);
 
   // TODO: This needs a flag for already completed tasks
   local_list<event_info, maxEventsPerUserPerDay> currentTasks;

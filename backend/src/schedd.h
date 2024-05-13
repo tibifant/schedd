@@ -6,9 +6,9 @@
 #include "pool.h"
 #include "small_list.h"
 
-static std::atomic<size_t> _UserChangingStatus = 0;
-static std::atomic<size_t> _EventChangingStatus = 0;
-static std::atomic<size_t> _ExplicitlyRequestsReschedule = 0;
+extern std::atomic<size_t> _UserChangingStatus;
+extern std::atomic<size_t> _EventChangingStatus;
+extern std::atomic<size_t> _ExplicitlyRequestsReschedule;
 
 void reschedule_events_for_user(const size_t userId); // Assumes mutex lock
 
@@ -68,9 +68,8 @@ struct user
   local_list<size_t, maxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
 };
 
-static pool<user> _Users;
-static pool<event> _Events;
-
+extern pool<user> _Users;
+extern pool<event> _Events;
 
 lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
 lsResult add_new_user(const user usr);

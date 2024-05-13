@@ -3,8 +3,14 @@
 #include <mutex>
 #include <time.h>
 
-static std::mutex _ThreadLock;
+std::atomic<size_t> _UserChangingStatus = 0;
+std::atomic<size_t> _EventChangingStatus = 0;
+std::atomic<size_t> _ExplicitlyRequestsReschedule = 0;
 
+pool<user> _Users;
+pool<event> _Events;
+
+static std::mutex _ThreadLock;
 static local_list<user_id_info, maxUserAmount *maxSessionsPerUser> _UserInfo; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
 
 //////////////////////////////////////////////////////////////////////////
