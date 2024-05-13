@@ -181,7 +181,7 @@ const char *_AvailableTimePerDay = "availableTimePerDay";
 const char *_CompletedTasks = "completedTasksForCurrentDay";
 const char *_FileNameUsers = "userspool.json";
 
-const char *_EventName = "name";
+const char *_Name = "name";
 const char *_DurationTimeSpan = "durationTimeSpan";
 const char *_UsersIds = "userIds";
 const char *_Weight = "weight";
@@ -248,7 +248,7 @@ void writeEventsPoolToFile()
       crow::json::wvalue element;
 
       element[_Index] = _item.index;
-      element[_EventName] = _item.pItem->name;
+      element[_Name] = _item.pItem->name;
       element[_DurationTimeSpan] = _item.pItem->durationTimeSpan;
 
       for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
@@ -292,7 +292,6 @@ void deserializeUsersPool()
   for (const auto &_item : jsonRoot)
   {
     size_t index = _item[_Index].i();
-
     user usr;
 
     std::string username = _item[_Username].s();
@@ -333,7 +332,28 @@ void deserializeUsersPool()
 
 void deserialzieEventsPool()
 {
+  char *fileContents = nullptr;
+  size_t fileSize;
 
+  if (LS_FAILED(lsReadFile(_FileNameUsers, &fileContents, &fileSize)))
+    print_error_line("Failed to read file", _FileNameEvents);
+
+  const auto &jsonRoot = crow::json::load(fileContents);
+
+  for (const auto &_item : jsonRoot)
+  {
+    size_t index = _item[_Index].i();
+    event evnt;
+
+    std::string name = _item[_Name].s();
+    if (name.length() == 0)
+      print_error_line("Filecontent of ", _FileNameEvents, " invalid: Lenght of event name is 0.");
+
+    strncpy(evnt.name, name.c_str(), LS_ARRAYSIZE(evnt.name));
+  }
+
+//epilogue:
+  lsFreePtr(&fileContents);
 }
 //////////////////////////////////////////////////////////////////////////
 
