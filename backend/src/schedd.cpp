@@ -11,7 +11,7 @@ pool<user> _Users;
 pool<event> _Events;
 
 static std::mutex _ThreadLock;
-static local_list<user_id_info, maxUserAmount *maxSessionsPerUser> _UserInfo; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
+static local_list<user_id_info, maxUserAmount * maxSessionsPerUser> _UserInfo; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -235,8 +235,6 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
     }
   }
 
-  _UserChangingStatus++;
-
  epilogue:
   return result;
 }
@@ -367,53 +365,6 @@ lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_l
       LS_ERROR_CHECK(local_list_add(pOutCompletedTasks, info));
     }
   }
-
-epilogue:
-  return result;
-}
-
-lsResult set_events_for_user(const int32_t sessionId)
-{
-  lsResult result = lsR_Success;
-
-  size_t userId;
-  LS_ERROR_CHECK(get_user_id_from_session_id(sessionId, &userId));
-
-  // Scope Lock
-  {
-    std::scoped_lock lock(_ThreadLock);
-    
-    event poepePutzt;
-    strncpy(poepePutzt.name, "poepe muss putzen", LS_ARRAYSIZE(poepePutzt.name));
-    poepePutzt.durationTimeSpan = time_span_from_minutes(20);
-    poepePutzt.creationTime = get_current_time();
-    poepePutzt.lastCompletedTime = 0;
-    poepePutzt.repetitionTimeSpan = time_span_from_days(2);
-    poepePutzt.weight = 99;
-    poepePutzt.weightGrowthFactor = 99;
-    LS_ERROR_CHECK(local_list_add(&poepePutzt.userIds, userId));
-
-    event poepeKocht;
-    strncpy(poepeKocht.name, "poepe chefkoch", LS_ARRAYSIZE(poepeKocht.name));
-    poepeKocht.durationTimeSpan = time_span_from_minutes(100);
-    poepeKocht.creationTime = get_current_time();
-    poepeKocht.lastCompletedTime = 0;
-    poepeKocht.repetitionTimeSpan = time_span_from_days(7);
-    poepeKocht.weight = 1;
-    poepeKocht.weightGrowthFactor = 1;
-    LS_ERROR_CHECK(local_list_add(&poepeKocht.userIds, userId));
-
-    size_t putzEventId;
-    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, poepePutzt, &putzEventId));
-    size_t kochEventId;
-    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, poepeKocht, &kochEventId));
-
-    user *pUser = pool_get(&_Users, userId);
-    LS_ERROR_CHECK(local_list_add(&pUser->tasksForCurrentDay, putzEventId));
-    LS_ERROR_CHECK(local_list_add(&pUser->tasksForCurrentDay, kochEventId));
-  }
-
-  _UserChangingStatus++;
 
 epilogue:
   return result;
@@ -599,32 +550,6 @@ bool check_for_user_name_duplication(const char *username)
   }
   return true;
 }
-
-//bool check_event_duration_compatibilty(size_t userId, uint64_t duration, weekday_flags executionDays)
-//{
-//  bool isCompatible = false;
-//
-//  // Scope Lock
-//  {
-//    std::scoped_lock lock(_ThreadLock);
-//
-//    user *pUser = pool_get(&_Users, userId);
-//
-//    for (size_t i = 0; i < LS_ARRAYSIZE(pUser->availableTimeInMinutesPerDay); i++)
-//    {
-//      if (executionDays & (1 << i))
-//      {
-//        if (*pUser->availableTimeInMinutesPerDay >= duration)
-//        {
-//          isCompatible = true; // It is enough if one day is compatible
-//          break;
-//        }
-//      }
-//    }
-//  }
-//
-//  return isCompatible;
-//}
 
 time_point_t get_current_time()
 {

@@ -70,17 +70,17 @@ void deserialzieEventsPool();
 
 int32_t main(void)
 {
-  // TODO: Deserialize.
+  // Deserialize.
   deserializeUsersPool();
   deserialzieEventsPool();
 
-  user poepe;
-  strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
-  const time_span_t pupusTime = time_span_from_minutes(120);
-  for (size_t i = 0; i < DaysPerWeek; i++)
-    local_list_add(&poepe.availableTimePerDay, pupusTime);
-
-  add_new_user(poepe);
+  //user poepe;
+  //strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
+  //const time_span_t pupusTime = time_span_from_minutes(120);
+  //for (size_t i = 0; i < DaysPerWeek; i++)
+  //  local_list_add(&poepe.availableTimePerDay, pupusTime);
+  //
+  //add_new_user(poepe);
 
   crow::App<crow::CORSHandler> app;
 
@@ -183,7 +183,7 @@ const char *_FileNameUsers = "userspool.json";
 
 const char *_Name = "name";
 const char *_DurationTimeSpan = "durationTimeSpan";
-const char *_UsersIds = "userIds";
+const char *_UserIds = "userIds";
 const char *_Weight = "weight";
 const char *_WeightFactor = "weightGrowthFactor";
 const char *_PossibleExecutionDays = "possibleExecutionDays";
@@ -252,7 +252,7 @@ void writeEventsPoolToFile()
       element[_DurationTimeSpan] = _item.pItem->durationTimeSpan;
 
       for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
-        element[_UsersIds][i] = _item.pItem->userIds[i];
+        element[_UserIds][i] = _item.pItem->userIds[i];
 
       element[_Weight] = _item.pItem->weight;
       element[_WeightFactor] = _item.pItem->weightGrowthFactor;
@@ -301,27 +301,11 @@ void deserializeUsersPool()
     strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
 
     for (const auto _t : _item[_AvailableTimePerDay])
-    {
-      int64_t timeValue = _t.i();
-
-      if (timeValue < 0)
-        print_error_line("Filecontent of ", _FileNameUsers, " invalid: availableTimePerDay < 0 (", timeValue, ")");
-
-      local_list_add(&usr.availableTimePerDay, (time_span_t)timeValue);
-    }
+      local_list_add(&usr.availableTimePerDay, _t.i());
 
     if (_item.has(_CompletedTasks))
-    {
       for (const auto &_i : _item[_CompletedTasks])
-      {
-        int64_t eventId = _i.i();
-
-        if (eventId < 0)
-          print_error_line("Filecontent of ", _FileNameUsers, " invalid: eventId of completedTasksForCurrentDay < 0 (", eventId, ")");
-
-        local_list_add(&usr.completedTasksForCurrentDay, (size_t)eventId);
-      }
-    }
+        local_list_add(&usr.completedTasksForCurrentDay, (size_t)_i.i());
 
     pool_add(&_Users, &usr, &index);
   }
@@ -335,7 +319,7 @@ void deserialzieEventsPool()
   char *fileContents = nullptr;
   size_t fileSize;
 
-  if (LS_FAILED(lsReadFile(_FileNameUsers, &fileContents, &fileSize)))
+  if (LS_FAILED(lsReadFile(_FileNameEvents, &fileContents, &fileSize)))
     print_error_line("Failed to read file", _FileNameEvents);
 
   const auto &jsonRoot = crow::json::load(fileContents);
@@ -350,6 +334,22 @@ void deserialzieEventsPool()
       print_error_line("Filecontent of ", _FileNameEvents, " invalid: Lenght of event name is 0.");
 
     strncpy(evnt.name, name.c_str(), LS_ARRAYSIZE(evnt.name));
+
+    evnt.durationTimeSpan = _item[_DurationTimeSpan].i();
+
+    if (_item.has(_UserIds))
+      for (const auto _i : _item[_UserIds])
+        local_list_add(&evnt.userIds, (size_t)_i.i());
+    
+    evnt.weight = (uint64_t)_item[_Weight].i();
+    evnt.weightGrowthFactor = (uint64_t)_item[_WeightFactor];
+    evnt.possibleExecutionDays = (weekday_flags)_item[_PossibleExecutionDays].i();
+    evnt.repetitionTimeSpan = _item[_RepetitionTimeSpan].i();
+    evnt.lastCompletedTime = (time_point_t)_item[_LastCompletedTime].i();
+    evnt.lastModifiedTime = (time_point_t)_item[_LastModifiedTime].i();
+    evnt.creationTime = (time_point_t)_item[_CreationTime].i();
+
+    pool_add(&_Events, &evnt, &index);
   }
 
 //epilogue:
@@ -413,8 +413,8 @@ crow::response handle_user_registration(const crow::request &req)
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
 
-  if (LS_FAILED(set_events_for_user(sessionId)))
-    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+  //if (LS_FAILED(set_events_for_user(sessionId)))
+    //return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret;
   ret["session_id"] = sessionId;
