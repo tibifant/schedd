@@ -76,6 +76,10 @@ div.login {
   display: none;
 }
 
+div.main {
+  display: none;
+}
+
 div.schedule {
   display: none;
 }

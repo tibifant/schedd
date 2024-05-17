@@ -31,11 +31,17 @@
               try {
                 let obj = JSON.parse(xmlhttp.responseText);
                 callback(obj);
-              } catch (e) { // TODO: handle errors: if session id not found, go to logion screen
-                failure_callback();
+              } catch (e) { // TODO: handle errors: if session id not found, go to logion screen                
+                  failure_callback();
               }
             } else {
-              failure_callback();
+              if (xmlhttp.status == 403) {
+                remove_session_id();
+                show_login_screen();
+                document.getElementById('session_invalid_failure').style.display = 'block';
+              } else {
+                failure_callback();
+              }
             }
           }
         }
@@ -72,6 +78,10 @@
         return localStorage.setItem("session_token", token);
       }
 
+      function remove_session_id() {
+        localStorage.removeItem("session_token");
+      }
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
       function append_element(parent, type, className, innerText) {
@@ -93,6 +103,7 @@
       
       function show_login_screen() {
         document.getElementsByClassName("login")[0].style.display = "block";
+        document.getElementsByClassName('main')[0].style.display = 'none';
       }
       
       function login_failure() {
@@ -105,6 +116,7 @@
         function onLoginSuccess(obj) {
           set_session_token(obj.session_id);
           document.getElementsByClassName("login")[0].style.display = "none";
+          document.getElementsByClassName('main')[0].style.display = 'block';
           show_overview();
         };
         
@@ -469,8 +481,6 @@
         else {
           show_overview();
         }
-        
-        // TODO: Get Current Tasks / Progress / Whatsoever.
 
       });
     </script>
@@ -482,6 +492,9 @@
         <failure_message id="login_failure">
           <p>Login Failure!</p>
         </failure_message>
+        <failure_message id="forbidden_failure">
+          <p>Access denied. Please log in.</p>
+        </failure_message>
         <label for="username">Username</label></br>
         <input type="text" id="username"></input>
         <button id="username_submit_button">log in</button>
@@ -489,6 +502,7 @@
         <button id="create_account_button">create new account</button>
       </div>
     </div>
+    <div class="main">
     <div class="user_registration">
       <div class="box">
         <h1>Create a new account</h1>
@@ -625,6 +639,7 @@
         <ul id="current_tasks"></ul>
       </div>
     </div>
+  </div>
   </div>
 </body>
 
