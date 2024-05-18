@@ -32,15 +32,16 @@
                 let obj = JSON.parse(xmlhttp.responseText);
                 callback(obj);
               } catch (e) { // TODO: handle errors: if session id not found, go to logion screen                
-                  failure_callback();
+                  failure_callback(false);
               }
             } else {
               if (xmlhttp.status == 403) {
-                remove_session_id();
+                remove_session_token();
+                hide_all_logged_in_contents();
                 show_login_screen();
-                document.getElementById('session_invalid_failure').style.display = 'block';
+                document.getElementById('forbidden_failure').style.display = 'block';
               } else {
-                failure_callback();
+                failure_callback(false);
               }
             }
           }
@@ -78,8 +79,15 @@
         return localStorage.setItem("session_token", token);
       }
 
-      function remove_session_id() {
+      function remove_session_token() {
         localStorage.removeItem("session_token");
+      }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function hide_all_logged_in_contents() {
+        for (let e of document.getElementsByClassName('main')[0].children)
+          e.style.display = 'none';
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -124,9 +132,17 @@
       }
       
       function on_create_account_click() {
-          document.getElementsByClassName("login")[0].style.display = "none";
-          show_account_creation_screen();
-        }
+        document.getElementsByClassName("login")[0].style.display = "none";
+        show_account_creation_screen();
+      }
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+      function on_logout_click() {
+        remove_session_token();
+        hide_all_logged_in_contents();
+        show_login_screen();
+      }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -176,8 +192,8 @@
       }
       
       function task_creation_failure() {
-        document.getElementsByClassName('user_search')[0].style.display = 'none';
-        document.getElementById("task_creation_failure").style.display = "block";
+        document.getElementsByClassName('user_search')[0].style.display = 'none';        
+        document.getElementById("task_creation_failure").style.display = "block";        
       }
 
       function submit_new_task() {
@@ -460,6 +476,7 @@
         document.getElementById("create_account_button").addEventListener('click', on_create_account_click);
         document.getElementById("submit_new_user_info_button").addEventListener('click', on_submit_new_account_click);
 
+        document.getElementById('logout_button').addEventListener('click', on_logout_click);
         document.getElementById("show_add_task_button").addEventListener('click', show_task_creation);
         document.getElementById("create_task_button").addEventListener('click', submit_new_task);
         
@@ -502,7 +519,6 @@
         <button id="create_account_button">create new account</button>
       </div>
     </div>
-    <div class="main">
     <div class="user_registration">
       <div class="box">
         <h1>Create a new account</h1>
@@ -529,117 +545,119 @@
         <button id="submit_new_user_info_button">Submit</button>
       </div>
     </div>
-    <div class="task_creation">
-      <div class="box">
-        <h1>Create a new task.</h1>
-        <failure_message id="task_creation_failure">
-          <p>Task Creation Failure!</p>
-        </failure_message>
-        <label for="task_name">What's the name of the task?</label></br>
-        <input type="text" id="task_name"></input></br>
-        <label for="task_duration">How long does the task take? (in minutes)</label></br>
-        <input type="number" min="1" max="1440" id="task_duration"></input></br> <!-- This should be handled differently -->
-        <label>On which days can the task be executed?</label></br>
-        <input type="checkbox" id="task_execution_days_monday">On Mondays</input></br>
-        <input type="checkbox" id="task_execution_days_tuesdays">On Tuesdays</input></br>
-        <input type="checkbox" id="task_execution_days_wendesday">On Wendesdays</input></br>
-        <input type="checkbox" id="task_execution_days_thursday">On Thursdays</input></br>
-        <input type="checkbox" id="task_execution_days_friday">On Fridays</input></br>
-        <input type="checkbox" id="task_execution_days_saturday">On Saturdays</input></br>
-        <input type="checkbox" id="task_execution_days_sunday">On Sundays</input></br>
-        <label for="task_repetition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
-        <input type="number" min="0" id="task_repetition"></input><br>
-        <label for="task_weight">How important is the task? (Number between 0 and 100)</label></br>
-        <input type="number" min="0" max="100" id="task_weight"></input><br>
-        <label for="task_weight_factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
-        <input type="number" min="0" max="100" id="task_weight_factor"></input><br>
-        <button id="user_search_task_creation_button">Search for Users</button><br>
-        <button id="create_task_button">create new task</button>
+    <div class="main">
+      <button id="logout_button">Log Out</button>
+      <div class="task_creation">
+        <div class="box">
+          <h1>Create a new task.</h1>
+          <failure_message id="task_creation_failure">
+            <p>Task Creation Failure!</p>
+          </failure_message>
+          <label for="task_name">What's the name of the task?</label></br>
+          <input type="text" id="task_name"></input></br>
+          <label for="task_duration">How long does the task take? (in minutes)</label></br>
+          <input type="number" min="1" max="1440" id="task_duration"></input></br> <!-- This should be handled differently -->
+          <label>On which days can the task be executed?</label></br>
+          <input type="checkbox" id="task_execution_days_monday">On Mondays</input></br>
+          <input type="checkbox" id="task_execution_days_tuesdays">On Tuesdays</input></br>
+          <input type="checkbox" id="task_execution_days_wendesday">On Wendesdays</input></br>
+          <input type="checkbox" id="task_execution_days_thursday">On Thursdays</input></br>
+          <input type="checkbox" id="task_execution_days_friday">On Fridays</input></br>
+          <input type="checkbox" id="task_execution_days_saturday">On Saturdays</input></br>
+          <input type="checkbox" id="task_execution_days_sunday">On Sundays</input></br>
+          <label for="task_repetition">After which timespan should the task be repeated? (in days)</label></br> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
+          <input type="number" min="0" id="task_repetition"></input><br>
+          <label for="task_weight">How important is the task? (Number between 0 and 100)</label></br>
+          <input type="number" min="0" max="100" id="task_weight"></input><br>
+          <label for="task_weight_factor">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label></br>
+          <input type="number" min="0" max="100" id="task_weight_factor"></input><br>
+          <button id="user_search_task_creation_button">Search for Users</button><br>
+          <button id="create_task_button">create new task</button>
+        </div>
+      </div>
+      <div class="user_search">
+        <div class="box">
+          <failure_message id="user_search_failure">
+            <p>User Search Failure!</p>
+          </failure_message>
+          <label for="user_search_query">Search for users and click in their name to assign them to the task</label></br>
+          <input type="text" id="user_search_query"></input>
+          <button id="submit_user_search_button">search</button><br>
+          <ul id="user_search_results"></ul>
+        </div>
+      </div>
+      <div class="overview">
+        <div class="box">
+          <h1>Welcome to Schedd!</h1>
+          <button id="show_add_task_button">Add new Task</button>
+          <failure_message id="task_done_failure">
+            <p>Mark Task as done Failure!</p>
+          </failure_message>
+          <failure_message id="success">
+            <p>SUCCESS!</p>
+          </failure_message>
+        </div>
+      </div>
+      <div class="task">
+        <div class="box">
+          <failure_message id="task_edit_failure">
+            <p>Failure Submitting Changes!</p>
+          </failure_message>
+          <!-- task details -->
+          <button id="mark_as_done_button">Mark as Done</button></br>
+          <button id="mark_as_done_add_new_button">Mark as Done and schedule new Task for Today</button></br></br>
+          <p>You can edit the details.</p>
+          <label for="task_name_edit">What's the name of the task?</label>
+          <input type="text" id="task_name_edit"></input></br>
+          <label for="task_duration_edit">How long does the task take? (in minutes)</label>
+          <input type="number" min="1" max="1440" id="task_duration_edit"></input></br> <!-- This should be handled differently -->
+          <label>On which days can the task be executed?</label></br>
+          <input type="checkbox" id="task_execution_days_monday_edit">On Mondays</input></br>
+          <input type="checkbox" id="task_execution_days_tuesdays_edit">On Tuesdays</input></br>
+          <input type="checkbox" id="task_execution_days_wendesday_edit">On Wendesdays</input></br>
+          <input type="checkbox" id="task_execution_days_thursday_edit">On Thursdays</input></br>
+          <input type="checkbox" id="task_execution_days_friday_edit">On Fridays</input></br>
+          <input type="checkbox" id="task_execution_days_saturday_edit">On Saturdays</input></br>
+          <input type="checkbox" id="task_execution_days_sunday_edit">On Sundays</input></br>
+          <label for="task_repetition_edit">After which timespan should the task be repeated? (in days)</label> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
+          <input type="number" min="0" id="task_repetition_edit"></input><br>
+          <label for="task_weight_edit">How important is the task? (Number between 0 and 100)</label>
+          <input type="number" min="0" max="100" id="task_weight_edit"></input><br>
+          <label for="task_weight_factor_edit">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
+          <input type="number" min="0" max="100" id="task_weight_factor_edit"></input><br>
+          <p>Assigned Users:</p>
+          <ul id="task_users_edit"></ul>
+          <button id="user_search_task_edit_button">Search for Users</button><br>
+          <button id="edit_task_button">Submit changes</button><br>
+        </div>
+      </div>
+      <div class="task_search">
+        <div class="box">
+          <failure_message id="task_search_failure">
+            <p>Task Search Failure!</p>
+          </failure_message>
+          <failure_message id="task_details_failure">
+            <p>Failure Loading Task Details!</p>
+          </failure_message>
+          <label for="task_search_query">Search for a task</label></br>
+          <input type="text" id="task_search_query"></input>
+          <button id="submit_event_search_button">search</button><br>
+          <ul id="task_search_results"></ul>
+        </div>
+      </div>
+      <div class="schedule">
+        <div class="box">
+          <h1>Your tasks for today</h1>
+          <failure_message id="user_schedule_failure">
+            <p>Failure Loading Tasks!</p>
+          </failure_message>
+          <failure_message id="user_schedule_empty">
+            <p>No tasks for today!</p>
+          </failure_message>
+          <ul id="current_tasks"></ul>
+        </div>
       </div>
     </div>
-    <div class="user_search">
-      <div class="box">
-        <failure_message id="user_search_failure">
-          <p>User Search Failure!</p>
-        </failure_message>
-        <label for="user_search_query">Search for users and click in their name to assign them to the task</label></br>
-        <input type="text" id="user_search_query"></input>
-        <button id="submit_user_search_button">search</button><br>
-        <ul id="user_search_results"></ul>
-      </div>
-    </div>
-    <div class="overview">
-      <div class="box">
-        <h1>Welcome to Schedd!</h1>
-        <button id="show_add_task_button">Add new Task</button>
-        <failure_message id="task_done_failure">
-          <p>Mark Task as done Failure!</p>
-        </failure_message>
-        <failure_message id="success">
-          <p>SUCCESS!</p>
-        </failure_message>
-      </div>
-    </div>
-    <div class="task">
-      <div class="box">
-        <failure_message id="task_edit_failure">
-          <p>Failure Submitting Changes!</p>
-        </failure_message>
-        <!-- task details -->
-        <button id="mark_as_done_button">Mark as Done</button></br>
-        <button id="mark_as_done_add_new_button">Mark as Done and schedule new Task for Today</button></br></br>
-        <p>You can edit the details.</p>
-        <label for="task_name_edit">What's the name of the task?</label>
-        <input type="text" id="task_name_edit"></input></br>
-        <label for="task_duration_edit">How long does the task take? (in minutes)</label>
-        <input type="number" min="1" max="1440" id="task_duration_edit"></input></br> <!-- This should be handled differently -->
-        <label>On which days can the task be executed?</label></br>
-        <input type="checkbox" id="task_execution_days_monday_edit">On Mondays</input></br>
-        <input type="checkbox" id="task_execution_days_tuesdays_edit">On Tuesdays</input></br>
-        <input type="checkbox" id="task_execution_days_wendesday_edit">On Wendesdays</input></br>
-        <input type="checkbox" id="task_execution_days_thursday_edit">On Thursdays</input></br>
-        <input type="checkbox" id="task_execution_days_friday_edit">On Fridays</input></br>
-        <input type="checkbox" id="task_execution_days_saturday_edit">On Saturdays</input></br>
-        <input type="checkbox" id="task_execution_days_sunday_edit">On Sundays</input></br>
-        <label for="task_repetition_edit">After which timespan should the task be repeated? (in days)</label> <!-- This needs to be handled differently, you should be able to repeat a task every monday and tuesday and stuff, also not in days -->
-        <input type="number" min="0" id="task_repetition_edit"></input><br>
-        <label for="task_weight_edit">How important is the task? (Number between 0 and 100)</label>
-        <input type="number" min="0" max="100" id="task_weight_edit"></input><br>
-        <label for="task_weight_factor_edit">How important is it that the task gets done as quickly as possible? (Number between 0 and 100)</label>
-        <input type="number" min="0" max="100" id="task_weight_factor_edit"></input><br>
-        <p>Assigned Users:</p>
-        <ul id="task_users_edit"></ul>
-        <button id="user_search_task_edit_button">Search for Users</button><br>
-        <button id="edit_task_button">Submit changes</button><br>
-      </div>
-    </div>
-    <div class="task_search">
-      <div class="box">
-        <failure_message id="task_search_failure">
-          <p>Task Search Failure!</p>
-        </failure_message>
-        <failure_message id="task_details_failure">
-          <p>Failure Loading Task Details!</p>
-        </failure_message>
-        <label for="task_search_query">Search for a task</label></br>
-        <input type="text" id="task_search_query"></input>
-        <button id="submit_event_search_button">search</button><br>
-        <ul id="task_search_results"></ul>
-      </div>
-    </div>
-    <div class="schedule">
-      <div class="box">
-        <h1>Your tasks for today</h1>
-        <failure_message id="user_schedule_failure">
-          <p>Failure Loading Tasks!</p>
-        </failure_message>
-        <failure_message id="user_schedule_empty">
-          <p>No tasks for today!</p>
-        </failure_message>
-        <ul id="current_tasks"></ul>
-      </div>
-    </div>
-  </div>
   </div>
 </body>
 

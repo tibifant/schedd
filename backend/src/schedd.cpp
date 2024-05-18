@@ -202,7 +202,7 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
 
     // Assign Session Id.
     {
-      *pOutSessionId = (int32_t)lsGetRand(); // we should check if this is unique
+      *pOutSessionId = (int32_t)lsGetRand();
 
       // Check for sessionId duplicates
       for (const auto &_item : _UserInfo)
