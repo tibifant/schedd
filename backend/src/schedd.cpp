@@ -300,10 +300,41 @@ epilogue:
   return result;
 }
 
+lsResult get_available_time(const size_t userId, _Out_ local_list<time_span_t, DaysPerWeek> *pOutAvailableTime)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    *pOutAvailableTime = pool_get(&_Users, userId)->availableTimePerDay;
+  }
+
+  return result;
+}
+
+lsResult replace_available_time(const size_t userId, const local_list<time_span_t, DaysPerWeek> availableTime)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    pool_get(&_Users, userId)->availableTimePerDay = availableTime;
+  }
+
+  _UserChangingStatus++;
+
+  return result;
+}
+
 lsResult add_new_event(event evnt)
 {
   lsResult result = lsR_Success;
 
+  // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
 

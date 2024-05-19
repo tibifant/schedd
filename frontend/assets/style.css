@@ -89,6 +89,11 @@ div.task_creation {
   position: fixed;
 }
 
+div.user_edit {
+  display: none;
+  position: fixed;
+}
+
 div.user_search {
   display: none;
   position: fixed;

@@ -75,6 +75,8 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
 lsResult add_new_user(const user usr);
 lsResult add_new_event(event evnt);
 lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUserId);
+lsResult get_available_time(const size_t userId, _Out_ local_list<time_span_t, DaysPerWeek> *pOutAvailableTime);
+lsResult replace_available_time(const size_t userId, const local_list<time_span_t, DaysPerWeek> availableTime);
 
 struct event_info
 {

@@ -36,9 +36,7 @@
               }
             } else {
               if (xmlhttp.status == 403) {
-                remove_session_token();
-                hide_all_logged_in_contents();
-                show_login_screen();
+                logout(); // only viable as we won't do anything special server wise when logging out atm
                 document.getElementById('forbidden_failure').style.display = 'block';
               } else {
                 failure_callback(false);
@@ -138,7 +136,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
-      function on_logout_click() {
+      function logout() {
         remove_session_token();
         hide_all_logged_in_contents();
         show_login_screen();
@@ -192,8 +190,8 @@
       }
       
       function task_creation_failure() {
-        document.getElementsByClassName('user_search')[0].style.display = 'none';        
-        document.getElementById("task_creation_failure").style.display = "block";        
+        document.getElementsByClassName('user_search')[0].style.display = 'none';
+        document.getElementById("task_creation_failure").style.display = "block";
       }
 
       function submit_new_task() {
@@ -225,8 +223,53 @@
         load_backend_url("task-creation", onTaskCreationSuccess, obj, task_creation_failure)
       }
 
-///////////////////////////////////////////////////////////////////////////////////////
+      ///////////////////////////////////////////////////////////////////////////////////////
 
+      function load_user_info_failure() {
+        document.getElementById("load_user_info_failure").style.display = "block";
+      }
+
+      function on_user_edit_click() {
+        function onGetUserInfoSuccess(obj) {
+          document.getElementsByClassName('user_edit')[0].style.display = 'block';
+
+          document.getElementById("user_time_info_monday_edit").value = obj[0];
+          document.getElementById("user_time_info_tuesday_edit").value = obj[1];
+          document.getElementById("user_time_info_wendesday_edit").value = obj[2];
+          document.getElementById("user_time_info_thursday_edit").value = obj[3];
+          document.getElementById("user_time_info_friday_edit").value = obj[4];
+          document.getElementById("user_time_info_saturday_edit").value = obj[5];
+          document.getElementById("user_time_info_sunday_edit").value = obj[6];
+        }
+
+        load_backend_url('user-time-info', onGetUserInfoSuccess, { 'sessionId': get_session_token() }, load_user_info_failure)
+      }
+
+      function user_edit_failure() {        
+        document.getElementById("user_edit_failure").style.display = "block";
+      }
+
+      function submit_edited_user_info() {
+        function onSubmitEditedUserInfoSuccess(obj) {
+          document.getElementById('load_user_info_failure').style.display = 'none';
+          document.getElementById("user_edit_failure").style.display = "none";
+          document.getElementsByClassName('user_edit')[0].style.display = 'none';
+        }
+
+        let obj = [];
+        obj[0] = document.getElementById("user_time_info_monday_edit").value;
+        obj[1] = document.getElementById("user_time_info_tuesday_edit").value;
+        obj[2] = document.getElementById("user_time_info_wendesday_edit").value;
+        obj[3] = document.getElementById("user_time_info_thursday_edit").value;
+        obj[4] = document.getElementById("user_time_info_friday_edit").value;
+        obj[5] = document.getElementById("user_time_info_saturday_edit").value;
+        obj[6] = document.getElementById("user_time_info_sunday_edit").value;
+
+        load_backend_url('user-edit', onSubmitEditedUserInfoSuccess, { 'sessionId': get_session_token(), 'availableTime': obj }, user_edit_failure);
+      }
+
+      ///////////////////////////////////////////////////////////////////////////////////////
+      
       function show_user_search() {
         document.getElementsByClassName('user_search')[0].style.display = 'block';
       }
@@ -476,9 +519,12 @@
         document.getElementById("create_account_button").addEventListener('click', on_create_account_click);
         document.getElementById("submit_new_user_info_button").addEventListener('click', on_submit_new_account_click);
 
-        document.getElementById('logout_button').addEventListener('click', on_logout_click);
+        document.getElementById('logout_button').addEventListener('click', logout);
         document.getElementById("show_add_task_button").addEventListener('click', show_task_creation);
         document.getElementById("create_task_button").addEventListener('click', submit_new_task);
+
+        document.getElementById('edit_user_button').addEventListener('click', on_user_edit_click);
+        document.getElementById('submit_edited_user_info_button').addEventListener('click', submit_edited_user_info);
         
         document.getElementById('user_search_task_creation_button').addEventListener('click', show_user_search);
         document.getElementById('user_search_task_edit_button').addEventListener('click', show_user_search);
@@ -527,7 +573,7 @@
         </failure_message>
         <label for="new_username">Username</label></br>
         <input type="text" id="new_username"></input>
-        <h2>How much available time for schedd_tasks do you have on each day?</h2>
+        <h2>How much available time for schedd-tasks do you have on each day?</h2>
         <label for="user_time_info_monday">On Mondays (in minutes)</label></br>
         <input type="number" min="0" max="1440" id="user_time_info_monday"></input><br>
         <label for="user_time_info_tuesday">On Tuesdays (in minutes)</label></br>
@@ -546,7 +592,6 @@
       </div>
     </div>
     <div class="main">
-      <button id="logout_button">Log Out</button>
       <div class="task_creation">
         <div class="box">
           <h1>Create a new task.</h1>
@@ -586,15 +631,43 @@
           <ul id="user_search_results"></ul>
         </div>
       </div>
+      <div class="user_edit">
+        <div class="box">
+          <failure_message id="user_edit_failure">
+            <p>Failed to submit changes!</p>
+          </failure_message>
+          <h2>How much available time for schedd-tasks do you have on each day?</h2>
+          <label for="user_time_info_monday_edit">On Mondays (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_monday_edit"></input><br>
+          <label for="user_time_info_tuesday_edit">On Tuesdays (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_tuesday_edit"></input><br>
+          <label for="user_time_info_wendesday_edit">On Wendesdays (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_wendesday_edit"></input><br>
+          <label for="user_time_info_thursday_edit">On Thursdays (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_thursday_edit"></input><br>
+          <label for="user_time_info_friday_edit">On Friday (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_friday_edit"></input><br>
+          <label for="user_time_info_saturday_edit">On Saturdays (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_saturday_edit"></input><br>
+          <label for="user_time_info_sunday_edit">On Sundays (in minutes)</label></br>
+          <input type="number" min="0" max="1440" id="user_time_info_sunday_edit"></input><br>
+          <button id="submit_edited_user_info_button">Submit</button>
+        </div>
+      </div>
       <div class="overview">
         <div class="box">
           <h1>Welcome to Schedd!</h1>
+          <button id="logout_button">Log Out</button>
+          <button id="edit_user_button">Edit your Available Time</button>
           <button id="show_add_task_button">Add new Task</button>
           <failure_message id="task_done_failure">
             <p>Mark Task as done Failure!</p>
           </failure_message>
           <failure_message id="success">
             <p>SUCCESS!</p>
+          </failure_message>
+          <failure_message id="load_user_info_failure">
+            <p>Failed to load Infos to edit User data.</p>
           </failure_message>
         </div>
       </div>

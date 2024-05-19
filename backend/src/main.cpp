@@ -46,6 +46,8 @@ namespace asio
 
 crow::response handle_login(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
+crow::response handle_user_time_info(const crow::request &req);
+crow::response handle_user_edit(const crow::request &req);
 crow::response handle_task_creation_modification(const crow::request &req, const bool isCreation);
 crow::response handle_user_schedule(const crow::request &req);
 crow::response handle_user_search(const crow::request &req);
@@ -93,6 +95,8 @@ int32_t main(void)
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
+  CROW_ROUTE(app, "/user-time-info").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_time_info(req); });
+  CROW_ROUTE(app, "/user-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_edit(req); });
   CROW_ROUTE(app, "/task-creation").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, true); });
   CROW_ROUTE(app, "/task-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_creation_modification(req, false); });
   CROW_ROUTE(app, "/user-schedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_schedule(req); });
@@ -418,6 +422,60 @@ crow::response handle_user_registration(const crow::request &req)
 
   crow::json::wvalue ret;
   ret["session_id"] = sessionId;
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_user_time_info(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  int32_t sessionId = (int32_t)body["sessionId"].i();
+  size_t userId;
+
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
+    return crow::response(crow::status::FORBIDDEN);
+
+  local_list<time_span_t, DaysPerWeek> availableTime;
+
+  if (LS_FAILED(get_available_time(userId, &availableTime)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
+
+  for (int8_t i = 0; i < availableTime.count; i++)
+    ret[i] = minutes_from_time_span(availableTime[i]);
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_user_edit(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId") || !body.has("availableTime"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  int32_t sessionId = (int32_t)body["sessionId"].i();
+  size_t userId;
+
+  if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
+    return crow::response(crow::status::FORBIDDEN);
+
+  local_list<time_span_t, DaysPerWeek> availableTime;
+
+  for (const auto _item : body["availableTime"])
+    if (LS_FAILED(local_list_add(&availableTime, time_span_from_days(_item.i()))))
+      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  if (LS_FAILED(replace_available_time(userId, availableTime)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  crow::json::wvalue ret;
+  ret["success"] = true;
 
   return crow::response(crow::status::OK, ret);
 }
