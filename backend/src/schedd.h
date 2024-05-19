@@ -61,7 +61,8 @@ struct user
 extern pool<user> _Users;
 extern pool<event> _Events;
 
-lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId);
+lsResult assign_session_token(const char *username, _Out_ uint32_t *pOutSessionId);
+lsResult invalidate_session_token(const uint32_t sessionId);
 lsResult add_new_user(const user usr);
 lsResult add_new_event(event evnt);
 lsResult get_user_id_from_session_id(const uint32_t sessionId, _Out_ size_t *pUserId);

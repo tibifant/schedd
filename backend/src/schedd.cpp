@@ -173,7 +173,7 @@ uint64_t get_score_for_event(const event evnt)
 
 //////////////////////////////////////////////////////////////////////////
 
-lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId)
+lsResult assign_session_token(const char *username, _Out_ uint32_t *pOutSessionId)
 {
   lsResult result = lsR_Success;
 
@@ -181,8 +181,7 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
   {
     std::scoped_lock lock(_ThreadLock);
 
-    size_t userId = 0; // If no value is assigned there's a warning, but we won't ever use this uninitilaized as we would not pass the `error_if`.
-    user usr;
+    size_t userId = 0; // initialzing for comipler warning
     bool userNotFound = true;
 
     // iterate pool checking for username
@@ -191,7 +190,6 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
       if (strncmp(_user.pItem->username, username, LS_ARRAYSIZE(_user.pItem->username)) == 0) // if name matches.
       {
         userId = _user.index;
-        usr = *_user.pItem;
         userNotFound = false;
         break;
       }
@@ -213,6 +211,23 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
       size_t _unused;
       LS_ERROR_CHECK(pool_add(&_SessionIdToUserId, userInfo, &_unused));
     }
+  }
+
+epilogue:
+  return result;
+}
+
+lsResult invalidate_session_token(const uint32_t sessionId)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_id : _SessionIdToUserId)
+      if (_id.pItem->sessionId == sessionId)
+        LS_ERROR_CHECK(pool_remove_safe(&_SessionIdToUserId, _id.index));
   }
 
 epilogue:

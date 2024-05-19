@@ -34,9 +34,11 @@
               } catch (e) { // TODO: handle errors: if session id not found, go to logion screen                
                   failure_callback(false);
               }
-            } else {
+            } else { // TODO: handle all relevant error codes
               if (xmlhttp.status == 403) {
-                logout(); // only viable as we won't do anything special server wise when logging out atm
+                remove_session_token();
+                hide_all_logged_in_contents();
+                show_login_screen();
                 document.getElementById('forbidden_failure').style.display = 'block';
               } else {
                 failure_callback(false);
@@ -138,10 +140,18 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
+      function logout_failure() {
+        document.getElementById('logout_failure').style.display = 'block';
+      }
+
       function logout() {
-        remove_session_token();
-        hide_all_logged_in_contents();
-        show_login_screen();
+        function onLogoutSuccess(obj) {
+          remove_session_token();
+          hide_all_logged_in_contents();
+          show_login_screen();
+        }
+
+        load_backend_url('logout', onLogoutSuccess, { 'sessionId': get_session_token() }, logout_failure);
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -662,6 +672,9 @@
           <button id="logout_button">Log Out</button>
           <button id="edit_user_button">Edit your Available Time</button>
           <button id="show_add_task_button">Add new Task</button>
+          <failure_message id="logout_failure">
+            <p>Failed to log out!</p>
+          </failure_message>
           <failure_message id="task_done_failure">
             <p>Mark Task as done Failure!</p>
           </failure_message>

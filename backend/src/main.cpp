@@ -45,6 +45,7 @@ namespace asio
 //////////////////////////////////////////////////////////////////////////
 
 crow::response handle_login(const crow::request &req);
+crow::response handle_logout(const crow::request &req);
 crow::response handle_user_registration(const crow::request &req);
 crow::response handle_user_time_info(const crow::request &req);
 crow::response handle_user_edit(const crow::request &req);
@@ -94,6 +95,7 @@ int32_t main(void)
 #endif
 
   CROW_ROUTE(app, "/login").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_login(req); });
+  CROW_ROUTE(app, "/logout").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_logout(req); });
   CROW_ROUTE(app, "/registration").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_registration(req); });
   CROW_ROUTE(app, "/user-time-info").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_time_info(req); });
   CROW_ROUTE(app, "/user-edit").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_user_edit(req); });
@@ -105,7 +107,6 @@ int32_t main(void)
   CROW_ROUTE(app, "/task-done").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req, false); });
   CROW_ROUTE(app, "/task-done-reschedule").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_event_completed(req, true); });
   CROW_ROUTE(app, "/task").methods(crow::HTTPMethod::POST)([](const crow::request &req) { return handle_task_details(req); });
-  // TODO: Option to change the user data
 
   pAsyncTasksThread = new std::thread(async_tasks);
 
@@ -378,13 +379,31 @@ crow::response handle_login(const crow::request &req)
 
   const std::string &username = body["username"].s();
 
-  int32_t sessionId;
+  uint32_t sessionId;
   
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
 
   crow::json::wvalue ret;
   ret["session_id"] = sessionId;
+
+  return crow::response(crow::status::OK, ret);
+}
+
+crow::response handle_logout(const crow::request &req)
+{
+  auto body = crow::json::load(req.body);
+
+  if (!body || !body.has("sessionId"))
+    return crow::response(crow::status::BAD_REQUEST);
+
+  uint32_t sessionId = (uint32_t)body["sessionId"].i();;
+
+  if (LS_FAILED(invalidate_session_token(sessionId)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
+  crow::json::wvalue ret;
+  ret["success"] = true;
 
   return crow::response(crow::status::OK, ret);
 }
@@ -421,7 +440,7 @@ crow::response handle_user_registration(const crow::request &req)
   if (LS_FAILED(add_new_user(usr)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
-  int32_t sessionId;
+  uint32_t sessionId;
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
 
@@ -441,7 +460,7 @@ crow::response handle_user_time_info(const crow::request &req)
   if (!body || !body.has("sessionId"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  int32_t sessionId = (int32_t)body["sessionId"].i();
+  uint32_t sessionId = (uint32_t)body["sessionId"].i();;
   size_t userId;
 
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
@@ -467,7 +486,7 @@ crow::response handle_user_edit(const crow::request &req)
   if (!body || !body.has("sessionId") || !body.has("availableTime"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
   size_t userId;
 
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
@@ -495,7 +514,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   if (!body || !body.has("sessionId") || !body.has("name") || !body.has("duration") || !body.has("possibleExecutionDays") || !body.has("repetition") || !body.has("weight") || !body.has("weightFactor") || !body.has("userIds"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();
   const std::string &eventName = body["name"].s();
   const uint64_t duration = body["duration"].i();
   const uint64_t repetitionInDays = body["repetition"].i();
@@ -596,7 +615,7 @@ crow::response handle_user_schedule(const crow::request &req)
   if (!body || !body.has("sessionId"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
 
   size_t userId;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
@@ -627,7 +646,7 @@ crow::response handle_event_search(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   const std::string &query = body["query"].s();
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
 
   size_t __unused;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
@@ -657,7 +676,7 @@ crow::response handle_user_search(const crow::request &req)
   if (!body || !body.has("sessionId") || !body.has("query"))
     return crow::response(crow::status::BAD_REQUEST);
 
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
 
   size_t __unused;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
@@ -688,7 +707,7 @@ crow::response handle_event_completed(const crow::request &req, const bool needs
     return crow::response(crow::status::BAD_REQUEST);
 
   const size_t eventId = body["taskId"].i();
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
 
   if (LS_FAILED(set_event_last_completed_time(eventId, get_current_time())))
     return crow::response(crow::status::BAD_REQUEST);
@@ -717,7 +736,7 @@ crow::response handle_task_details(const crow::request &req)
     return crow::response(crow::status::BAD_REQUEST);
 
   const size_t taskId = body["taskId"].i();
-  const int32_t sessionId = (int32_t)body["sessionId"].i();
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
 
   size_t __unused;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
