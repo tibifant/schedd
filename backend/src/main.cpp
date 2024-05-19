@@ -468,7 +468,7 @@ crow::response handle_user_edit(const crow::request &req)
   local_list<time_span_t, DaysPerWeek> availableTime;
 
   for (const auto _item : body["availableTime"])
-    if (LS_FAILED(local_list_add(&availableTime, time_span_from_days(_item.i()))))
+    if (LS_FAILED(local_list_add(&availableTime, time_span_from_minutes(_item.i()))))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   if (LS_FAILED(replace_available_time(userId, availableTime)))
