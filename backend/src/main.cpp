@@ -138,9 +138,9 @@ void async_tasks()
 #endif
     }
 
-    const size_t userChangingStatusCurrent = _UserChangingStatus;
-    const size_t eventChangingStatusCurrent = _EventChangingStatus;
-    const size_t explicitlyRequestedRescheduleCurrent = _ExplicitlyRequestsReschedule;
+    const size_t userChangingStatusCurrent = _UserDataEpoch;
+    const size_t eventChangingStatusCurrent = _EventDataEpoch;
+    const size_t explicitlyRequestedRescheduleCurrent = _ExplicitlyRequestsRescheduleEpoch;
     bool needsReschdeule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
 
     // If Changed: Serialize. Reschedule.
@@ -289,7 +289,10 @@ void deserializeUsersPool()
   size_t fileSize;
 
   if (LS_FAILED(lsReadFile(_FileNameUsers, &fileContents, &fileSize)))
+  {
     print_error_line("Failed to read file", _FileNameUsers);
+    return;
+  }
 
   const auto &jsonRoot = crow::json::load(fileContents);
 
@@ -314,7 +317,8 @@ void deserializeUsersPool()
     pool_add(&_Users, &usr, &index);
   }
 
-//epilogue:
+  goto epilogue;
+epilogue:
   lsFreePtr(&fileContents);
 }
 
@@ -324,7 +328,10 @@ void deserialzieEventsPool()
   size_t fileSize;
 
   if (LS_FAILED(lsReadFile(_FileNameEvents, &fileContents, &fileSize)))
+  {
     print_error_line("Failed to read file", _FileNameEvents);
+    return;
+  }
 
   const auto &jsonRoot = crow::json::load(fileContents);
 
@@ -356,7 +363,8 @@ void deserialzieEventsPool()
     pool_add(&_Events, &evnt, &index);
   }
 
-//epilogue:
+  goto epilogue;
+epilogue:
   lsFreePtr(&fileContents);
 }
 //////////////////////////////////////////////////////////////////////////
@@ -395,7 +403,7 @@ crow::response handle_user_registration(const crow::request &req)
   if (username.length() + 1 > LS_ARRAYSIZE(usr.username) || username.length() == 0)
     return crow::response(crow::status::BAD_REQUEST);
 
-  if (!(check_for_user_name_duplication(username.c_str())))
+  if (!(user_name_exists(username.c_str())))
     return crow::response(crow::status::BAD_REQUEST);
 
   strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
@@ -494,7 +502,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
   const uint64_t weight = body["weight"].i();
   const uint64_t weightFactor = body["weightFactor"].i();
   local_list<bool, 7> executionDays;
-  local_list<size_t, maxUsersPerEvent> userIds;
+  local_list<size_t, MaxUsersPerEvent> userIds;
 
   size_t __unused;
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
@@ -571,15 +579,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
     size_t id = body["id"].i();
 
-    event oldEvent;
-    if (LS_FAILED(get_event(id, &oldEvent)))
-      return crow::response(crow::status::INTERNAL_SERVER_ERROR);
-
-    evnt.creationTime = oldEvent.creationTime;
-    evnt.lastCompletedTime = oldEvent.lastCompletedTime;
-    evnt.lastModifiedTime = get_current_time();
-
-    if (LS_FAILED(replace_task(id, evnt)))
+    if (LS_FAILED(update_task(id, evnt)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
 
@@ -603,7 +603,7 @@ crow::response handle_user_schedule(const crow::request &req)
     return crow::response(crow::status::FORBIDDEN);
 
   // TODO: This needs a flag for already completed tasks
-  local_list<event_info, maxEventsPerUserPerDay> currentTasks;
+  local_list<event_info, MaxEventsPerUserPerDay> currentTasks;
   if (LS_FAILED(get_current_events_from_user_id(userId, &currentTasks)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
@@ -633,9 +633,9 @@ crow::response handle_event_search(const crow::request &req)
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &__unused)))
     return crow::response(crow::status::FORBIDDEN);
 
-  local_list<event_info, maxSearchResults> searchResults;
+  local_list<event_info, MaxSearchResults> searchResults;
 
-  if (LS_FAILED(search_events(query.c_str(), &searchResults)))
+  if (LS_FAILED(search_events_by_name(query.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
@@ -665,8 +665,8 @@ crow::response handle_user_search(const crow::request &req)
 
   const std::string &query = body["query"].s();
 
-  local_list<user_info, maxSearchResults> searchResults;
-  if (LS_FAILED(search_users(query.c_str(), &searchResults)))
+  local_list<user_info, MaxSearchResults> searchResults;
+  if (LS_FAILED(search_users_by_name(query.c_str(), &searchResults)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
@@ -690,7 +690,7 @@ crow::response handle_event_completed(const crow::request &req, const bool needs
   const size_t eventId = body["taskId"].i();
   const int32_t sessionId = (int32_t)body["sessionId"].i();
 
-  if (LS_FAILED(set_event_last_modified_time(eventId)))
+  if (LS_FAILED(set_event_last_completed_time(eventId, get_current_time())))
     return crow::response(crow::status::BAD_REQUEST);
 
   size_t userId;
@@ -701,7 +701,7 @@ crow::response handle_event_completed(const crow::request &req, const bool needs
     return crow::response(crow::status::BAD_REQUEST);
 
   if (needsReschdule)
-    _ExplicitlyRequestsReschedule++;
+    _ExplicitlyRequestsRescheduleEpoch++;
 
   crow::json::wvalue ret;
   ret["success"] = true;

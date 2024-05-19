@@ -3,15 +3,15 @@
 #include <mutex>
 #include <time.h>
 
-std::atomic<size_t> _UserChangingStatus = 0;
-std::atomic<size_t> _EventChangingStatus = 0;
-std::atomic<size_t> _ExplicitlyRequestsReschedule = 0;
+std::atomic<size_t> _UserDataEpoch = 0;
+std::atomic<size_t> _EventDataEpoch = 0;
+std::atomic<size_t> _ExplicitlyRequestsRescheduleEpoch = 0;
 
 pool<user> _Users;
 pool<event> _Events;
 
 static std::mutex _ThreadLock;
-static local_list<user_id_info, maxUserAmount * maxSessionsPerUser> _UserInfo; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
+static pool<user_id_info> _SessionIdToUserId; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -52,21 +52,21 @@ time_info get_current_day_and_time();
 
 void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 {
-  small_list<sortable_event, 128> events;
+  small_list<sortable_event, 128> userEvents;
   const time_info time = get_current_day_and_time();
   weekday_flags today = (weekday_flags)(1 << time.dayIndex);
 
-  for (const auto &&_item : _Events)
+  for (const auto &&_evnt : _Events)
   {
     // Is Event executable on current weekday?
-    if (_item.pItem->possibleExecutionDays & today)
+    if (_evnt.pItem->possibleExecutionDays & today)
     {
       // Is event due today?
-      if (_item.pItem->lastCompletedTime + _item.pItem->repetitionTimeSpan <= time.time || _item.pItem->lastCompletedTime == 0)
+      if (_evnt.pItem->lastCompletedTime + _evnt.pItem->repetitionTimeSpan <= time.time || _evnt.pItem->lastCompletedTime == 0)
       {
         // Is User Participating in Event?
         bool foundUserId = false;
-        for (const auto &uId : _item.pItem->userIds)
+        for (const auto &uId : _evnt.pItem->userIds)
         {
           if (userId == uId)
           {
@@ -77,36 +77,35 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
         if (foundUserId)
         {
-          const auto score = get_score_for_event(*_item.pItem);
-          small_list_add(&events, sortable_event(_item.index, score));
+          const auto score = get_score_for_event(*_evnt.pItem);
+          small_list_add(&userEvents, sortable_event(_evnt.index, score));
         }
       }
     }
   }
 
-  small_list_sort_descending(events);
+  small_list_sort_descending(userEvents);
 
   // Pick.
   user *pUser = pool_get(&_Users, userId);
   local_list_clear(&pUser->tasksForCurrentDay);
 
-  time_span_t availableTime = pUser->availableTimePerDay[time.dayIndex];
+  time_span_t freeTime = pUser->availableTimePerDay[time.dayIndex];
 
-  for (const auto &_item : events)
+  for (const auto &_evnt : userEvents)
   {
-    if (availableTime >= 0)
+    if (freeTime >= 0)
     {
-      event evnt = *pool_get(&_Events, _item.event_id);
+      event evnt = *pool_get(&_Events, _evnt.event_id);
 
-      if (evnt.durationTimeSpan <= availableTime)
+      if (evnt.durationTimeSpan <= freeTime)
       {
-        local_list_add(&pUser->tasksForCurrentDay, _item.event_id);
-        availableTime -= evnt.durationTimeSpan;
+        LS_DEBUG_ERROR_ASSERT(local_list_add(&pUser->tasksForCurrentDay, _evnt.event_id));
+        freeTime -= evnt.durationTimeSpan;
+
+        if (freeTime <= 0 || pUser->tasksForCurrentDay.count == pUser->tasksForCurrentDay.capacity())
+          break;
       }
-    }
-    else
-    {
-      break;
     }
   }
 
@@ -187,12 +186,12 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
     bool userNotFound = true;
 
     // iterate pool checking for username
-    for (const auto &&_item : _Users)
+    for (const auto &&_user : _Users)
     {
-      if (strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0) // if name matches.
+      if (strncmp(_user.pItem->username, username, LS_ARRAYSIZE(_user.pItem->username)) == 0) // if name matches.
       {
-        userId = _item.index;
-        usr = *_item.pItem;
+        userId = _user.index;
+        usr = *_user.pItem;
         userNotFound = false;
         break;
       }
@@ -202,40 +201,21 @@ lsResult assign_session_token(const char *username, _Out_ int32_t *pOutSessionId
 
     // Assign Session Id.
     {
-      *pOutSessionId = (int32_t)lsGetRand();
+      *pOutSessionId = (uint32_t)lsGetRand(); // collisions should be pretty rare... hopefully.
 
-      // Check for sessionId duplicates
-      for (const auto &_item : _UserInfo)
-        while (_item.sessionId == *pOutSessionId)
-          *pOutSessionId = (int32_t)lsGetRand();
-   
-      session_token token;
-      token.sessionId = *pOutSessionId;
+      // Add User Info to List
+      user_id_info userInfo;
+      userInfo.sessionId = *pOutSessionId;
 
-      // if user already has maximum amount of userids, replace first
-      if (usr.sessionTokens.count == maxSessionsPerUser)
-      {
-        int32_t firstSessionIdOfUser = usr.sessionTokens[0].sessionId;
-        usr.sessionTokens[0] = token;
+      lsAssert(userId <= lsMaxValue<uint32_t>());
+      userInfo.userId = (uint32_t)userId;
 
-        for (auto &_item : _UserInfo)
-          if (_item.sessionId == firstSessionIdOfUser)
-            _item.sessionId = token.sessionId;
-      }
-      else
-      {
-        local_list_add(&usr.sessionTokens, token);
-        
-        // Add User Info to List
-        user_id_info userInfo;
-        userInfo.sessionId = *pOutSessionId;
-        userInfo.userId = userId;
-        local_list_add(&_UserInfo, userInfo); // TODO: Either cap the amount of maximum users or handle having no free slot for another userInfo!
-      }
+      size_t _unused;
+      LS_ERROR_CHECK(pool_add(&_SessionIdToUserId, userInfo, &_unused));
     }
   }
 
- epilogue:
+epilogue:
   return result;
 }
 
@@ -251,7 +231,7 @@ lsResult add_new_user(const user usr)
     LS_DEBUG_ERROR_ASSERT(pool_add(&_Users, usr, &_unused));
   }
 
-  _UserChangingStatus++;
+  _UserDataEpoch++;
 
   return result;
 }
@@ -273,7 +253,7 @@ lsResult get_user_info(const size_t userId, _Out_ user_info *pOutInfo)
   return result;
 }
 
-lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUserId)
+lsResult get_user_id_from_session_id(const uint32_t sessionId, _Out_ size_t *pUserId)
 {
   lsResult result = lsR_Success;
 
@@ -281,19 +261,16 @@ lsResult get_user_id_from_session_id(const int32_t sessionId, _Out_ size_t *pUse
   {
     std::scoped_lock lock(_ThreadLock);
 
-    bool sessionIdNotFound = true;
-
-    for (const auto &_item : _UserInfo)
+    for (const auto &&_item : _SessionIdToUserId)
     {
-      if (_item.sessionId == sessionId)
+      if (_item.pItem->sessionId == sessionId)
       {
-        *pUserId = _item.userId;
-        sessionIdNotFound = false;
-        break;
+        *pUserId = _item.pItem->userId;
+        goto epilogue;
       }
     }
 
-    LS_ERROR_IF(sessionIdNotFound, lsR_InvalidParameter);
+    LS_ERROR_SET(lsR_InvalidParameter);
   }
 
 epilogue:
@@ -308,9 +285,13 @@ lsResult get_available_time(const size_t userId, _Out_ local_list<time_span_t, D
   {
     std::scoped_lock lock(_ThreadLock);
 
-    *pOutAvailableTime = pool_get(&_Users, userId)->availableTimePerDay;
+    user *pUser = pool_get(&_Users, userId);
+    LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
+
+    *pOutAvailableTime = pUser->availableTimePerDay;
   }
 
+epilogue:
   return result;
 }
 
@@ -322,11 +303,15 @@ lsResult replace_available_time(const size_t userId, const local_list<time_span_
   {
     std::scoped_lock lock(_ThreadLock);
 
-    pool_get(&_Users, userId)->availableTimePerDay = availableTime;
+    user *pUser = pool_get(&_Users, userId);
+    LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
+
+    pUser->availableTimePerDay = availableTime;
   }
 
-  _UserChangingStatus++;
+  _UserDataEpoch++;
 
+epilogue:
   return result;
 }
 
@@ -339,33 +324,36 @@ lsResult add_new_event(event evnt)
     std::scoped_lock lock(_ThreadLock);
 
     size_t _unused;
-    LS_DEBUG_ERROR_ASSERT(pool_add(&_Events, evnt, &_unused));
+    LS_ERROR_CHECK(pool_add(&_Events, evnt, &_unused));
   }
 
-  _EventChangingStatus++;
+  _EventDataEpoch++;
 
+epilogue:
   return result;
 }
 
-lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCurrentEvents)
+lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<event_info, MaxEventsPerUserPerDay> *pOutCurrentEvents)
 {
   lsResult result = lsR_Success;
-  
+
   // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
 
     const user *pUser = pool_get(&_Users, userId);
-    
-    for (const auto &_item : pUser->tasksForCurrentDay)
+    LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
+
+    for (const size_t eventId : pUser->tasksForCurrentDay)
     {
-      event *pEvent = pool_get(&_Events, _item);
+      event *pEvent = pool_get(&_Events, eventId);
+      LS_ERROR_IF(pEvent == nullptr, lsR_ResourceNotFound);
 
       event_info info;
-      info.id = _item;
+      info.id = eventId;
       strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
       info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
-     
+
       LS_ERROR_CHECK(local_list_add(pOutCurrentEvents, info));
     }
   }
@@ -374,7 +362,7 @@ epilogue:
   return result;
 }
 
-lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_list<event_info, maxEventsPerUserPerDay> *pOutCompletedTasks)
+lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_list<event_info, MaxEventsPerUserPerDay> *pOutCompletedTasks)
 {
   lsResult result = lsR_Success;
 
@@ -382,16 +370,18 @@ lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_l
   {
     std::scoped_lock lock(_ThreadLock);
 
-    user usr = *pool_get(&_Users, userId);
-    
-    for (const auto &_item : usr.completedTasksForCurrentDay)
+    user *pUser = pool_get(&_Users, userId);
+    LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
+
+    for (const size_t eventId : pUser->completedTasksForCurrentDay)
     {
-      event evnt = *pool_get(&_Events, _item);
+      event *pEvent = pool_get(&_Events, eventId);
+      LS_ERROR_IF(pEvent == nullptr, lsR_ResourceNotFound);
 
       event_info info;
-      info.id = _item;
-      info.durationInMinutes = minutes_from_time_span(evnt.durationTimeSpan);
-      strncpy(info.name, evnt.name, LS_ARRAYSIZE(info.name));
+      info.id = eventId;
+      info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
+      strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
 
       LS_ERROR_CHECK(local_list_add(pOutCompletedTasks, info));
     }
@@ -401,24 +391,31 @@ epilogue:
   return result;
 }
 
-lsResult replace_task(const size_t id, const event evnt)
+lsResult update_task(const size_t id, event evnt) // evnt is intentionally non-const as it's creation time etc. will be updated to the old values.
 {
   lsResult result = lsR_Success;
 
   // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
-    
-    LS_DEBUG_ERROR_ASSERT(pool_insertAt(&_Events, evnt, id, true));
-    //*pool_get(&_Events, id) = evnt; // what's wrong with this?
+
+    event *pStoredEvent = nullptr;
+    LS_ERROR_CHECK(pool_get_safe(&_Events, id, &pStoredEvent));
+
+    evnt.creationTime = pStoredEvent->creationTime;
+    evnt.lastCompletedTime = pStoredEvent->lastCompletedTime;
+    evnt.lastModifiedTime = get_current_time();
+
+    *pStoredEvent = evnt;
   }
 
-  _EventChangingStatus++;
+  _EventDataEpoch++;
 
+epilogue:
   return result;
 }
 
-lsResult set_event_last_modified_time(const size_t eventId)
+lsResult set_event_last_completed_time(const size_t eventId, const time_point_t time)
 {
   lsResult result = lsR_Success;
 
@@ -426,12 +423,15 @@ lsResult set_event_last_modified_time(const size_t eventId)
   {
     std::scoped_lock lock(_ThreadLock);
 
-    event *pEvent = pool_get(&_Events, eventId);
-    pEvent->lastCompletedTime = get_current_time();
+    event *pEvent = nullptr;
+    LS_ERROR_CHECK(pool_get_safe(&_Events, eventId, &pEvent));
+
+    pEvent->lastCompletedTime = time;
   }
 
-  _EventChangingStatus++;
+  _EventDataEpoch++;
 
+epilogue:
   return result;
 }
 
@@ -443,7 +443,8 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
   {
     std::scoped_lock lock(_ThreadLock);
 
-    user *pUser = pool_get(&_Users, userId);
+    user *pUser = nullptr;
+    LS_ERROR_CHECK(pool_get_safe(&_Users, userId, &pUser));
     LS_ERROR_CHECK(local_list_add(&pUser->completedTasksForCurrentDay, eventId));
   }
 
@@ -451,7 +452,7 @@ epilogue:
   return result;
 }
 
-lsResult search_events(const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults)
+lsResult search_events_by_name(const char *searchTerm, _Out_ local_list<event_info, MaxSearchResults> *pOutSearchResults)
 {
   lsResult result = lsR_Success;
 
@@ -459,56 +460,29 @@ lsResult search_events(const char *searchTerm, _Out_ local_list<event_info, maxS
   {
     std::scoped_lock lock(_ThreadLock);
 
-    for (const auto &&_item : _Events)
+    for (const auto &&_evnt : _Events)
     {
-      if (strstr(_item.pItem->name, searchTerm) != nullptr)
+      if (strstr(_evnt.pItem->name, searchTerm) != nullptr)
       {
         event_info info;
-        info.id = _item.index;
-        strncpy(info.name, _item.pItem->name, LS_ARRAYSIZE(info.name));
-        info.durationInMinutes = minutes_from_time_span(_item.pItem->durationTimeSpan);
+        info.id = _evnt.index;
+        strncpy(info.name, _evnt.pItem->name, LS_ARRAYSIZE(info.name));
+        info.durationInMinutes = minutes_from_time_span(_evnt.pItem->durationTimeSpan);
 
-        LS_ERROR_CHECK(local_list_add(pOutSearchResults, info));
-      }
-    }    
-  }
+        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutSearchResults, info));
 
-epilogue:
-  return result;
-}
-
-lsResult search_events_by_user(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, maxSearchResults> *pOutSearchResults)
-{
-  lsResult result = lsR_Success;
-
-  local_list<size_t, maxSearchResults> eventIds;
-  LS_ERROR_CHECK(get_all_event_ids_for_user(userId, &eventIds));
-
-  // Scope Lock
-  {
-    std::scoped_lock lock(_ThreadLock);
-
-    for (const auto &_item : eventIds)
-    {
-      event evnt = *pool_get(&_Events, _item);
-
-      if (strstr(evnt.name, searchTerm) != nullptr)
-      {
-        event_info info;
-        info.id = _item;
-        strncpy(info.name, evnt.name, LS_ARRAYSIZE(info.name));
-        info.durationInMinutes = minutes_from_time_span(evnt.durationTimeSpan);
-
-        LS_ERROR_CHECK(local_list_add(pOutSearchResults, info));
+        if (pOutSearchResults->count == pOutSearchResults->capacity())
+          break;
       }
     }
   }
 
+  goto epilogue;
 epilogue:
   return result;
 }
 
-lsResult search_users(const char *searchTerm, _Out_ local_list<user_info, maxSearchResults> *pOutSearchResults)
+lsResult search_events_by_user_by_name(const size_t userId, const char *searchTerm, _Out_ local_list<event_info, MaxSearchResults> *pOutSearchResults)
 {
   lsResult result = lsR_Success;
 
@@ -516,37 +490,87 @@ lsResult search_users(const char *searchTerm, _Out_ local_list<user_info, maxSea
   {
     std::scoped_lock lock(_ThreadLock);
 
-    for (const auto &&_item : _Users)
+    for (const auto &&_evnt : _Events)
     {
-      if (strstr(_item.pItem->username, searchTerm))
-      {
-        user_info info;
-        info.id = _item.index;
-        strncpy(info.name, _item.pItem->username, LS_ARRAYSIZE(info.name));
+      bool userIdFound = false;
 
-        LS_ERROR_CHECK(local_list_add(pOutSearchResults, info));
-      }
-    }
-  }
-
-epilogue:
-  return result;
-}
-
-lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, maxSearchResults> *pOutEventIds)
-{
-  lsResult result = lsR_Success;
-
-  // Scope Lock
-  {
-    std::scoped_lock lock(_ThreadLock);
-
-    for (const auto &&_item : _Events)
-    {
-      for (const auto &_id : _item.pItem->userIds)
+      for (const auto &_id : _evnt.pItem->userIds)
       {
         if (_id == userId)
-          LS_ERROR_CHECK(local_list_add(pOutEventIds, _item.index));
+        {
+          userIdFound = true;
+          break;
+        }
+      }
+
+      if (strstr(_evnt.pItem->name, searchTerm) != nullptr)
+      {
+        event_info info;
+        info.id = _evnt.index;
+        strncpy(info.name, _evnt.pItem->name, LS_ARRAYSIZE(info.name));
+        info.durationInMinutes = minutes_from_time_span(_evnt.pItem->durationTimeSpan);
+
+        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutSearchResults, info));
+
+        if (pOutSearchResults->count == pOutSearchResults->capacity())
+          break;
+      }
+    }
+  }
+
+  goto epilogue;
+epilogue:
+  return result;
+}
+
+lsResult search_users_by_name(const char *searchTerm, _Out_ local_list<user_info, MaxSearchResults> *pOutSearchResults)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_user : _Users)
+    {
+      if (strstr(_user.pItem->username, searchTerm))
+      {
+        user_info info;
+        info.id = _user.index;
+        strncpy(info.name, _user.pItem->username, LS_ARRAYSIZE(info.name));
+
+        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutSearchResults, info));
+
+        if (pOutSearchResults->count == pOutSearchResults->capacity())
+          break;
+      }
+    }
+  }
+
+  goto epilogue;
+epilogue:
+  return result;
+}
+
+lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, MaxSearchResults> *pOutEventIds)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_evnt : _Events)
+    {
+      for (const auto &_id : _evnt.pItem->userIds)
+      {
+        if (_id != userId)
+          continue;
+
+        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutEventIds, _evnt.index));
+
+        if (pOutEventIds->count == pOutEventIds->capacity())
+          goto epilogue;
       }
     }
   }
@@ -563,20 +587,24 @@ lsResult get_event(const size_t id, _Out_ event *pEvent)
   {
     std::scoped_lock lock(_ThreadLock);
 
-    *pEvent = *pool_get(&_Events, id);
+    const event *pStoredEvent = pool_get(&_Events, id);
+    LS_ERROR_IF(pStoredEvent == nullptr, lsR_ResourceNotFound);
+
+    *pEvent = *pStoredEvent;
   }
 
+epilogue:
   return result;
 }
 
-bool check_for_user_name_duplication(const char *username)
+bool user_name_exists(const char *username)
 {
   // Scope Lock
   {
     std::scoped_lock lock(_ThreadLock);
 
-    for (const auto &&_item : _Users)
-      if ((strncmp(_item.pItem->username, username, LS_ARRAYSIZE(_item.pItem->username)) == 0))
+    for (const auto &&_user : _Users)
+      if ((strncmp(_user.pItem->username, username, LS_ARRAYSIZE(_user.pItem->username)) == 0))
         return false;
   }
   return true;
