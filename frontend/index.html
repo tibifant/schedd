@@ -117,6 +117,8 @@
       }
 
       function on_login_click() {
+        document.getElementById('forbidden_failure').style.display = 'none';
+
         let usernameObject = { username: document.getElementById("username").value };
         
         function onLoginSuccess(obj) {
