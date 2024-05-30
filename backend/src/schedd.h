@@ -10,7 +10,7 @@ extern std::atomic<size_t> _UserDataEpoch;
 extern std::atomic<size_t> _EventDataEpoch;
 extern std::atomic<size_t> _ExplicitlyRequestsRescheduleEpoch;
 
-void reschedule_events_for_user(const size_t userId); // Assumes mutex lock
+lsResult reschedule_events_for_user(const size_t userId); // Assumes mutex lock
 
 constexpr size_t DaysPerWeek = 7;
 constexpr size_t MaxUsersPerEvent = 16;
@@ -100,6 +100,8 @@ lsResult get_event(const size_t taskId, _Out_ event *pEvent);
 bool user_name_exists(const char *username);
 
 time_point_t get_current_time();
+size_t get_days_since_new_year();
+size_t get_hours_since_midnight();
 time_span_t time_span_from_days(const size_t days);
 size_t days_from_time_span(const time_span_t timeSpan);
 time_span_t time_span_from_minutes(const size_t minutes);

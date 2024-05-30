@@ -124,6 +124,8 @@ void async_tasks()
   size_t userChangingStatusBefore = 0;
   size_t eventChangingStatusBefore = 0;
   size_t explicitlyRequestedRescheduleBefore = 0;
+  size_t dayBefore = 0;
+  bool firstRun = true;
 
   while (true)
   {
@@ -142,7 +144,12 @@ void async_tasks()
     const size_t userChangingStatusCurrent = _UserDataEpoch;
     const size_t eventChangingStatusCurrent = _EventDataEpoch;
     const size_t explicitlyRequestedRescheduleCurrent = _ExplicitlyRequestsRescheduleEpoch;
+    const size_t currentDay = get_hours_since_midnight() > 2 ? get_days_since_new_year() : dayBefore;
     bool needsReschdeule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
+
+    // If new day: Reschedule.
+    if (dayBefore != currentDay)
+      needsReschdeule = true;
 
     // If Changed: Serialize. Reschedule.
     if (userChangingStatusBefore < userChangingStatusCurrent)
@@ -161,20 +168,25 @@ void async_tasks()
       needsReschdeule = true;
     }
     
-    if (needsReschdeule)
+    if (needsReschdeule || firstRun)
     {
       // Reschedule
       {
         std::scoped_lock lock(_ThreadLock);
-    
+
         for (const auto &&_item : _Users)
-          reschedule_events_for_user(_item.index); // just all users I guess...
+        {
+          if (LS_FAILED(reschedule_events_for_user(_item.index)))
+            print_error_line("Failed to reschedule events for userId: ", _item.index);
+        }
       }
     }
 
     userChangingStatusBefore = userChangingStatusCurrent;
     eventChangingStatusBefore = eventChangingStatusCurrent;
     explicitlyRequestedRescheduleBefore = explicitlyRequestedRescheduleCurrent;
+    dayBefore = get_hours_since_midnight() > 2 ? get_days_since_new_year() : dayBefore;
+    firstRun = false;
   }
 }
   

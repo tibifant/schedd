@@ -11,7 +11,7 @@ pool<user> _Users;
 pool<event> _Events;
 
 static std::mutex _ThreadLock;
-static pool<user_id_info> _SessionIdToUserId; // Why do we need this an dif so, is there any need for seraialzing this? Sounds like this completely obsolet and we coulf just search for the sessionId in the _Users pool and there we would get the userId. I don't get it right now.
+static pool<user_id_info> _SessionIdToUserId;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -50,8 +50,10 @@ time_info get_current_day_and_time();
 
 //////////////////////////////////////////////////////////////////////////
 
-void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
+lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 {
+  lsResult result = lsR_Success;
+
   small_list<sortable_event, 128> userEvents;
   const time_info time = get_current_day_and_time();
   weekday_flags today = (weekday_flags)(1 << time.dayIndex);
@@ -78,7 +80,7 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
         if (foundUserId)
         {
           const auto score = get_score_for_event(*_evnt.pItem);
-          small_list_add(&userEvents, sortable_event(_evnt.index, score));
+          LS_DEBUG_ERROR_ASSERT(small_list_add(&userEvents, sortable_event(_evnt.index, score)));
         }
       }
     }
@@ -87,30 +89,39 @@ void reschedule_events_for_user(const size_t userId) // Assumes mutex lock
   small_list_sort_descending(userEvents);
 
   // Pick.
+  time_span_t freeTime = 0; // needs to be initialized before `LS_ERROR_IF`.
+  
   user *pUser = pool_get(&_Users, userId);
+  LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
+
   local_list_clear(&pUser->tasksForCurrentDay);
 
-  time_span_t freeTime = pUser->availableTimePerDay[time.dayIndex];
+  freeTime = pUser->availableTimePerDay[time.dayIndex];
 
-  for (const auto &_evnt : userEvents)
+  if (freeTime >= 0 && pUser->tasksForCurrentDay.capacity() > 0)
   {
-    if (freeTime >= 0)
+    for (const auto &_sortable_event : userEvents)
     {
-      event evnt = *pool_get(&_Events, _evnt.event_id);
+      event *pEvent = pool_get(&_Events, _sortable_event.event_id);
+      lsAssert(pEvent != nullptr);
 
-      if (evnt.durationTimeSpan <= freeTime)
-      {
-        LS_DEBUG_ERROR_ASSERT(local_list_add(&pUser->tasksForCurrentDay, _evnt.event_id));
-        freeTime -= evnt.durationTimeSpan;
+      if (pEvent->durationTimeSpan > freeTime)
+        continue;
 
-        if (freeTime <= 0 || pUser->tasksForCurrentDay.count == pUser->tasksForCurrentDay.capacity())
-          break;
-      }
+      LS_DEBUG_ERROR_ASSERT(local_list_add(&pUser->tasksForCurrentDay, _sortable_event.event_id));
+      freeTime -= pEvent->durationTimeSpan;
+     
+      lsAssert(freeTime >= 0);
+
+      if (freeTime <= 0 || pUser->tasksForCurrentDay.count == pUser->tasksForCurrentDay.capacity())
+        break;
     }
   }
 
   // TODO: Error handling.
   // Should it be an error if we couldn't schedule any task?
+epilogue:
+  return result;
 }
 
 uint64_t get_score_for_event(const event evnt)
@@ -127,42 +138,54 @@ uint64_t get_score_for_event(const event evnt)
     diffTodayTarget = currentTime.time - (evnt.lastCompletedTime + evnt.repetitionTimeSpan);
 
   // How many days unitl the next possible execution day after today?
-  // TODO: this seems sooo 'lino head overcomplicating the world'... not even sure if it works right now...
+
   // TODO: use bitscan reverse
-  weekday_flags today = (weekday_flags)(1 << currentTime.dayIndex); // TODO simplify stuff as we now know the dayIndex!
+  weekday_flags today = (weekday_flags)(1 << currentTime.dayIndex); // TODO: simplify stuff as we now know the dayIndex!
   size_t countUntilNextPossibleDay = 0;
-  bool stoppedAtSunday = false;
-
-  lsAssert(evnt.possibleExecutionDays != wF_None);
-  for (size_t i = 0; i < DaysPerWeek; i++)
+  
+  if (!(evnt.possibleExecutionDays & ~today)) // if today is the only possible execution day
   {
-    if (today << i & wF_Sunday)
-    {
-      stoppedAtSunday = true;
-      countUntilNextPossibleDay = i;
-      break;
-    }
-
-    if (evnt.possibleExecutionDays & (today << (i + 1)))
-    {
-      countUntilNextPossibleDay = i + 1;
-      break;
-    }
+    countUntilNextPossibleDay = DaysPerWeek;
   }
-
-  if (stoppedAtSunday)
+  else if (evnt.possibleExecutionDays & wF_All)
   {
+    countUntilNextPossibleDay = 1;
+  }
+  else
+  {
+    bool stoppedAtSunday = false;
+
+    lsAssert(evnt.possibleExecutionDays != wF_None);
     for (size_t i = 0; i < DaysPerWeek; i++)
     {
-      if (evnt.possibleExecutionDays & (wF_Monday << i))
+      if (today << i & wF_Sunday)
       {
-        countUntilNextPossibleDay += i + 1;
+        stoppedAtSunday = true;
+        countUntilNextPossibleDay = i;
         break;
+      }
+
+      if (evnt.possibleExecutionDays & (today << (i + 1)))
+      {
+        countUntilNextPossibleDay = i + 1;
+        break;
+      }
+    }
+
+    if (stoppedAtSunday)
+    {
+      for (size_t i = 0; i < DaysPerWeek; i++)
+      {
+        if (evnt.possibleExecutionDays & (wF_Monday << i))
+        {
+          countUntilNextPossibleDay += i + 1;
+          break;
+        }
       }
     }
   }
 
-  // How many repetition time spans fit into the timeperiod from last and next possible execution (after today)?
+  // How many repetition time spans fit into the time period from last and next possible execution (after today)?
   size_t dueTime = days_from_time_span(diffTodayTarget) + countUntilNextPossibleDay;
   size_t repetitionInDays = days_from_time_span(evnt.repetitionTimeSpan);
   uint64_t dueTimePeriodCount = dueTime % repetitionInDays;
@@ -259,12 +282,14 @@ lsResult get_user_info(const size_t userId, _Out_ user_info *pOutInfo)
   {
     std::scoped_lock lock(_ThreadLock);
 
-    user usr = *pool_get(&_Users, userId);
+    user *pUser = pool_get(&_Users, userId);
+    LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
 
     pOutInfo->id = userId;
-    strncpy(pOutInfo->name, usr.username, LS_ARRAYSIZE(pOutInfo->name));
+    strncpy(pOutInfo->name, pUser->username, LS_ARRAYSIZE(pOutInfo->name));
   }
 
+epilogue:
   return result;
 }
 
@@ -628,6 +653,18 @@ bool user_name_exists(const char *username)
 time_point_t get_current_time()
 {
   return (time_point_t)time(nullptr);
+}
+
+size_t get_days_since_new_year()
+{
+  time_t t = time(nullptr);
+  return localtime(&t)->tm_yday;
+}
+
+size_t get_hours_since_midnight()
+{
+  time_t t = time(nullptr);
+  return localtime(&t)->tm_hour;
 }
 
 time_info get_current_day_and_time()
