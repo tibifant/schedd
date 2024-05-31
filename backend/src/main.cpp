@@ -185,7 +185,7 @@ void async_tasks()
     userChangingStatusBefore = userChangingStatusCurrent;
     eventChangingStatusBefore = eventChangingStatusCurrent;
     explicitlyRequestedRescheduleBefore = explicitlyRequestedRescheduleCurrent;
-    dayBefore = get_hours_since_midnight() > 2 ? get_days_since_new_year() : dayBefore;
+    dayBefore = currentDay;
     firstRun = false;
   }
 }
@@ -455,9 +455,6 @@ crow::response handle_user_registration(const crow::request &req)
   uint32_t sessionId;
   if (LS_FAILED(assign_session_token(username.c_str(), &sessionId)))
     return crow::response(crow::status::UNAUTHORIZED);
-
-  //if (LS_FAILED(set_events_for_user(sessionId)))
-    //return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   crow::json::wvalue ret;
   ret["session_id"] = sessionId;

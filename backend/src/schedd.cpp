@@ -118,8 +118,6 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
     }
   }
 
-  // TODO: Error handling.
-  // Should it be an error if we couldn't schedule any task?
 epilogue:
   return result;
 }
@@ -138,52 +136,18 @@ uint64_t get_score_for_event(const event evnt)
     diffTodayTarget = currentTime.time - (evnt.lastCompletedTime + evnt.repetitionTimeSpan);
 
   // How many days unitl the next possible execution day after today?
-
-  // TODO: use bitscan reverse
-  weekday_flags today = (weekday_flags)(1 << currentTime.dayIndex); // TODO: simplify stuff as we now know the dayIndex!
+  size_t today = currentTime.dayIndex;
   size_t countUntilNextPossibleDay = 0;
-  
-  if (!(evnt.possibleExecutionDays & ~today)) // if today is the only possible execution day
-  {
-    countUntilNextPossibleDay = DaysPerWeek;
-  }
-  else if (evnt.possibleExecutionDays & wF_All)
-  {
-    countUntilNextPossibleDay = 1;
-  }
-  else
-  {
-    bool stoppedAtSunday = false;
 
-    lsAssert(evnt.possibleExecutionDays != wF_None);
-    for (size_t i = 0; i < DaysPerWeek; i++)
-    {
-      if (today << i & wF_Sunday)
-      {
-        stoppedAtSunday = true;
-        countUntilNextPossibleDay = i;
-        break;
-      }
+  uint8_t afterToday = evnt.possibleExecutionDays >> (today + 1);
 
-      if (evnt.possibleExecutionDays & (today << (i + 1)))
-      {
-        countUntilNextPossibleDay = i + 1;
-        break;
-      }
-    }
-
-    if (stoppedAtSunday)
-    {
-      for (size_t i = 0; i < DaysPerWeek; i++)
-      {
-        if (evnt.possibleExecutionDays & (wF_Monday << i))
-        {
-          countUntilNextPossibleDay += i + 1;
-          break;
-        }
-      }
-    }
+  if (afterToday == 0)
+  {
+    countUntilNextPossibleDay = 7 - today - 1;
+    afterToday = evnt.possibleExecutionDays;
   }
+
+  countUntilNextPossibleDay += std::countr_zero(afterToday) + 1;
 
   // How many repetition time spans fit into the time period from last and next possible execution (after today)?
   size_t dueTime = days_from_time_span(diffTodayTarget) + countUntilNextPossibleDay;

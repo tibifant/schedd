@@ -90,6 +90,10 @@
           e.style.display = 'none';
       }
 
+      function clear_user_schedule() {
+        document.getElementById('current_tasks').innerHTML = "";
+      }
+
 ///////////////////////////////////////////////////////////////////////////////////////
 
       function append_element(parent, type, className, innerText) {
@@ -148,6 +152,7 @@
         function onLogoutSuccess(obj) {
           remove_session_token();
           hide_all_logged_in_contents();
+          clear_user_schedule();
           show_login_screen();
         }
 
