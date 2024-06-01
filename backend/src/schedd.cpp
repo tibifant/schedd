@@ -357,6 +357,16 @@ lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<e
       info.id = eventId;
       strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
       info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
+      info.isCompleted = false;
+
+      for (const size_t completedEventId : pUser->completedTasksForCurrentDay)
+      {
+        if (completedEventId == eventId)
+        {
+          info.isCompleted = true;
+          break;
+        }
+      }
 
       LS_ERROR_CHECK(local_list_add(pOutCurrentEvents, info));
     }

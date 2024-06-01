@@ -630,7 +630,6 @@ crow::response handle_user_schedule(const crow::request &req)
   if (LS_FAILED(get_user_id_from_session_id(sessionId, &userId)))
     return crow::response(crow::status::FORBIDDEN);
 
-  // TODO: This needs a flag for already completed tasks
   local_list<event_info, MaxEventsPerUserPerDay> currentTasks;
   if (LS_FAILED(get_current_events_from_user_id(userId, &currentTasks)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
@@ -642,6 +641,7 @@ crow::response handle_user_schedule(const crow::request &req)
     ret[i]["name"] = currentTasks[i].name;
     ret[i]["duration"] = currentTasks[i].durationInMinutes;
     ret[i]["id"] = currentTasks[i].id;
+    ret[i]["isCompleted"] = currentTasks[i].isCompleted;
   }
 
   return crow::response(crow::status::OK, ret);

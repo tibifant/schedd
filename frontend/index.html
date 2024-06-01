@@ -373,7 +373,12 @@
           for (const item of obj) {
             let name = item.name;
             let duration = item.duration;
-            let elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
+            let elem;
+
+            if (item.isCompleted)
+              elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes) COMPLETED ✅');
+            else
+              elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
 
             (() => {
               let i = item;

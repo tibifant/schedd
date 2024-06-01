@@ -74,6 +74,7 @@ struct event_info
   size_t id;
   size_t durationInMinutes;
   char name[256];
+  bool isCompleted;
 };
 
 struct user_info
