@@ -99,6 +99,7 @@ lsResult add_completed_task(const size_t eventId, const size_t userId);
 lsResult get_event(const size_t taskId, _Out_ event *pEvent);
 
 bool user_name_exists(const char *username);
+void clearCompletedTasks();
 
 time_point_t get_current_time();
 size_t get_days_since_new_year();

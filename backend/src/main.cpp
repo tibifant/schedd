@@ -124,7 +124,7 @@ void async_tasks()
   size_t userChangingStatusBefore = 0;
   size_t eventChangingStatusBefore = 0;
   size_t explicitlyRequestedRescheduleBefore = 0;
-  size_t dayBefore = 0;
+  size_t dayBefore = get_days_since_new_year();
   bool firstRun = true;
 
   while (true)
@@ -149,7 +149,10 @@ void async_tasks()
 
     // If new day: Reschedule.
     if (dayBefore != currentDay)
+    {
       needsReschdeule = true;
+      clearCompletedTasks();
+    }
 
     // If Changed: Serialize. Reschedule.
     if (userChangingStatusBefore < userChangingStatusCurrent)

@@ -64,7 +64,7 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
     if (_evnt.pItem->possibleExecutionDays & today)
     {
       // Is event due today?
-      if (_evnt.pItem->lastCompletedTime + _evnt.pItem->repetitionTimeSpan <= time.time || _evnt.pItem->lastCompletedTime == 0)
+      if (_evnt.pItem->lastCompletedTime + _evnt.pItem->repetitionTimeSpan - time_span_from_days(1) <= time.time || _evnt.pItem->lastCompletedTime == 0)
       {
         // Is User Participating in Event?
         bool foundUserId = false;
@@ -623,6 +623,19 @@ bool user_name_exists(const char *username)
   }
   return true;
 }
+
+void clearCompletedTasks()
+{
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    for (const auto &&_user : _Users)
+      local_list_clear(&_user.pItem->completedTasksForCurrentDay);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////
 
 time_point_t get_current_time()
 {
