@@ -86,8 +86,9 @@ int64_t lsGetCurrentTimeNs()
 
 uint64_t lsGetRand()
 {
-  __declspec(align(16)) static uint64_t last[2] = { (uint64_t)lsGetCurrentTimeNs(), __rdtsc() };
-  __declspec(align(16)) static uint64_t last2[2] = { ~__rdtsc(), ~(uint64_t)lsGetCurrentTimeNs() };
+#ifdef LS_PLATFORM_WINDOWS
+  LS_ALIGN(16) static uint64_t last[2] = { (uint64_t)lsGetCurrentTimeNs(), __rdtsc() };
+  LS_ALIGN(16) static uint64_t last2[2] = { ~__rdtsc(), ~(uint64_t)lsGetCurrentTimeNs() };
 
   const __m128i a = _mm_load_si128(reinterpret_cast<__m128i *>(last));
   const __m128i b = _mm_load_si128(reinterpret_cast<__m128i *>(last2));
@@ -98,23 +99,24 @@ uint64_t lsGetRand()
   _mm_store_si128(reinterpret_cast<__m128i *>(last2), r);
 
   return last[1] ^ last[0];
-
-  //static uint64_t last[2] = { (uint64_t)GetCurrentTimeNs(), __rdtsc() };
-  //
-  //const uint64_t oldstate_hi = last[0];
-  //const uint64_t oldstate_lo = oldstate_hi * 6364136223846793005ULL + (last[1] | 1);
-  //last[0] = oldstate_hi * 6364136223846793005ULL + (last[1] | 1);
-  //
-  //const uint32_t xorshifted_hi = (uint32_t)(((oldstate_hi >> 18) ^ oldstate_hi) >> 27);
-  //const uint32_t rot_hi = (uint32_t)(oldstate_hi >> 59);
-  //
-  //const uint32_t xorshifted_lo = (uint32_t)(((oldstate_lo >> 18) ^ oldstate_lo) >> 27);
-  //const uint32_t rot_lo = (uint32_t)(oldstate_lo >> 59);
-  //
-  //const uint32_t hi = (xorshifted_hi >> rot_hi) | (xorshifted_hi << (uint32_t)((-(int32_t)rot_hi) & 31));
-  //const uint32_t lo = (xorshifted_lo >> rot_lo) | (xorshifted_lo << (uint32_t)((-(int32_t)rot_lo) & 31));
-  //
-  //return ((uint64_t)hi << 32) | lo;
+#else
+  static uint64_t last[2] = { (uint64_t)lsGetCurrentTimeNs(), __rdtsc() };
+  
+  const uint64_t oldstate_hi = last[0];
+  const uint64_t oldstate_lo = oldstate_hi * 6364136223846793005ULL + (last[1] | 1);
+  last[0] = oldstate_hi * 6364136223846793005ULL + (last[1] | 1);
+  
+  const uint32_t xorshifted_hi = (uint32_t)(((oldstate_hi >> 18) ^ oldstate_hi) >> 27);
+  const uint32_t rot_hi = (uint32_t)(oldstate_hi >> 59);
+  
+  const uint32_t xorshifted_lo = (uint32_t)(((oldstate_lo >> 18) ^ oldstate_lo) >> 27);
+  const uint32_t rot_lo = (uint32_t)(oldstate_lo >> 59);
+  
+  const uint32_t hi = (xorshifted_hi >> rot_hi) | (xorshifted_hi << (uint32_t)((-(int32_t)rot_hi) & 31));
+  const uint32_t lo = (xorshifted_lo >> rot_lo) | (xorshifted_lo << (uint32_t)((-(int32_t)rot_lo) & 31));
+  
+  return ((uint64_t)hi << 32) | lo;
+#endif
 }
 
 uint64_t lsGetRand(rand_seed &seed)
@@ -1073,6 +1075,7 @@ void lsErrorPrint(const char *text)
 #endif
 }
 
+#ifdef LS_PLATFORM_WINDOWS
 lsResult lsSetOutputFilePath(const char *path, const bool append /* = true */)
 {
   lsResult result = lsR_Success;
@@ -1109,11 +1112,14 @@ void lsResetOutputFile()
   FlushFileBuffers(file);
   CloseHandle(file);
 }
+#endif
 
 void lsFlushOutput()
 {
+#ifdef LS_PLATFORM_WINDOWS
   if (lsFileOutHandle != nullptr)
     FlushFileBuffers(lsFileOutHandle);
+#endif
 }
 
 lsPrintCallbackFunc *lsPrintCallback = &lsDefaultPrint;
@@ -1130,6 +1136,7 @@ void print_to_dbgcon(const char *text)
 #endif
 }
 
+#ifdef LS_PLATFORM_WINDOWS
 lsResult lsToWide(_In_ const char *string, const size_t inChars, _Out_ wchar_t *out, const size_t capacity, _Out_ size_t &writtenChars)
 {
   lsResult result = lsR_Success;
@@ -1173,3 +1180,4 @@ lsResult lsToWide(_In_ const char *string, const size_t inChars, _Out_ wchar_t *
 epilogue:
   return result;
 }
+#endif

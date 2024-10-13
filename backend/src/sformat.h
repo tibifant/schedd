@@ -93,16 +93,8 @@ constexpr inline T _clamp(const T &a, const T &min, const T &max)
   return a;
 }
 
-constexpr inline int64_t _isEquivalentIntegerTypeSigned(int64_t) { return true; }
-constexpr inline int32_t _isEquivalentIntegerTypeSigned(int32_t) { return true; }
-constexpr inline long _isEquivalentIntegerTypeSigned(long) { return true; }
-constexpr inline int16_t _isEquivalentIntegerTypeSigned(int16_t) { return true; }
-constexpr inline int8_t _isEquivalentIntegerTypeSigned(int8_t) { return true; }
-constexpr inline uint64_t _isEquivalentIntegerTypeSigned(uint64_t) { return false; }
-constexpr inline uint32_t _isEquivalentIntegerTypeSigned(uint32_t) { return false; }
-constexpr inline unsigned long _isEquivalentIntegerTypeSigned(unsigned long) { return false; }
-constexpr inline uint16_t _isEquivalentIntegerTypeSigned(uint16_t) { return false; }
-constexpr inline uint8_t _isEquivalentIntegerTypeSigned(uint8_t) { return false; }
+template <typename T>
+constexpr inline T _isEquivalentIntegerTypeSigned(T) { return std::is_signed_v<T>; }
 
 template <typename T>
 struct _enumEquivalentIntegerType
@@ -117,15 +109,9 @@ struct _unsignedEquivalent
 };
 
 template <>
-struct _unsignedEquivalent<int64_t>
+struct _unsignedEquivalent<long long>
 {
-  typedef uint64_t type;
-};
-
-template <>
-struct _unsignedEquivalent<int32_t>
-{
-  typedef uint32_t type;
+  typedef unsigned long long type;
 };
 
 template <>
@@ -135,15 +121,27 @@ struct _unsignedEquivalent<long>
 };
 
 template <>
-struct _unsignedEquivalent<int16_t>
+struct _unsignedEquivalent<int>
 {
-  typedef uint16_t type;
+  typedef unsigned int type;
 };
 
 template <>
-struct _unsignedEquivalent<int8_t>
+struct _unsignedEquivalent<short>
 {
-  typedef uint8_t type;
+  typedef unsigned short type;
+};
+
+template <>
+struct _unsignedEquivalent<signed char>
+{
+  typedef unsigned char type;
+};
+
+template <>
+struct _unsignedEquivalent<char>
+{
+  typedef unsigned char type;
 };
 
 template <typename T>
@@ -257,19 +255,19 @@ inline constexpr bool _isFloatFormattable(const T &)
 template <typename T>
 inline constexpr bool _isListFormattable(const T &)
 {
-  return _isListFormattable_t<T>::value && _isFormattable_t<_isListFormattable_t<T>::value_type>::value;
+  return _isListFormattable_t<T>::value && _isFormattable_t<typename _isListFormattable_t<T>::value_type>::value;
 }
 
 template <typename T>
 inline constexpr bool _isVectorFormattable(const T &)
 {
-  return _isVectorFormattable_t<T>::value && _isFormattable_t<_isVectorFormattable_t<T>::value_type>::value;
+  return _isVectorFormattable_t<T>::value && _isFormattable_t<typename _isVectorFormattable_t<T>::value_type>::value;
 }
 
 template <typename T>
 inline constexpr bool _isMapFormattable(const T &)
 {
-  return _isMapFormattable_t<T>::value && _isFormattable_t<_isMapFormattable_t<T>::key_type>::value && _isFormattable_t<_isMapFormattable_t<T>::value_type>::value;
+  return _isMapFormattable_t<T>::value && _isFormattable_t<typename _isMapFormattable_t<T>::key_type>::value && _isFormattable_t<typename _isMapFormattable_t<T>::value_type>::value;
 }
 
 enum sformatSignOption
@@ -392,8 +390,8 @@ struct sformatState
   sformatState() = default;
   sformatState(const sformatState &copy) = default;
 
-  // This should only be used
-  inline sformatState operator = (const sformatState &copy)
+  // This should only be used to initialize the static formatters, as it actually MOVES!
+  inline sformatState & operator = (const sformatState &copy)
   {
     new (this) sformatState(copy);
 
@@ -402,6 +400,8 @@ struct sformatState
     textPosition = 0;
     inFormatStatement = false;
     pAllocator = &_default_sformat_allocator;
+    
+    return *this;
   }
 
   inline void SetTo(const sformatState &copy)
@@ -426,8 +426,10 @@ sformatState &sformat_GetState();
 sformatState &sformat_GetGlobalState();
 void sformatState_ResetCulture();
 
+#ifdef _MSC_VER
 #pragma warning (push)
 #pragma warning (disable: 4702)
+#endif
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value &&std::is_signed<T>::value && !std::is_same<bool, T>::value && !std::is_same<char, T>::value && !std::is_enum<T>::value>::type * = nullptr>
 inline size_t sformat_GetMaxBytes(const T &value, const sformatState &fs)
@@ -558,6 +560,9 @@ inline size_t sformat_GetMaxBytes(const T &value, const sformatState &fs)
     case FSO_Both:
     case FSO_NegativeOrFill:
       signChars = 1;
+      break;
+
+    default:
       break;
     }
 
@@ -728,7 +733,7 @@ inline size_t sformat_GetCount(const T &value, const sformatState &fs)
     else if constexpr (sizeof(value) == 4)
       goto four_bytes_decimal;
 
-    if (value >= 10000000000000000000) { numberChars = 20; break; }
+    if (value >= 10000000000000000000ULL) { numberChars = 20; break; }
     if (value >= 1000000000000000000) { numberChars = 19; break; }
     if (value >= 100000000000000000) { numberChars = 18; break; }
     if (value >= 10000000000000000) { numberChars = 17; break; }
@@ -880,16 +885,18 @@ inline size_t sformat_GetCount(const T &value, const sformatState &fs)
     return _clamp(signChars + numberChars, fs.minChars, fs.maxChars);
 }
 
+#ifdef _MSC_VER
 #pragma warning (pop)
+#endif
 
 inline size_t sformat_GetMaxBytes(const float_t, const sformatState &fs)
 {
   constexpr size_t maxDigits = sizeof("340282346638528859811704183484516925440") - 1;
 
   if (fs.scientificNotation)
-    return _clamp(1 + 1 + fs.decimalSeparatorLength + fs.fractionalDigits + 1 + 1 + 10, fs.minChars, _max(fs.maxChars, 6ULL)); // sign + digit + decimalSeparator + decimalDigits + e + sign + exponent.
+    return _clamp<size_t>(1 + 1 + fs.decimalSeparatorLength + fs.fractionalDigits + 1 + 1 + 10, fs.minChars, _max(fs.maxChars, 6ULL)); // sign + digit + decimalSeparator + decimalDigits + e + sign + exponent.
   else
-    return _clamp(1 /* sign */ + maxDigits + _sformat_GetDigitGroupingCharCount(maxDigits, fs) * fs.digitGroupingCharLength + fs.decimalSeparatorLength + fs.fractionalDigits, fs.minChars, fs.maxChars);
+    return _clamp<size_t>(1 /* sign */ + maxDigits + _sformat_GetDigitGroupingCharCount(maxDigits, fs) * fs.digitGroupingCharLength + fs.decimalSeparatorLength + fs.fractionalDigits, fs.minChars, fs.maxChars);
 }
 
 inline size_t sformat_GetMaxBytes(const double_t, const sformatState &fs)
@@ -897,9 +904,9 @@ inline size_t sformat_GetMaxBytes(const double_t, const sformatState &fs)
   constexpr size_t maxDigits = sizeof("179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368") - 1;
 
   if (fs.scientificNotation)
-    return _clamp(1 + 1 + fs.decimalSeparatorLength + fs.fractionalDigits + 1 + 1 + 10, fs.minChars, _max(fs.maxChars, 7ULL)); // sign + digit + decimalSeparator + decimalDigits + e + sign + exponent.
+    return _clamp<size_t>(1 + 1 + fs.decimalSeparatorLength + fs.fractionalDigits + 1 + 1 + 10, fs.minChars, _max(fs.maxChars, 7ULL)); // sign + digit + decimalSeparator + decimalDigits + e + sign + exponent.
   else
-    return _clamp(1 /* sign */ + maxDigits + _sformat_GetDigitGroupingCharCount(maxDigits, fs) * fs.digitGroupingCharLength + fs.decimalSeparatorLength + fs.fractionalDigits, fs.minChars, fs.maxChars);
+    return _clamp<size_t>(1 /* sign */ + maxDigits + _sformat_GetDigitGroupingCharCount(maxDigits, fs) * fs.digitGroupingCharLength + fs.decimalSeparatorLength + fs.fractionalDigits, fs.minChars, fs.maxChars);
 }
 
 template <typename T>
@@ -1009,12 +1016,16 @@ inline size_t _sformat_Append(const T value, const sformatState &fs, char *text)
   return _sformat_AppendBool(value, fs, text);
 }
 
-inline size_t _sformat_Append(const int32_t value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
-inline size_t _sformat_Append(const int16_t value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
-inline size_t _sformat_Append(const int8_t value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
-inline size_t _sformat_Append(const uint32_t value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); }
-inline size_t _sformat_Append(const uint16_t value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); }
-inline size_t _sformat_Append(const uint8_t value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); }
+inline size_t _sformat_Append(const signed long value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
+inline size_t _sformat_Append(const signed int value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
+inline size_t _sformat_Append(const signed short value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
+inline size_t _sformat_Append(const signed char value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
+#ifdef _MSC_VER
+inline size_t _sformat_Append(const unsigned long value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); static_assert(!std::is_same_v<unsigned long, uint64_t>); }
+#endif
+inline size_t _sformat_Append(const unsigned int value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); }
+inline size_t _sformat_Append(const unsigned short value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); }
+inline size_t _sformat_Append(const unsigned char value, const sformatState &fs, char *text) { return _sformat_Append((uint64_t)value, fs, text); }
 
 size_t _sformat_AppendStringWithLength(const char *value, const size_t length, const sformatState &fs, char *text);
 
@@ -1032,9 +1043,6 @@ inline size_t _sformat_Append(const char(&value)[TCount], const sformatState &fs
 {
   if constexpr (TCount == 0)
     return 0;
-
-  if (value == nullptr)
-    return _sformat_Append("null", fs, text);
 
   return _sformat_AppendStringWithLength(value, strnlen(value, TCount - 1), fs, text);
 }
