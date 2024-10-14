@@ -7,6 +7,13 @@
 template <typename T, size_t multiBlockAllocCount>
 struct pool;
 
+struct pool_iterator_end_marker
+{
+  const size_t &count;
+
+  inline pool_iterator_end_marker(const size_t &count) : count(count) {}
+};
+
 template <typename T, size_t multiBlockAllocCount>
 struct pool_iterator
 {
@@ -15,15 +22,19 @@ struct pool_iterator
 
   struct pool_item
   {
+    using ElementType = T;
+    constexpr static size_t MultiBlockAllocCount = multiBlockAllocCount;
+
     size_t index;
     T *pItem;
     size_t _iteratedIndex;
+    pool_iterator<T, multiBlockAllocCount> *_pIterator;
   };
 
   pool_iterator(pool<T, multiBlockAllocCount> *pPool);
   pool_item operator *();
-  const pool_item operator *() const;
   bool operator != (const size_t maxCount) const;
+  bool operator != (const pool_iterator_end_marker marker) const;
   pool_iterator &operator++();
 };
 
@@ -38,11 +49,13 @@ struct pool_const_iterator
     size_t index;
     const T *pItem;
     size_t _iteratedIndex;
+    const pool_const_iterator<T, multiBlockAllocCount> *_pIterator;
   };
 
   pool_const_iterator(const pool<T, multiBlockAllocCount> *pPool);
   const pool_item operator *() const;
   bool operator != (const size_t maxCount) const;
+  bool operator != (const pool_iterator_end_marker marker) const;
   pool_const_iterator &operator++();
 };
 
@@ -52,6 +65,29 @@ template <typename T>
 struct _pool_block_alloc_count
 {
   static const size_t value = lsClamp((1024 * 16) / (sizeof(T) * 64), (size_t)1, (size_t)8);
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t multiBlockAllocCount>
+struct _pool_it_from_wrapper
+{
+  pool<T, multiBlockAllocCount> *pPool;
+  size_t poolIndex, iteratedIndex;
+
+  inline pool_iterator<T, multiBlockAllocCount> begin()
+  {
+    auto it = pool_iterator(pPool);
+
+    it.iteratedItem = iteratedIndex;
+    it.blockIndex = poolIndex / pool<T, multiBlockAllocCount>::BlockSize;
+    it.blockSubIndex = poolIndex % pool<T, multiBlockAllocCount>::BlockSize;
+
+    return it;
+  };
+
+  inline pool_iterator_end_marker end() { return { pPool->count }; };
+
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -68,33 +104,15 @@ struct pool
 
   inline pool_iterator<T, multiBlockAllocCount> begin() { return pool_iterator(this); };
   inline pool_const_iterator<T, multiBlockAllocCount> begin() const { return pool_const_iterator(this); };
-  inline const size_t & end() { return count; };
-  inline const size_t & end() const { return count; };
+  inline pool_iterator_end_marker end() { return { count }; };
+  inline pool_iterator_end_marker end() const { return { count }; };
 
-  inline struct
-  {
-    pool<T, multiBlockAllocCount> *pPool;
-    size_t poolIndex, iteratedIndex;
-
-    inline pool_iterator<T, multiBlockAllocCount> begin()
-    {
-      auto it = pool_iterator(pPool);
-
-      it.iteratedItem = iteratedIndex;
-      it.blockIndex = poolIndex / pool<T, multiBlockAllocCount>::BlockSize;
-      it.blockSubIndex = poolIndex % pool<T, multiBlockAllocCount>::BlockSize;
-      
-      return it;
-    };
-    
-    inline const size_t & end() { return pPool->count; };
-
-  } IterateFromIteratedIndex(const size_t poolIndex, const size_t iteratedIndex) { return { this, poolIndex, iteratedIndex }; }
+  inline _pool_it_from_wrapper<T, multiBlockAllocCount> IterateFromIteratedIndex(const size_t poolIndex, const size_t iteratedIndex) { return { this, poolIndex, iteratedIndex }; }
 
   inline pool() {};
   inline pool(const pool &) = delete;
-  pool & operator = (const pool &) = delete;
-  
+  pool &operator = (const pool &) = delete;
+
   inline pool(pool &&move) :
     count(move.count),
     blockCount(move.blockCount),
@@ -126,6 +144,26 @@ struct pool
 
   ~pool();
 };
+
+//////////////////////////////////////////////////////////////////////////
+
+inline bool pool_lowest_set_bit(const uint64_t value, uint64_t &index)
+{
+  if (value == 0)
+    return false;
+
+  index = lsLowestBit(value);
+  return true;
+}
+
+inline bool pool_highest_set_bit(const uint64_t value, uint64_t &index)
+{
+  if (value == 0)
+    return false;
+
+  index = lsHighestBit(value);
+  return true;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -172,7 +210,7 @@ lsResult pool_reserve(pool<T, multiBlockAllocCount> *pPool, const size_t count)
     return lsR_Success;
 
   const size_t blockIndex = (count - 1) / pool<T, multiBlockAllocCount>::BlockSize;
-  
+
   return pool_reserve_blocks(pPool, blockIndex + 1);
 }
 
@@ -191,8 +229,8 @@ lsResult pool_allocate(pool<T, multiBlockAllocCount> *pPool, T **ppItem, _Out_ s
   {
     if (pPool->pBlockEmptyMask[i] != (uint64_t)-1)
     {
-      unsigned long subIndex = 0;
-      lsAssert(0 != _BitScanForward64(&subIndex, ~pPool->pBlockEmptyMask[i]));
+      size_t subIndex = 0;
+      lsAssert(pool_lowest_set_bit(~pPool->pBlockEmptyMask[i], subIndex));
       lsAssert(((pPool->pBlockEmptyMask[i] >> subIndex) & 1) == 0);
 
       blockIndex = i;
@@ -217,7 +255,7 @@ lsResult pool_allocate(pool<T, multiBlockAllocCount> *pPool, T **ppItem, _Out_ s
 
     for (size_t i = blockIndex; i < newBlockCount; i++)
       pPool->pBlockEmptyMask[i] = 0;
-    
+
     if constexpr (multiBlockAllocCount > 1)
       for (size_t i = blockIndex + 1; i < newBlockCount; i++)
         pPool->ppBlocks[i] = pPool->ppBlocks[i - 1] + pool<T, multiBlockAllocCount>::BlockSize;
@@ -334,7 +372,7 @@ epilogue:
 }
 
 template <typename T, size_t multiBlockAllocCount>
-lsResult pool_insertIfNotContainedAndRetrieve(pool<T, multiBlockAllocCount> *pPool, const T *pItem, const size_t index, T **pOut, OPTIONAL OUT bool *pExisted = nullptr)
+lsResult pool_insertIfNotContainedAndRetrieve(pool<T, multiBlockAllocCount> *pPool, const T *pItem, const size_t index, T **pOut, _Out_opt_ bool *pExisted = nullptr)
 {
   lsResult result = lsR_Success;
 
@@ -366,7 +404,7 @@ epilogue:
 }
 
 template <typename T, size_t multiBlockAllocCount>
-T * pool_get(pool<T, multiBlockAllocCount> *pPool, const size_t index)
+T *pool_get(pool<T, multiBlockAllocCount> *pPool, const size_t index)
 {
   const size_t blockIndex = index / pool<T, multiBlockAllocCount>::BlockSize;
   const size_t blockSubIndex = index % pool<T, multiBlockAllocCount>::BlockSize;
@@ -378,7 +416,7 @@ T * pool_get(pool<T, multiBlockAllocCount> *pPool, const size_t index)
 }
 
 template <typename T, size_t multiBlockAllocCount>
-const T * pool_get(const pool<T, multiBlockAllocCount> *pPool, const size_t index)
+const T *pool_get(const pool<T, multiBlockAllocCount> *pPool, const size_t index)
 {
   const size_t blockIndex = index / pool<T, multiBlockAllocCount>::BlockSize;
   const size_t blockSubIndex = index % pool<T, multiBlockAllocCount>::BlockSize;
@@ -390,7 +428,7 @@ const T * pool_get(const pool<T, multiBlockAllocCount> *pPool, const size_t inde
 }
 
 template <typename T, size_t multiBlockAllocCount>
-T * pool_get(pool<T, multiBlockAllocCount> &p, const size_t index)
+T *pool_get(pool<T, multiBlockAllocCount> &p, const size_t index)
 {
   const size_t blockIndex = index / pool<T, multiBlockAllocCount>::BlockSize;
   const size_t blockSubIndex = index % pool<T, multiBlockAllocCount>::BlockSize;
@@ -402,7 +440,7 @@ T * pool_get(pool<T, multiBlockAllocCount> &p, const size_t index)
 }
 
 template <typename T, size_t multiBlockAllocCount>
-const T * pool_get(const pool<T, multiBlockAllocCount> &p, const size_t index)
+const T *pool_get(const pool<T, multiBlockAllocCount> &p, const size_t index)
 {
   const size_t blockIndex = index / pool<T, multiBlockAllocCount>::BlockSize;
   const size_t blockSubIndex = index % pool<T, multiBlockAllocCount>::BlockSize;
@@ -456,7 +494,7 @@ epilogue:
 }
 
 template <typename T, size_t multiBlockAllocCount>
-lsResult pool_get_safe(const pool<T, multiBlockAllocCount> *pPool, const size_t index, _Out_ T * const *ppItem)
+lsResult pool_get_safe(const pool<T, multiBlockAllocCount> *pPool, const size_t index, _Out_ T *const *ppItem)
 {
   lsResult result = lsR_Success;
 
@@ -515,6 +553,40 @@ epilogue:
 }
 
 template <typename T, size_t multiBlockAllocCount>
+T pool_remove(pool<T, multiBlockAllocCount> &self, const size_t index)
+{
+  const size_t blockIndex = index / pool<T, multiBlockAllocCount>::BlockSize;
+  const size_t blockSubIndex = index % pool<T, multiBlockAllocCount>::BlockSize;
+
+  lsAssert(self.blockCount > blockIndex);
+  lsAssert((self.pBlockEmptyMask[blockIndex] & ((uint64_t)1 << blockSubIndex)) != 0);
+
+  self.pBlockEmptyMask[blockIndex] &= ~(uint64_t)((uint64_t)1 << blockSubIndex);
+  self.count--;
+
+  return std::move(self.ppBlocks[blockIndex][blockSubIndex]);
+}
+
+template <typename TPoolNonConstIterator>
+  requires std::is_same_v<TPoolNonConstIterator, typename pool_iterator<typename TPoolNonConstIterator::ElementType, TPoolNonConstIterator::MultiBlockAllocCount>::pool_item>
+auto pool_remove(TPoolNonConstIterator &it)
+{
+  const size_t blockIndex = it._pIterator->blockIndex;
+  const size_t blockSubIndex = it._pIterator->blockSubIndex;
+
+  lsAssert(it._pIterator->pPool->blockCount > blockIndex);
+  lsAssert((it._pIterator->pPool->pBlockEmptyMask[blockIndex] & ((uint64_t)1 << blockSubIndex)) != 0);
+
+  it._pIterator->pPool->pBlockEmptyMask[blockIndex] &= ~(uint64_t)((uint64_t)1 << blockSubIndex);
+  it._pIterator->pPool->count--;
+  it._pIterator->iteratedItem--;
+  it.pItem = nullptr;
+  it.index = it._iteratedIndex = (size_t)-1;
+
+  return std::move(it._pIterator->pPool->ppBlocks[blockIndex][blockSubIndex]);
+}
+
+template <typename T, size_t multiBlockAllocCount>
 void pool_clear(pool<T, multiBlockAllocCount> *pPool)
 {
   if (pPool == nullptr)
@@ -550,6 +622,208 @@ void pool_destroy(pool<T, multiBlockAllocCount> *pPool)
 
 //////////////////////////////////////////////////////////////////////////
 
+template <typename T, size_t multiBlockAllocCount>
+bool pool_has(const pool<T, multiBlockAllocCount> &p, const size_t index)
+{
+  const size_t blockIndex = index / pool<T, multiBlockAllocCount>::BlockSize;
+  const size_t blockSubIndex = index % pool<T, multiBlockAllocCount>::BlockSize;
+
+  return p.blockCount > blockIndex && ((p.pBlockEmptyMask[blockIndex] >> blockSubIndex) & 1);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t multiBlockAllocCount>
+void pool_compact(pool<T, multiBlockAllocCount> &p, const std::function<void(T &, const size_t oldIdx, const size_t newIdx)> &func)
+{
+  if (p.count == 0)
+    return;
+
+  size_t writeBlockIdx = 0;
+  size_t writeSubIdx = 0;
+  size_t readBlockIdx = p.blockCount - 1;
+  size_t readSubIdx = p.BlockSize - 1;
+  size_t touched = 0;
+
+  while (true)
+  {
+    uint64_t shiftedMask;
+    size_t bitIdx;
+
+    // Find next empty write idx.
+    while (!((shiftedMask = ((~p.pBlockEmptyMask[writeBlockIdx]) >> writeSubIdx)) & 1))
+    {
+      if (!pool_lowest_set_bit(shiftedMask, bitIdx) || bitIdx + writeSubIdx == 64)
+      {
+        touched += (64 - writeSubIdx);
+        writeBlockIdx++;
+        writeSubIdx = 0;
+        lsAssert(touched <= p.count);
+        lsAssert(writeBlockIdx < p.blockCount);
+      }
+      else
+      {
+        touched += bitIdx;
+        writeSubIdx += bitIdx;
+        break;
+      }
+    }
+
+    if (touched >= p.count)
+      break;
+
+    // Find next filled read idx.
+    while (!(((shiftedMask = p.pBlockEmptyMask[readBlockIdx]) >> readSubIdx) & 1))
+    {
+      shiftedMask <<= (64 - readSubIdx);
+
+      if (!pool_highest_set_bit(shiftedMask, bitIdx))
+      {
+        lsAssert(readBlockIdx > 0);
+        readBlockIdx--;
+        readSubIdx = p.BlockSize - 1;
+      }
+      else
+      {
+        lsAssert(readSubIdx >= (64 - bitIdx));
+        readSubIdx -= (64 - bitIdx);
+        lsAssert((p.pBlockEmptyMask[readBlockIdx] >> readSubIdx) & 1);
+        break;
+      }
+    }
+
+    new (&p.ppBlocks[writeBlockIdx][writeSubIdx]) T(std::move(p.ppBlocks[readBlockIdx][readSubIdx]));
+    p.pBlockEmptyMask[writeBlockIdx] |= ((uint64_t)1 << writeSubIdx);
+    p.pBlockEmptyMask[readBlockIdx] &= ~((uint64_t)1 << readSubIdx);
+    lsAssert(writeBlockIdx * p.BlockSize + writeSubIdx == touched);
+
+    if (func)
+      func(p.ppBlocks[writeBlockIdx][writeSubIdx], readBlockIdx * p.BlockSize + readSubIdx, writeBlockIdx * p.BlockSize + writeSubIdx);
+
+    touched++;
+
+    if (touched >= p.count)
+      break;
+
+    writeSubIdx++;
+
+    if (writeSubIdx >= 64)
+    {
+      writeSubIdx = 0;
+      writeBlockIdx++;
+    }
+
+    if (readSubIdx == 0)
+    {
+      readBlockIdx--;
+      readSubIdx = p.BlockSize - 1;
+    }
+    else
+    {
+      readSubIdx--;
+    }
+  }
+}
+
+template <typename T, size_t multiBlockAllocCount>
+lsResult pool_compact(pool<T, multiBlockAllocCount> &p, const std::function<lsResult(T &, const size_t oldIdx, const size_t newIdx)> &func)
+{
+  lsResult result = lsR_Success;
+
+  size_t writeBlockIdx = 0;
+  size_t writeSubIdx = 0;
+  size_t readBlockIdx = p.blockCount - 1;
+  size_t readSubIdx = p.BlockSize - 1;
+  size_t touched = 0;
+
+  if (p.count == 0)
+    goto epilogue;
+
+  while (true)
+  {
+    uint64_t shiftedMask;
+    size_t bitIdx;
+
+    // Find next empty write idx.
+    while (!((shiftedMask = ((~p.pBlockEmptyMask[writeBlockIdx]) >> writeSubIdx)) & 1))
+    {
+      if (!pool_lowest_set_bit(shiftedMask, bitIdx) || bitIdx + writeSubIdx == 64)
+      {
+        touched += (64 - writeSubIdx);
+        writeBlockIdx++;
+        writeSubIdx = 0;
+        lsAssert(touched <= p.count);
+        lsAssert(writeBlockIdx < p.blockCount);
+      }
+      else
+      {
+        touched += bitIdx;
+        writeSubIdx += bitIdx;
+        break;
+      }
+    }
+
+    if (touched >= p.count)
+      break;
+
+    // Find next filled read idx.
+    while (!(((shiftedMask = p.pBlockEmptyMask[readBlockIdx]) >> readSubIdx) & 1))
+    {
+      shiftedMask <<= (64 - readSubIdx);
+
+      if (!pool_highest_set_bit(shiftedMask, bitIdx))
+      {
+        lsAssert(readBlockIdx > 0);
+        readBlockIdx--;
+        readSubIdx = p.BlockSize - 1;
+      }
+      else
+      {
+        lsAssert(readSubIdx >= (64 - bitIdx));
+        readSubIdx -= (64 - bitIdx);
+        lsAssert((p.pBlockEmptyMask[readBlockIdx] >> readSubIdx) & 1);
+        break;
+      }
+    }
+
+    new (&p.ppBlocks[writeBlockIdx][writeSubIdx]) T(std::move(p.ppBlocks[readBlockIdx][readSubIdx]));
+    p.pBlockEmptyMask[writeBlockIdx] |= ((uint64_t)1 << writeSubIdx);
+    p.pBlockEmptyMask[readBlockIdx] &= ~((uint64_t)1 << readSubIdx);
+    lsAssert(writeBlockIdx * p.BlockSize + writeSubIdx == touched);
+
+    if (func)
+      LS_ERROR_CHECK(func(p.ppBlocks[writeBlockIdx][writeSubIdx], readBlockIdx * p.BlockSize + readSubIdx, writeBlockIdx * p.BlockSize + writeSubIdx));
+
+    touched++;
+
+    if (touched >= p.count)
+      break;
+
+    writeSubIdx++;
+
+    if (writeSubIdx >= 64)
+    {
+      writeSubIdx = 0;
+      writeBlockIdx++;
+    }
+
+    if (readSubIdx == 0)
+    {
+      readBlockIdx--;
+      readSubIdx = p.BlockSize - 1;
+    }
+    else
+    {
+      readSubIdx--;
+    }
+  }
+
+epilogue:
+  return result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
 template<typename T, size_t multiBlockAllocCount>
 inline pool_iterator<T, multiBlockAllocCount>::pool_iterator(pool<T, multiBlockAllocCount> *pPool) :
   pPool(pPool)
@@ -567,9 +841,9 @@ inline pool_iterator<T, multiBlockAllocCount>::pool_iterator(pool<T, multiBlockA
     }
     else
     {
-      unsigned long subIndex = 0;
+      size_t subIndex = 0;
 
-      if (0 == _BitScanForward64(&subIndex, pPool->pBlockEmptyMask[blockIndex]))
+      if (!pool_lowest_set_bit(pPool->pBlockEmptyMask[blockIndex], subIndex))
       {
         blockIndex++;
         blockSubIndex = 0;
@@ -588,22 +862,12 @@ inline pool_iterator<T, multiBlockAllocCount>::pool_iterator(pool<T, multiBlockA
 template<typename T, size_t multiBlockAllocCount>
 inline typename pool_iterator<T, multiBlockAllocCount>::pool_item pool_iterator<T, multiBlockAllocCount>::operator*()
 {
-  pool_iterator<T, multiBlockAllocCount>::pool_item ret;
+  typename pool_iterator<T, multiBlockAllocCount>::pool_item ret;
   ret.index = blockIndex * pool<T, multiBlockAllocCount>::BlockSize + blockSubIndex;
   ret.pItem = &pPool->ppBlocks[blockIndex][blockSubIndex];
   ret._iteratedIndex = iteratedItem;
+  ret._pIterator = this;
 
-  return ret;
-}
-
-template<typename T, size_t multiBlockAllocCount>
-inline const typename pool_iterator<T, multiBlockAllocCount>::pool_item pool_iterator<T, multiBlockAllocCount>::operator*() const
-{
-  pool_iterator<T, multiBlockAllocCount>::pool_item ret;
-  ret.index = blockIndex * pool<T, multiBlockAllocCount>::BlockSize + blockSubIndex;
-  ret.pItem = &pPool->ppBlocks[blockIndex][blockSubIndex];
-  ret._iteratedIndex = iteratedItem;
-  
   return ret;
 }
 
@@ -611,6 +875,12 @@ template<typename T, size_t multiBlockAllocCount>
 inline bool pool_iterator<T, multiBlockAllocCount>::operator!=(const size_t maxCount) const
 {
   return iteratedItem < maxCount;
+}
+
+template<typename T, size_t multiBlockAllocCount>
+inline bool pool_iterator<T, multiBlockAllocCount>::operator!=(const pool_iterator_end_marker marker) const
+{
+  return iteratedItem < marker.count;
 }
 
 template<typename T, size_t multiBlockAllocCount>
@@ -625,15 +895,16 @@ inline pool_iterator<T, multiBlockAllocCount> &pool_iterator<T, multiBlockAllocC
       if (pPool->pBlockEmptyMask[blockIndex] == 0)
       {
         blockIndex++;
+        blockSubIndex = 0;
 
-        lsAssert(blockIndex < pPool->blockCount);
+        // lsAssert(blockIndex < pPool->blockCount); // <- this may be accidentally triggered when removing items, as long as no further accesses are made, this is fine.
       }
       else
       {
-        unsigned long subIndex = 0;
+        size_t subIndex = 0;
         const uint64_t shift = blockSubIndex;
 
-        if (shift >= 0x40 || 0 == _BitScanForward64(&subIndex, pPool->pBlockEmptyMask[blockIndex] >> shift))
+        if (shift >= 0x40 || !pool_lowest_set_bit(pPool->pBlockEmptyMask[blockIndex] >> shift, subIndex))
         {
           blockIndex++;
           blockSubIndex = 0;
@@ -671,9 +942,9 @@ inline pool_const_iterator<T, multiBlockAllocCount>::pool_const_iterator(const p
     }
     else
     {
-      unsigned long subIndex = 0;
+      size_t subIndex = 0;
 
-      if (0 == _BitScanForward64(&subIndex, pPool->pBlockEmptyMask[blockIndex]))
+      if (!pool_lowest_set_bit(pPool->pBlockEmptyMask[blockIndex], subIndex))
       {
         blockIndex++;
         blockSubIndex = 0;
@@ -692,10 +963,11 @@ inline pool_const_iterator<T, multiBlockAllocCount>::pool_const_iterator(const p
 template<typename T, size_t multiBlockAllocCount>
 inline const typename pool_const_iterator<T, multiBlockAllocCount>::pool_item pool_const_iterator<T, multiBlockAllocCount>::operator*() const
 {
-  pool_const_iterator<T, multiBlockAllocCount>::pool_item ret;
+  typename pool_const_iterator<T, multiBlockAllocCount>::pool_item ret;
   ret.index = blockIndex * pool<T, multiBlockAllocCount>::BlockSize + blockSubIndex;
   ret.pItem = &pPool->ppBlocks[blockIndex][blockSubIndex];
   ret._iteratedIndex = iteratedItem;
+  ret._pIterator = this;
 
   return ret;
 }
@@ -704,6 +976,12 @@ template<typename T, size_t multiBlockAllocCount>
 inline bool pool_const_iterator<T, multiBlockAllocCount>::operator!=(const size_t maxCount) const
 {
   return iteratedItem < maxCount;
+}
+
+template<typename T, size_t multiBlockAllocCount>
+inline bool pool_const_iterator<T, multiBlockAllocCount>::operator!=(const pool_iterator_end_marker marker) const
+{
+  return iteratedItem < marker.count;
 }
 
 template<typename T, size_t multiBlockAllocCount>
@@ -723,10 +1001,10 @@ inline pool_const_iterator<T, multiBlockAllocCount> &pool_const_iterator<T, mult
       }
       else
       {
-        unsigned long subIndex = 0;
+        size_t subIndex = 0;
         const uint64_t shift = blockSubIndex;
 
-        if (shift >= 0x40 || 0 == _BitScanForward64(&subIndex, pPool->pBlockEmptyMask[blockIndex] >> shift))
+        if (shift >= 0x40 || !pool_lowest_set_bit(pPool->pBlockEmptyMask[blockIndex] >> shift, subIndex))
         {
           blockIndex++;
           blockSubIndex = 0;

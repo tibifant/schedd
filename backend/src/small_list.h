@@ -23,8 +23,8 @@ struct small_list_iterator
   size_t position = 0;
 
   small_list_iterator(small_list<T, internal_count> *pList);
-  T & operator *();
-  const T & operator *() const;
+  T &operator *();
+  const T &operator *() const;
   bool operator != (const size_t maxCount) const;
   bool operator != (const small_list_iterator<T, internal_count> &it) const;
   bool operator != (const small_list_reverse_iterator<T, internal_count> &it) const;
@@ -42,8 +42,8 @@ struct small_list_reverse_iterator
   int64_t position = 0;
 
   small_list_reverse_iterator(small_list<T, internal_count> *pList);
-  T & operator *();
-  const T & operator *() const;
+  T &operator *();
+  const T &operator *() const;
   bool operator != (const size_t startIndex) const;
   bool operator != (const small_list_iterator<T, internal_count> &it) const;
   bool operator != (const small_list_reverse_iterator<T, internal_count> &it) const;
@@ -79,7 +79,7 @@ struct small_list_const_reverse_iterator
   int64_t position = 0;
 
   small_list_const_reverse_iterator(const small_list<T, internal_count> *pList);
-  const T & operator *() const;
+  const T &operator *() const;
   bool operator != (const size_t startIndex) const;
   bool operator != (const small_list_iterator<T, internal_count> &it) const;
   bool operator != (const small_list_reverse_iterator<T, internal_count> &it) const;
@@ -110,61 +110,73 @@ struct small_list
   inline small_list_const_iterator<T, internal_count> begin() const { return small_list_const_iterator<T, internal_count>(this); };
   inline size_t end() const { return count; };
 
-  inline struct
+  ~small_list();
+
+  struct IterateReverseWrapper
   {
     small_list<T, internal_count> *pList;
     inline small_list_reverse_iterator<T, internal_count> begin() { return small_list_reverse_iterator<T, internal_count>(pList); };
     inline size_t end() { return 0; };
-  } IterateReverse() { return { this }; };
+  };
 
-  ~small_list();
+  inline IterateReverseWrapper IterateReverse() { return { this }; };
 
-  inline struct
+  struct IterateFromWrapper
   {
     small_list<T, internal_count> *pList;
     size_t startIdx;
+
+    inline IterateFromWrapper(small_list<T, internal_count> *pList, size_t startIdx) : pList(pList), startIdx(startIdx) {}
 
     inline small_list_iterator<T, internal_count> begin()
     {
-      const small_list_iterator<T, internal_count> it = small_list_iterator<T, internal_count>(pList);
-      
+      small_list_iterator<T, internal_count> it = small_list_iterator<T, internal_count>(pList);
+
       it.inInternal = startIdx < internal_count;
       it.position = startIdx;
       it.subIndex = it.inInternal ? startIdx : startIdx - internal_count;
-      
+
       return it;
     };
-    
-    inline size_t end() { return count; };
-  } IterateFrom(const size_t idx) { return { this, idx }; };
 
-  inline struct
+    inline size_t end() { return pList->count; };
+  };
+
+  inline IterateFromWrapper IterateFrom(const size_t idx) { return IterateFromWrapper(this, idx); };
+
+  struct ConstIterateFromWrapper
   {
-    small_list<T, internal_count> *pList;
+    const small_list<T, internal_count> *pList;
     size_t startIdx;
+
+    inline ConstIterateFromWrapper(const small_list<T, internal_count> *pList, size_t startIdx) : pList(pList), startIdx(startIdx) {}
 
     inline small_list_const_iterator<T, internal_count> begin()
     {
-      const small_list_const_iterator<T, internal_count> it = small_list_const_iterator<T, internal_count>(pList);
-      
+      small_list_const_iterator<T, internal_count> it = small_list_const_iterator<T, internal_count>(pList);
+
       it.inInternal = startIdx < internal_count;
       it.position = startIdx;
       it.subIndex = it.inInternal ? startIdx : startIdx - internal_count;
-      
+
       return it;
     };
-    
-    inline size_t end() { return count; };
-  } IterateFrom(const size_t idx) const { return { this, idx }; };
 
-  inline struct
+    inline size_t end() { return pList->count; };
+  };
+
+  inline ConstIterateFromWrapper IterateFrom(const size_t idx) const { return ConstIterateFromWrapper(this, idx); };
+
+  struct IterateReverseFromWrapper
   {
     small_list<T, internal_count> *pList;
     size_t startIdx;
+
+    inline IterateReverseFromWrapper(small_list<T, internal_count> *pList, size_t startIdx) : pList(pList), startIdx(startIdx) {}
 
     inline small_list_reverse_iterator<T, internal_count> begin()
     {
-      const small_list_reverse_iterator<T, internal_count> it = small_list_reverse_iterator<T, internal_count>(pList);
+      small_list_reverse_iterator<T, internal_count> it = small_list_reverse_iterator<T, internal_count>(pList);
 
       it.inInternal = startIdx < internal_count;
       it.position = startIdx;
@@ -174,16 +186,20 @@ struct small_list
     };
 
     inline size_t end() { return 0; };
-  } IterateReverseFrom(const size_t idx) { return { this, idx }; };
+  };
 
-  inline struct
+  inline IterateReverseFromWrapper IterateReverseFrom(const size_t idx) { return IterateReverseFromWrapper(this, idx); };
+
+  struct ConstIterateReverseFromWrapper
   {
-    small_list<T, internal_count> *pList;
+    const small_list<T, internal_count> *pList;
     size_t startIdx;
+
+    inline ConstIterateReverseFromWrapper(const small_list<T, internal_count> *pList, size_t startIdx) : pList(pList), startIdx(startIdx) {}
 
     inline small_list_const_reverse_iterator<T, internal_count> begin()
     {
-      const small_list_const_reverse_iterator<T, internal_count> it = small_list_const_reverse_iterator<T, internal_count>(pList);
+      small_list_const_reverse_iterator<T, internal_count> it = small_list_const_reverse_iterator<T, internal_count>(pList);
 
       it.inInternal = startIdx < internal_count;
       it.position = startIdx;
@@ -193,15 +209,17 @@ struct small_list
     };
 
     inline size_t end() { return 0; };
-  } IterateReverseFrom(const size_t idx) const { return { this, idx }; };
+  };
+
+  inline ConstIterateReverseFromWrapper IterateReverseFrom(const size_t idx) const { return ConstIterateReverseFromWrapper(this, idx); };
 
   T &operator [](const size_t index);
   const T &operator [](const size_t index) const;
 
   inline small_list() {};
   inline small_list(const small_list &) = delete;
-  inline small_list & operator = (const small_list &) = delete;
-  
+  inline small_list &operator = (const small_list &) = delete;
+
   inline small_list(small_list &&move) :
     count(move.count),
     pExtra(move.pExtra),
@@ -216,8 +234,8 @@ struct small_list
 
   inline small_list &operator = (small_list &&move)
   {
-    small_list_destroy(this);
-    
+    list_destroy(this);
+
     count = move.count;
     pExtra = move.pExtra;
     extraCapacity = move.extraCapacity;
@@ -232,7 +250,7 @@ struct small_list
 };
 
 template <typename T, size_t internal_count>
-lsResult small_list_reserve(small_list<T, internal_count> *pList, const size_t count)
+lsResult list_reserve(small_list<T, internal_count> *pList, const size_t count)
 {
   lsResult result = lsR_Success;
 
@@ -250,7 +268,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_add(small_list<T, internal_count> *pList, const T *pItem)
+lsResult list_add(small_list<T, internal_count> *pList, const T *pItem)
 {
   lsResult result = lsR_Success;
 
@@ -282,7 +300,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_add(small_list<T, internal_count> *pList, T &&item)
+lsResult list_add(small_list<T, internal_count> *pList, T &&item)
 {
   lsResult result = lsR_Success;
 
@@ -314,17 +332,67 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_add(small_list<T, internal_count> *pList, const T &item)
+lsResult list_add(small_list<T, internal_count> *pList, const T &item)
 {
-  return small_list_add(pList, &item);
+  return list_add(pList, &item);
 }
 
-template <typename T, size_t internal_count>
-lsResult small_list_add_range(small_list<T, internal_count> *pList, const T *pItems, const size_t count)
+template <typename T, size_t internal_count, typename container>
+  requires (random_iterable_sized_container_type<container, T>)
+lsResult list_add_range(small_list<T, internal_count> *pList, const container &items)
 {
   lsResult result = lsR_Success;
 
-  LS_ERROR_IF(pList == nullptr || pItems == nullptr, lsR_ArgumentNull);
+  lsAssert(pList);
+
+  // Grow if we need to grow.
+  if (pList->count + items.count > internal_count + pList->extraCapacity)
+  {
+    const size_t requiredCapacity = pList->count + items.count - internal_count;
+    const size_t newCapacity = lsMax(pList->extraCapacity * 2 + internal_count, requiredCapacity + internal_count) & ~(internal_count - 1);
+    LS_ERROR_CHECK(lsRealloc(&pList->pExtra, newCapacity));
+    pList->extraCapacity = newCapacity;
+  }
+
+  {
+    size_t remainingCount = items.count;
+    size_t offset = 0;;
+
+    if (pList->count < internal_count)
+    {
+      const size_t internalFitCount = lsMin(internal_count - pList->count, items.count);
+
+      for (size_t i = 0; i < internalFitCount; i++)
+        pList->values[pList->count + i] = items[i];
+
+      pList->count += internalFitCount;
+      offset += internalFitCount;
+      remainingCount -= internalFitCount;
+    }
+
+    if (remainingCount > 0)
+    {
+      for (size_t i = 0; i < remainingCount; i++)
+        pList->pExtra[pList->count + i] = items[offset + i];
+
+      pList->count += remainingCount;
+    }
+  }
+
+epilogue:
+  return result;
+}
+
+template <typename T, size_t internal_count>
+lsResult list_add_range(small_list<T, internal_count> *pList, const T *pItems, const size_t count)
+{
+  lsResult result = lsR_Success;
+
+  size_t remainingCount = count;
+  const T *pRemainingItems = pItems;
+
+  lsAssert(pList != nullptr && pItems != nullptr);
+  LS_ERROR_IF(pItems == nullptr, lsR_ArgumentNull);
 
   // Grow if we need to grow.
   if (pList->count + count > internal_count + pList->extraCapacity)
@@ -334,9 +402,6 @@ lsResult small_list_add_range(small_list<T, internal_count> *pList, const T *pIt
     LS_ERROR_CHECK(lsRealloc(&pList->pExtra, newCapacity));
     pList->extraCapacity = newCapacity;
   }
-
-  size_t remainingCount = count;
-  const T *pRemainingItems = pItems;
 
   if (pList->count < internal_count)
   {
@@ -358,8 +423,108 @@ epilogue:
   return result;
 }
 
+//////////////////////////////////////////////////////////////////////////
+
 template <typename T, size_t internal_count>
-const T * small_list_get(const small_list<T, internal_count> *pList, const size_t index)
+inline lsResult list_insert(small_list<T, internal_count> &l, const size_t index, const T &item)
+{
+  lsResult result = lsR_Success;
+
+  LS_ERROR_IF(l.count < index, lsR_ArgumentOutOfBounds);
+
+  if (l.count == index)
+    return list_add(&l, item);
+
+  if (l.count >= internal_count + l.extraCapacity)
+  {
+    const size_t newCapacity = (l.extraCapacity * 2 + internal_count) & ~(internal_count - 1);
+    LS_ERROR_CHECK(lsRealloc(&l.pExtra, newCapacity));
+    l.extraCapacity = newCapacity;
+  }
+
+  if (l.count >= internal_count)
+  {
+    if (index >= internal_count)
+    {
+      const size_t extraValuesToMove = l.count - index;
+      const size_t inExtraIndex = index - internal_count;
+      T *pSrc = l.pExtra + inExtraIndex;
+      lsMemmove(pSrc + 1, pSrc, extraValuesToMove);
+      l.pExtra[inExtraIndex] = item;
+      l.count++;
+      goto epilogue;
+    }
+    else
+    {
+      const size_t extraValuesToMove = l.count - internal_count;
+      lsMemmove(l.pExtra + 1, l.pExtra, extraValuesToMove);
+      lsMemmove(l.pExtra, &l.values[internal_count - 1], 1);
+    }
+  }
+
+  {
+    const size_t internalValuesToMove = lsMin(internal_count, l.count) - index - (l.count >= internal_count ? 1 : 0);
+    lsMemmove(&l.values[index + 1], &l.values[index], internalValuesToMove);
+    l.values[index] = item;
+    l.count++;
+  }
+
+epilogue:
+  return result;
+}
+
+template <typename T, size_t internal_count>
+inline lsResult list_insert(small_list<T, internal_count> &l, const size_t index, T &&item)
+{
+  lsResult result = lsR_Success;
+
+  LS_ERROR_IF(l.count < index, lsR_ArgumentOutOfBounds);
+
+  if (l.count == index)
+    return list_add(&l, item);
+
+  if (l.count >= internal_count + l.extraCapacity)
+  {
+    const size_t newCapacity = (l.extraCapacity * 2 + internal_count) & ~(internal_count - 1);
+    LS_ERROR_CHECK(lsRealloc(&l.pExtra, newCapacity));
+    l.extraCapacity = newCapacity;
+  }
+
+  if (l.count >= internal_count)
+  {
+    if (index >= internal_count)
+    {
+      const size_t extraValuesToMove = l.count - index;
+      const size_t inExtraIndex = index - internal_count;
+      T *pSrc = l.pExtra + inExtraIndex;
+      lsMemmove(pSrc + 1, pSrc, extraValuesToMove);
+      new (&l.pExtra[inExtraIndex]) T(std::move(item));
+      l.count++;
+      goto epilogue;
+    }
+    else
+    {
+      const size_t extraValuesToMove = l.count - internal_count;
+      lsMemmove(l.pExtra + 1, l.pExtra, extraValuesToMove);
+      lsMemmove(l.pExtra, &l.values[internal_count - 1], 1);
+    }
+  }
+
+  {
+    const size_t internalValuesToMove = lsMin(internal_count, l.count) - index - (l.count >= internal_count ? 1 : 0);
+    lsMemmove(&l.values[index + 1], &l.values[index], internalValuesToMove);
+    new (&l.values[index]) T(std::move(item));
+    l.count++;
+  }
+
+epilogue:
+  return result;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t internal_count>
+const T *list_get(const small_list<T, internal_count> *pList, const size_t index)
 {
   lsAssert(index < pList->count);
 
@@ -370,7 +535,7 @@ const T * small_list_get(const small_list<T, internal_count> *pList, const size_
 }
 
 template <typename T, size_t internal_count>
-T * small_list_get(small_list<T, internal_count> *pList, const size_t index)
+T *list_get(small_list<T, internal_count> *pList, const size_t index)
 {
   lsAssert(index < pList->count);
 
@@ -381,7 +546,7 @@ T * small_list_get(small_list<T, internal_count> *pList, const size_t index)
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_get_safe(const small_list<T, internal_count> *pList, const size_t index, _Out_ T *pItem)
+lsResult list_get_safe(const small_list<T, internal_count> *pList, const size_t index, _Out_ T *pItem)
 {
   lsResult result = lsR_Success;
 
@@ -398,7 +563,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_get_safe(small_list<T, internal_count> *pList, const size_t index, _Out_ T **ppItem)
+lsResult list_get_safe(small_list<T, internal_count> *pList, const size_t index, _Out_ T **ppItem)
 {
   lsResult result = lsR_Success;
 
@@ -415,7 +580,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_get_safe(const small_list<T, internal_count> *pList, const size_t index, _Out_ T * const *ppItem)
+lsResult list_get_safe(const small_list<T, internal_count> *pList, const size_t index, _Out_ T *const *ppItem)
 {
   lsResult result = lsR_Success;
 
@@ -431,8 +596,10 @@ epilogue:
   return result;
 }
 
+//////////////////////////////////////////////////////////////////////////
+
 template <typename T, size_t internal_count>
-lsResult small_list_pop_back_safe(small_list<T, internal_count> *pList, _Out_ T *pItem = nullptr)
+lsResult list_pop_back_safe(small_list<T, internal_count> *pList, _Out_ T *pItem = nullptr)
 {
   lsResult result = lsR_Success;
 
@@ -454,7 +621,22 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_resize(small_list<T, internal_count> *pList, const size_t newSize, const T *pDefaultItem)
+T list_pop_back(small_list<T, internal_count> &l)
+{
+  lsAssert(l.count > 0);
+
+  l.count--;
+
+  if (l.count <= internal_count)
+    return std::move(l.values[l.count]);
+  else
+    return std::move(l.pExtra[l.count - internal_count]);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t internal_count>
+lsResult list_resize(small_list<T, internal_count> *pList, const size_t newSize, const T *pDefaultItem)
 {
   lsResult result = lsR_Success;
 
@@ -463,7 +645,7 @@ lsResult small_list_resize(small_list<T, internal_count> *pList, const size_t ne
   if (newSize > pList->count)
   {
     if (newSize > pList->extraCapacity + internal_count)
-      LS_ERROR_CHECK(small_list_reserve(pList, newSize));
+      LS_ERROR_CHECK(list_reserve(pList, newSize));
 
     size_t i = pList->count;
 
@@ -487,13 +669,13 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult small_list_resize(small_list<T, internal_count> *pList, const size_t newSize, const T &defaultItem)
+lsResult list_resize(small_list<T, internal_count> *pList, const size_t newSize, const T &defaultItem)
 {
-  return small_list_resize(pList, newSize, &defaultItem);
+  return list_resize(pList, newSize, &defaultItem);
 }
 
 template <typename T, size_t internal_count_src, size_t internal_count_dst>
-lsResult small_list_move(small_list<T, internal_count_src> *pSrc, const size_t srcIdx, const size_t count, small_list<T, internal_count_dst> *pDst, const size_t dstIdx)
+lsResult list_move(small_list<T, internal_count_src> *pSrc, const size_t srcIdx, const size_t count, small_list<T, internal_count_dst> *pDst, const size_t dstIdx)
 {
   lsResult result = lsR_Success;
 
@@ -504,7 +686,7 @@ lsResult small_list_move(small_list<T, internal_count_src> *pSrc, const size_t s
     goto epilogue;
 
   if (pDst->extraCapacity + internal_count_dst < dstIdx + count)
-    LS_ERROR_CHECK(small_list_reserve(pDst, dstIdx + count));
+    LS_ERROR_CHECK(list_reserve(pDst, dstIdx + count));
 
   if (pDst->count < dstIdx + count)
     pDst->count = dstIdx + count;
@@ -591,7 +773,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-void small_list_clear(small_list<T, internal_count> *pList)
+void list_clear(small_list<T, internal_count> *pList)
 {
   if (pList == nullptr)
     return;
@@ -607,7 +789,7 @@ void small_list_clear(small_list<T, internal_count> *pList)
 }
 
 template <typename T, size_t internal_count>
-void small_list_destroy(small_list<T, internal_count> *pList)
+void list_destroy(small_list<T, internal_count> *pList)
 {
   if (pList == nullptr)
     return;
@@ -626,7 +808,7 @@ void small_list_destroy(small_list<T, internal_count> *pList)
 }
 
 template <typename T, size_t internal_count, typename U>
-T * small_list_contains(small_list<T, internal_count> &list, const U &cmp)
+T *list_contains(small_list<T, internal_count> &list, const U &cmp)
 {
   for (auto &_i : list)
     if (_i == cmp)
@@ -636,7 +818,7 @@ T * small_list_contains(small_list<T, internal_count> &list, const U &cmp)
 }
 
 template <typename T, size_t internal_count, typename U>
-const T * small_list_contains(const small_list<T, internal_count> &list, const U &cmp)
+const T *list_contains(const small_list<T, internal_count> &list, const U &cmp)
 {
   for (auto &_i : list)
     if (_i == cmp)
@@ -646,17 +828,17 @@ const T * small_list_contains(const small_list<T, internal_count> &list, const U
 }
 
 template <typename T, size_t internal_count, typename U>
-T * small_list_contains(small_list<T, internal_count> *pList, const U &cmp)
+T *list_contains(small_list<T, internal_count> *pList, const U &cmp)
 {
   lsAssert(pList != nullptr);
-  return small_list_contains(*pList, cmp);
+  return list_contains(*pList, cmp);
 }
 
 template <typename T, size_t internal_count, typename U>
-const T * small_list_contains(const small_list<T, internal_count> *pList, const U &cmp)
+const T *list_contains(const small_list<T, internal_count> *pList, const U &cmp)
 {
   lsAssert(pList != nullptr);
-  return small_list_contains(*pList, cmp);
+  return list_contains(*pList, cmp);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -664,25 +846,25 @@ const T * small_list_contains(const small_list<T, internal_count> *pList, const 
 template<typename T, size_t internal_count>
 inline small_list<T, internal_count>::~small_list()
 {
-  small_list_destroy(this);
+  list_destroy(this);
 }
 
 template<typename T, size_t internal_count>
 inline T &small_list<T, internal_count>::operator[](const size_t index)
 {
-  return *small_list_get(this, index);
+  return *list_get(this, index);
 }
 
 template<typename T, size_t internal_count>
 inline const T &small_list<T, internal_count>::operator[](const size_t index) const
 {
-  return *small_list_get(this, index);
+  return *list_get(this, index);
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 template<typename T, size_t internal_count, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
-inline void small_list_sort(small_list<T, internal_count> &l)
+inline void list_sort(small_list<T, internal_count> &l)
 {
   struct _internal
   {
@@ -757,13 +939,13 @@ inline void small_list_sort(small_list<T, internal_count> &l)
 }
 
 template<typename T, size_t internal_count, typename TLessFunc = std::less<T>, typename TGreaterFunc = std::greater<T>>
-inline void small_list_sort_descending(small_list<T, internal_count> &l)
+inline void list_sort_descending(small_list<T, internal_count> &l)
 {
-  return small_list_sort<T, internal_count, TGreaterFunc, TLessFunc>(l);
+  return list_sort<T, internal_count, TGreaterFunc, TLessFunc>(l);
 }
 
 template<typename T, size_t internal_count, typename TComparable>
-inline void small_list_sort(small_list<T, internal_count> &l, const std::function<TComparable (const T &value)> &toComparable)
+inline void list_sort(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable)
 {
   struct _internal
   {
@@ -835,7 +1017,7 @@ inline void small_list_sort(small_list<T, internal_count> &l, const std::functio
 }
 
 template <typename T, size_t internal_count, typename TComparable, typename TGreater = std::greater<TComparable>>
-inline void small_list_to_heap_percolate_recursive(small_list<T, internal_count> &l, const size_t idx, const size_t count, const std::function<TComparable(const T &value)> &toComparable)
+inline void list_to_heap_percolate_recursive(small_list<T, internal_count> &l, const size_t idx, const size_t count, const std::function<TComparable(const T &value)> &toComparable)
 {
   TGreater _greater;
 
@@ -869,21 +1051,590 @@ inline void small_list_to_heap_percolate_recursive(small_list<T, internal_count>
   if (largest != idx)
   {
     std::swap(l[idx], l[largest]);
-    small_list_to_heap_percolate_recursive(l, largest, count, toComparable);
+    list_to_heap_percolate_recursive<T, internal_count, TComparable, TGreater>(l, largest, count, toComparable);
   }
 }
 
 template <typename T, size_t internal_count, typename TComparable, typename TGreater = std::greater<TComparable>>
-inline void small_list_to_heap(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable, const size_t count)
+inline void list_to_heap(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable, const size_t count)
 {
   for (int64_t i = count / 2 - 1; i >= 0; i--)
-    small_list_to_heap_percolate_recursive(l, i, count, toComparable);
+    list_to_heap_percolate_recursive<T, internal_count, TComparable, TGreater>(l, i, count, toComparable);
 }
 
 template <typename T, size_t internal_count, typename TComparable, typename TGreater = std::greater<TComparable>>
-inline void small_list_to_heap(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable)
+inline void list_to_heap(small_list<T, internal_count> &l, const std::function<TComparable(const T &value)> &toComparable)
 {
-  small_list_to_heap<T, internal_count, TComparable, TGreater>(l, toComparable, l.count);
+  list_to_heap<T, TComparable, TGreater>(l, toComparable, l.count);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+// Return index of first element for which l[i] < cmp is false or endIdx + 1 if for none.
+// See: https://en.cppreference.com/w/cpp/algorithm/lower_bound
+template <typename T, size_t internal_count, typename TCompare, typename TLessFunc = std::less<T>>
+inline size_t sorted_list_find_lower_bound(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1)
+{
+  TLessFunc less;
+
+  size_t first = startIdx;
+  const size_t last = endIdx == (size_t)-1 ? l.count : (endIdx + 1);
+  int64_t count = (int64_t)(last - first);
+
+  while (count > 0)
+  {
+    const size_t step = count / 2;
+    const size_t i = first + step;
+
+    if (less(l[i], cmp))
+    {
+      first = i + 1;
+      count -= step + 1;
+    }
+    else
+    {
+      count = step;
+    }
+  }
+
+  return first;
+}
+
+template <typename T, size_t internal_count, typename TCompare, typename TGreaterFunc = std::greater<T>>
+inline size_t descending_sorted_list_find_lower_bound(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1)
+{
+  return sorted_list_find_lower_bound<T, internal_count, TCompare, TGreaterFunc>(l, cmp, startIdx, endIdx);
+}
+
+// Return index of first element for which cmp < l[i] is true or endIdx + 1 if for none.
+// See: https://en.cppreference.com/w/cpp/algorithm/upper_bound
+template <typename T, size_t internal_count, typename TCompare, typename TLessFunc = std::less<T>>
+inline size_t sorted_list_find_upper_bound(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1)
+{
+  TLessFunc less;
+
+  size_t first = startIdx;
+  const size_t last = endIdx == (size_t)-1 ? l.count : (endIdx + 1);
+  int64_t count = (int64_t)(last - first);
+
+  while (count > 0)
+  {
+    const size_t step = count / 2;
+    const size_t it = first += step;
+
+    if (!less(cmp, l[it]))
+    {
+      first = it + 1;
+      count -= step + 1;
+    }
+    else
+    {
+      count = step;
+    }
+  }
+
+  return first;
+}
+
+template <typename T, size_t internal_count, typename TCompare, typename TGreaterFunc = std::greater<T>>
+inline size_t descending_sorted_list_find_upper_bound(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1)
+{
+  return sorted_list_find_upper_bound<T, internal_count, TCompare, TGreaterFunc>(l, cmp, startIdx, endIdx);
+}
+
+template <typename T, size_t internal_count, typename TCompare, typename TLessFunc = std::less<T>, typename TEqualsFunc = std::equal_to<T>>
+inline size_t sorted_list_find(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1)
+{
+  const size_t idx = sorted_list_find_lower_bound<T, internal_count, TCompare, TLessFunc>(l, cmp, startIdx, endIdx);
+
+  if (idx == l.count)
+    return (size_t)-1;
+
+  TEqualsFunc equals;
+
+  if (equals(l[idx], cmp))
+    return idx;
+
+  return (size_t)-1;
+}
+
+template <typename T, size_t internal_count, typename TCompare, typename TGreaterFunc = std::greater<T>, typename TEqualsFunc = std::equal_to<T>>
+inline size_t descending_sorted_list_find(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1)
+{
+  return sorted_list_find<T, internal_count, TCompare, TGreaterFunc, TEqualsFunc>(l, cmp, startIdx, endIdx);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t internal_count, typename TCompare, typename TLessFunc = std::less<T>, typename TEqualsFunc = std::equal_to<T>>
+inline bool sorted_list_remove_element(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1, _Out_opt_ T *pRemoved = nullptr)
+{
+  const size_t idx = sorted_list_find_lower_bound<T, internal_count, TCompare, TLessFunc>(l, cmp, startIdx, endIdx);
+
+  if (idx == l.count)
+    return false;
+
+  TEqualsFunc equals;
+
+  if (equals(l[idx], cmp))
+  {
+    if (pRemoved != nullptr)
+      *pRemoved = std::move(list_remove_at(l, idx));
+    else
+      list_remove_at(l, idx);
+
+    return true;
+  }
+
+  return false;
+}
+
+template <typename T, size_t internal_count, typename TCompare, typename TGreaterFunc = std::greater<T>, typename TEqualsFunc = std::equal_to<T>>
+inline bool descending_sorted_list_remove_element(small_list<T, internal_count> &l, const TCompare &cmp, const size_t startIdx = 0, const size_t endIdx = (size_t)-1, _Out_opt_ T *pRemoved = nullptr)
+{
+  return sorted_list_remove_element<T, internal_count, TCompare, TGreaterFunc, TEqualsFunc>(l, cmp, startIdx, endIdx, pRemoved);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t internal_count, typename TLessFunc = std::less<T>>
+inline bool list_is_sorted(const small_list<T, internal_count> &l)
+{
+  if (l.count == 0)
+    return true;
+
+  auto it = l.begin();
+  auto end = l.end();
+  TLessFunc less;
+
+  const auto *pVal = &(*it);
+  ++it;
+
+  while (it != end)
+  {
+    const T &v = *it;
+
+    if (!less(*pVal, v))
+      return false;
+
+    pVal = &v;
+    ++it;
+  }
+
+  return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+//template <typename T, size_t internal_count, typename TIndex, bool OutputData>
+//  requires (std::is_integral_v<TIndex>)
+//void _list_remove_sorted_indexes_internal(small_list<T, internal_count> &l, const TIndex *pIndexes, const size_t count, _Out_opt_ T *pOut = nullptr)
+//{
+//  lsAssert(l.count >= count);
+//  lsAssert(pIndexes != nullptr);
+//
+//  for (size_t i = 0; i < count; i++)
+//  {
+//    const size_t oldIdx = pIndexes[i];
+//    const size_t newIdx = oldIdx - i;
+//    lsAssert(oldIdx >= i);
+//    lsAssert(oldIdx - i < l.count - i);
+//
+//    if constexpr (!OutputData)
+//      l.pValues[oldIdx].~T();
+//    else
+//      new (&pOut[i]) T(std::move(l.pValues[oldIdx]));
+//
+//    size_t moveCount;
+//
+//    if (i + 1 == count)
+//    {
+//      moveCount = l.count - oldIdx - 1;
+//    }
+//    else
+//    {
+//      lsAssert(pIndexes[i + 1] >= i + 1);
+//      lsAssert(pIndexes[i + 1] - i - 1 >= newIdx);
+//
+//      moveCount = pIndexes[i + 1] - i - 1 - newIdx;
+//    }
+//
+//    if constexpr (std::is_trivially_move_constructible_v<T>)
+//    {
+//      lsMemmove(l.pValues + newIdx, l.pValues + oldIdx + 1, moveCount);
+//    }
+//    else
+//    {
+//      for (int64_t j = moveCount - 1; j >= 0; j--)
+//        new (l.pValues + newIdx + j) T(std::move(l.pValues[oldIdx + 1 + j]));
+//    }
+//  }
+//
+//  l.count -= count;
+//}
+//
+//template <typename T, size_t internal_count, typename TIndex>
+//  requires (std::is_integral_v<TIndex>)
+//void list_remove_sorted_indexes(small_list<T, internal_count> &l, const TIndex *pIndexes, const size_t count, _Out_opt_ T *pOut = nullptr)
+//{
+//  if (pOut == nullptr)
+//    _list_remove_sorted_indexes_internal<T, internal_count, TIndex, false>(l, pIndexes, count, pOut);
+//  else
+//    _list_remove_sorted_indexes_internal<T, internal_count, TIndex, true>(l, pIndexes, count, pOut);
+//}
+//
+//template <typename T, size_t internal_count, typename TIndex, typename TPtr, bool Move>
+//  requires (std::is_integral_v<TIndex>)
+//lsResult _list_insert_sorted_indexes_internal(small_list<T, internal_count> &l, const TIndex *pIndexes, const size_t count, TPtr pValues)
+//{
+//  lsResult result = lsR_Success;
+//
+//  lsAssert(pIndexes != nullptr || count == 0);
+//  lsAssert(pValues != nullptr || count == 0);
+//
+//  if (l.count + count > l.capacity)
+//    LS_ERROR_CHECK(list_reserve(&l, l.count + count));
+//
+//  if (count > 0)
+//  {
+//    const size_t nextOldIdx = pIndexes[count - 1];
+//    const size_t moveCount = l.count - nextOldIdx;
+//
+//    if constexpr (std::is_trivially_move_constructible_v<T>)
+//    {
+//      lsMemmove(l.pValues + nextOldIdx + count, l.pValues + nextOldIdx, moveCount);
+//    }
+//    else
+//    {
+//      for (int64_t j = moveCount - 1; j >= 0; j--)
+//        new (l.pValues + nextOldIdx + count + j) T(std::move(l.pValues[nextOldIdx + j]));
+//    }
+//  }
+//
+//  for (int64_t i = count - 1; i >= 0; i--)
+//  {
+//    const size_t oldIdx = pIndexes[i];
+//    const size_t newIdx = oldIdx + i;
+//
+//    if constexpr (Move)
+//      new (l.pValues + newIdx) T(std::move(pValues[i]));
+//    else
+//      l.pValues[newIdx] = pValues[i];
+//
+//    if (i > 0)
+//    {
+//      const size_t nextOldtIdx = pIndexes[i - 1];
+//      lsAssert(nextOldtIdx <= oldIdx);
+//      const size_t moveCount = oldIdx - nextOldtIdx;
+//
+//      if constexpr (std::is_trivially_move_constructible_v<T>)
+//      {
+//        lsMemmove(l.pValues + newIdx - moveCount, l.pValues + newIdx - moveCount - i, moveCount);
+//      }
+//      else
+//      {
+//        for (size_t j = 0; j < moveCount; j++)
+//          new (l.pValues + newIdx - moveCount) T(std::move(l.pValues[newIdx - moveCount - i + j]));
+//      }
+//    }
+//  }
+//
+//  l.count += count;
+//
+//epilogue:
+//  return result;
+//}
+//
+//template <typename T, size_t internal_count, typename TIndex>
+//  requires (std::is_integral_v<TIndex>)
+//lsResult list_insert_sorted_indexes_move(small_list<T, internal_count> &l, const TIndex *pIndexes, const size_t count, T *pValues)
+//{
+//  return _list_insert_sorted_indexes_internal<T, internal_count, TIndex, T *, true>(l, pIndexes, count, pValues);
+//}
+//
+//template <typename T, size_t internal_count, typename TIndex>
+//  requires (std::is_integral_v<TIndex>)
+//lsResult list_insert_sorted_indexes(small_list<T, internal_count> &l, const TIndex *pIndexes, const size_t count, const T *pValues)
+//{
+//  return _list_insert_sorted_indexes_internal<T, internal_count, TIndex, const T *, false>(l, pIndexes, count, pValues);
+//}
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t internal_count>
+inline T list_remove_at(small_list<T, internal_count> &l, const size_t index)
+{
+  lsAssert(l.count > index);
+
+  T ret(std::move(l[index]));
+
+  if (index < internal_count)
+  {
+    const size_t minInternal = lsMin(internal_count, l.count);
+    const size_t inInternalCount = minInternal - 1 - index;
+    lsMemmove(&l.values[index], &l.values[index + 1], inInternalCount);
+
+    if (l.count > internal_count)
+    {
+      new (&l.values[internal_count - 1]) T(std::move(l.pExtra[0]));
+
+      const size_t inExtraCount = (l.count - internal_count - 1);
+      lsMemmove(l.pExtra, l.pExtra + 1, inExtraCount);
+    }
+  }
+  else
+  {
+    const size_t inExternalCount = l.count - 1 - index;
+    const size_t extraIndex = index - internal_count;
+    lsMemmove(&l.pExtra[extraIndex], &l.pExtra[extraIndex + 1], inExternalCount);
+  }
+
+  l.count--;
+
+  return ret;
+}
+
+template <typename T, size_t internal_count, typename TComparable, typename TEqual = std::equal_to<TComparable>>
+inline bool list_remove_element(small_list<T, internal_count> &l, const TComparable &element, T *pOut = nullptr)
+{
+  TEqual _equal;
+
+  if (l.count == 0)
+    return false;
+
+  size_t index = (size_t)-1;
+
+  for (const auto &_elem : l)
+  {
+    ++index;
+
+    if constexpr (std::is_same_v<std::equal_to<TComparable>, TEqual> && !std::is_same_v<TComparable, T>) // workaround for comparing with a different non-comparable type.
+    {
+      if (_elem == element)
+      {
+        if (pOut == nullptr)
+          list_remove_at(l, index);
+        else
+          *pOut = list_remove_at(l, index);
+
+        return true;
+      }
+    }
+    else
+    {
+      if (_equal(_elem, element))
+      {
+        if (pOut == nullptr)
+          list_remove_at(l, index);
+        else
+          *pOut = list_remove_at(l, index);
+
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+template <typename T, size_t internal_count, typename TComparable, typename TEqual = std::equal_to<TComparable>>
+inline bool list_remove_all_matching_elements(small_list<T, internal_count> &l, const TComparable &element)
+{
+  TEqual _equal;
+
+  if (l.count == 0)
+    return false;
+
+  size_t index = l.count;
+  bool found = false;
+
+  for (const auto &_elem : l.IterateReverse())
+  {
+    --index;
+
+    if constexpr (std::is_same_v<std::equal_to<TComparable>, TEqual> && !std::is_same_v<TComparable, T>) // workaround for comparing with a different non-comparable type.
+    {
+      if (_elem == element)
+      {
+        list_remove_at(l, index);
+        found = true;
+      }
+    }
+    else
+    {
+      if (_equal(_elem, element))
+      {
+        list_remove_at(l, index);
+        found = true;
+      }
+    }
+  }
+
+  return found;
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+// This is functionally a near-copy of `_list_remove_insert_internal`.
+template <typename T, size_t internal_count>
+inline void list_move(small_list<T, internal_count> &l, const size_t srcIdx, const size_t targetIdx)
+{
+  lsAssert(l.count > srcIdx);
+  lsAssert(l.count > targetIdx);
+
+  if (srcIdx == targetIdx)
+    return;
+
+  T value(std::move(l[srcIdx]));
+
+  size_t moveStartIdx, moveEndIdx, moveCount;
+
+  if (srcIdx < targetIdx)
+  {
+    moveStartIdx = srcIdx + 1;
+    moveEndIdx = srcIdx;
+    moveCount = targetIdx - srcIdx;
+  }
+  else
+  {
+    moveStartIdx = targetIdx;
+    moveEndIdx = targetIdx + 1;
+    moveCount = srcIdx - targetIdx;
+  }
+
+  if (srcIdx < internal_count && targetIdx < internal_count)
+  {
+    lsMemmove(l.values + moveEndIdx, l.values + moveStartIdx, moveCount);
+    new (&l.values[targetIdx]) T(std::move(value));
+  }
+  else if (srcIdx >= internal_count && targetIdx >= internal_count)
+  {
+    const size_t moveStartExt = moveStartIdx - internal_count;
+    const size_t moveEndExt = moveEndIdx - internal_count;
+
+    lsMemmove(l.pExtra + moveEndExt, l.pExtra + moveStartExt, moveCount);
+    new (&l.pExtra[targetIdx - internal_count]) T(std::move(value));
+  }
+  else
+  {
+    const size_t internalMoveCount = internal_count - lsMax(moveStartIdx, moveEndIdx);
+    const size_t externalMoveCount = moveCount - internalMoveCount - 1;
+
+    if (srcIdx > targetIdx)
+    {
+      lsMemmove(l.pExtra + 1, l.pExtra, externalMoveCount);
+      new (&l.pExtra[0]) T(std::move(l.values[internal_count - 1]));
+      lsMemmove(l.values + moveEndIdx, l.values + moveStartIdx, internalMoveCount);
+      new (&l.values[targetIdx]) T(std::move(value));
+    }
+    else
+    {
+      lsMemmove(l.values + moveEndIdx, l.values + moveStartIdx, internalMoveCount);
+      new (&l.values[internal_count - 1]) T(std::move(l.pExtra[0]));
+      lsMemmove(l.pExtra, l.pExtra + 1, externalMoveCount);
+      new (&l.pExtra[targetIdx - internal_count]) T(std::move(value));
+    }
+  }
+}
+
+template <typename T, size_t internal_count, typename ValueType, bool MoveInsert>
+  requires (std::is_same_v<std::remove_cvref_t<ValueType>, T>)
+inline T _list_remove_insert_internal(small_list<T, internal_count> &l, const size_t removeIndex, ValueType value, const size_t insertIndex)
+{
+  lsAssert(l.count > removeIndex);
+  lsAssert(l.count > insertIndex);
+
+  T *pVal = &l[removeIndex];
+  T ret(std::move(*pVal));
+
+  if (removeIndex == insertIndex)
+  {
+    if constexpr (MoveInsert)
+      new (pVal) T(std::move(value));
+    else
+      *pVal = value;
+
+    return ret;
+  }
+
+  size_t moveStartIdx, moveEndIdx, moveCount;
+
+  if (removeIndex < insertIndex)
+  {
+    moveStartIdx = removeIndex + 1;
+    moveEndIdx = removeIndex;
+    moveCount = insertIndex - removeIndex;
+  }
+  else
+  {
+    moveStartIdx = insertIndex;
+    moveEndIdx = insertIndex + 1;
+    moveCount = removeIndex - insertIndex;
+  }
+
+  if (removeIndex < internal_count && insertIndex < internal_count)
+  {
+    lsMemmove(l.values + moveEndIdx, l.values + moveStartIdx, moveCount);
+
+    if constexpr (MoveInsert)
+      new (&l.values[insertIndex]) T(std::move(value));
+    else
+      l.values[insertIndex] = value;
+  }
+  else if (removeIndex >= internal_count && insertIndex >= internal_count)
+  {
+    const size_t moveStartExt = moveStartIdx - internal_count;
+    const size_t moveEndExt = moveEndIdx - internal_count;
+
+    lsMemmove(l.pExtra + moveEndExt, l.pExtra + moveStartExt, moveCount);
+
+    if constexpr (MoveInsert)
+      new (&l.pExtra[insertIndex - internal_count]) T(std::move(value));
+    else
+      l.pExtra[insertIndex - internal_count] = value;
+  }
+  else
+  {
+    const size_t internalMoveCount = internal_count - lsMax(moveStartIdx, moveEndIdx);
+    const size_t externalMoveCount = moveCount - internalMoveCount - 1;
+
+    if (removeIndex > insertIndex)
+    {
+      lsMemmove(l.pExtra + 1, l.pExtra, externalMoveCount);
+      new (&l.pExtra[0]) T(std::move(l.values[internal_count - 1]));
+      lsMemmove(l.values + moveEndIdx, l.values + moveStartIdx, internalMoveCount);
+
+      if constexpr (MoveInsert)
+        new (&l.values[insertIndex]) T(std::move(value));
+      else
+        l.values[insertIndex] = value;
+    }
+    else
+    {
+      lsMemmove(l.values + moveEndIdx, l.values + moveStartIdx, internalMoveCount);
+      new (&l.values[internal_count - 1]) T(std::move(l.pExtra[0]));
+      lsMemmove(l.pExtra, l.pExtra + 1, externalMoveCount);
+
+      if constexpr (MoveInsert)
+        new (&l.pExtra[insertIndex - internal_count]) T(std::move(value));
+      else
+        l.pExtra[insertIndex - internal_count] = value;
+    }
+  }
+
+  return ret;
+}
+
+template <typename T, size_t internal_count>
+inline T list_remove_insert(small_list<T, internal_count> &l, const size_t removeIndex, const T &value, const size_t insertIndex)
+{
+  return _list_remove_insert_internal<T, internal_count, const T &, false>(l, removeIndex, value, insertIndex);
+}
+
+template <typename T, size_t internal_count>
+inline T list_remove_insert(small_list<T, internal_count> &l, const size_t removeIndex, T &&value, const size_t insertIndex)
+{
+  return _list_remove_insert_internal<T, internal_count, T &&, true>(l, removeIndex, std::forward<T>(value), insertIndex);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -894,7 +1645,7 @@ inline small_list_iterator<T, internal_count>::small_list_iterator(small_list<T,
 { }
 
 template<typename T, size_t internal_count>
-inline T & small_list_iterator<T, internal_count>::operator*()
+inline T &small_list_iterator<T, internal_count>::operator*()
 {
   if (inInternal)
     return pList->values[subIndex];
@@ -903,7 +1654,7 @@ inline T & small_list_iterator<T, internal_count>::operator*()
 }
 
 template<typename T, size_t internal_count>
-inline const T & small_list_iterator<T, internal_count>::operator*() const
+inline const T &small_list_iterator<T, internal_count>::operator*() const
 {
   if (inInternal)
     return pList->values[subIndex];
@@ -961,12 +1712,12 @@ inline small_list_reverse_iterator<T, internal_count>::small_list_reverse_iterat
   pList(pList),
   position((size_t)lsMax((int64_t)0, (int64_t)pList->count - 1))
 {
-  inInternal = position > internal_count;
-  subIndex = inInternal ? position - internal_count : position;
+  inInternal = position < internal_count;
+  subIndex = inInternal ? position : position - internal_count;
 }
 
 template<typename T, size_t internal_count>
-inline T & small_list_reverse_iterator<T, internal_count>::operator*()
+inline T &small_list_reverse_iterator<T, internal_count>::operator*()
 {
   if (inInternal)
     return pList->values[subIndex];
@@ -975,7 +1726,7 @@ inline T & small_list_reverse_iterator<T, internal_count>::operator*()
 }
 
 template<typename T, size_t internal_count>
-inline const T & small_list_reverse_iterator<T, internal_count>::operator*() const
+inline const T &small_list_reverse_iterator<T, internal_count>::operator*() const
 {
   if (inInternal)
     return pList->values[subIndex];
@@ -1092,8 +1843,8 @@ inline small_list_const_reverse_iterator<T, internal_count>::small_list_const_re
   pList(pList),
   position((size_t)lsMax((int64_t)0, (int64_t)pList->count - 1))
 {
-  inInternal = position > internal_count;
-  subIndex = inInternal ? position - internal_count : position;
+  inInternal = position < internal_count;
+  subIndex = inInternal ? position : position - internal_count;
 }
 
 template<typename T, size_t internal_count>

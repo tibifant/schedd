@@ -78,6 +78,10 @@
 #define _In_Out_
 #endif
 
+#ifndef _Out_opt_
+#define _Out_opt_
+#endif
+
 #ifdef _MSC_VER
 #define LS_ALIGN(bytes) __declspec(align(bytes))
 #else
@@ -331,7 +335,7 @@ inline void lsZeroMemory(_Out_ T *pData, size_t count = 1)
   if (pData == nullptr)
     return;
 
-  memset(pData, 0, sizeof(T) * count);
+  memset(reinterpret_cast<void *>(pData), 0, sizeof(T) * count);
 }
 
 template <typename T>
@@ -340,7 +344,7 @@ inline void lsMemset(_Out_ T *pData, const size_t count, uint8_t data = 0)
   if (pData == nullptr)
     return;
 
-  memset(pData, (int)data, sizeof(T) * count);
+  memset(reinterpret_cast<void *>(pData), (int)data, sizeof(T) * count);
 }
 
 template <typename T>
@@ -1501,9 +1505,9 @@ void lsResetOutputFile();
 #endif
 void lsFlushOutput();
 
-#define print(text, ...) lsPrintToFunction(lsPrintCallback, text, __VA_ARGS__)
-#define print_error_line(text, ...) lsPrintToFunction(lsPrintErrorCallback, text, __VA_ARGS__)
-#define print_log_line(text, ...) lsPrintToFunction(lsPrintLogCallback, text, __VA_ARGS__)
+#define print(...) lsPrintToFunction(lsPrintCallback, __VA_ARGS__)
+#define print_error_line(...) lsPrintToFunction(lsPrintErrorCallback, __VA_ARGS__)
+#define print_log_line(...) lsPrintToFunction(lsPrintLogCallback, __VA_ARGS__)
 
 void print_to_dbgcon(const char *text);
 
@@ -1521,6 +1525,123 @@ inline lsResult lsToWide(_In_ const char *string, _Out_ wchar_t *out, const size
   return lsToWide(string, out, capacity, _unused);
 }
 #endif
+
+//////////////////////////////////////////////////////////////////////////
+
+inline bool lsCopyString(char *dst, const size_t dstSize, const char *src, const size_t srcSize)
+{
+  const size_t max = lsMin(dstSize, srcSize);
+
+  for (size_t i = 0; i < max; i++)
+  {
+    dst[i] = src[i];
+
+    if (src[i] == '\0')
+      return true;
+  }
+
+  if (max)
+    dst[max - 1] = '\0';
+
+  return false;
+}
+
+inline bool lsCopyString(wchar_t *dst, const size_t dstCount, const wchar_t *src, const size_t srcCount)
+{
+  const size_t max = lsMin(dstCount, srcCount);
+
+  for (size_t i = 0; i < max; i++)
+  {
+    dst[i] = src[i];
+
+    if (src[i] == '\0')
+      return true;
+  }
+
+  if (max)
+    dst[max - 1] = '\0';
+
+  return false;
+}
+
+template <size_t DstSize, size_t SrcSize>
+bool lsCopyString(char(&dst)[DstSize], const char(&src)[SrcSize])
+{
+  return lsCopyString(dst, DstSize, src, SrcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(char(&dst)[DstSize], const char *src, const size_t srcSize)
+{
+  return lsCopyString(dst, DstSize, src, srcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(char(&dst)[DstSize], const char *src)
+{
+  return lsCopyString(dst, DstSize, src, (size_t)-1);
+}
+
+template <size_t DstSize, size_t SrcSize>
+bool lsCopyString(wchar_t(&dst)[DstSize], const wchar_t(&src)[SrcSize])
+{
+  return lsCopyString(dst, DstSize, src, SrcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(wchar_t(&dst)[DstSize], const wchar_t *src, const size_t srcSize)
+{
+  return lsCopyString(dst, DstSize, src, srcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(wchar_t(&dst)[DstSize], const wchar_t *src)
+{
+  return lsCopyString(dst, DstSize, src, (size_t)-1);
+}
+
+inline bool lsStringEquals(const char *a, const size_t aSize, const char *b, const size_t bSize)
+{
+  return strncmp(a, b, lsMin(aSize, bSize)) == 0;
+}
+
+template <size_t ASize, size_t BSize>
+bool lsStringEquals(const char(&a)[ASize], const char(&b)[BSize])
+{
+  return lsStringEquals(a, ASize, b, BSize);
+}
+
+template <size_t ASize, typename T>
+std::enable_if_t<std::is_same<char *, T>::value || std::is_same<const char *, T>::value, bool> lsStringEquals(const char(&a)[ASize], T b)
+{
+  return lsStringEquals(a, ASize, b, ASize);
+}
+
+template <size_t ASize>
+bool lsStringEquals(const char(&a)[ASize], const char *b, const size_t bSize)
+{
+  return lsStringEquals(a, ASize, b, bSize);
+}
+
+inline size_t lsStringLength(const char *text, const size_t maxCount)
+{
+  if (text == nullptr)
+    return 0;
+  
+  return strnlen(text, maxCount);
+}
+
+template <size_t Size>
+size_t lsStringLength(const char(&text)[Size])
+{
+  return lsStringLength(text, Size);
+}
+
+template <typename T>
+std::enable_if_t<std::is_same<char *, T>::value || std::is_same<const char *, T>::value, size_t> lsStringLength(T text)
+{
+  return strlen(text);
+}
 
 //////////////////////////////////////////////////////////////////////////
 

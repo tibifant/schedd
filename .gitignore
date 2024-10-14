@@ -269,7 +269,7 @@ Makefile
 *.make
 
 # VS Code
-**/.*vscode
+**/*.vscode
 
 # Additional Files
 *.o

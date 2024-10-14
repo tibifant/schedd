@@ -78,10 +78,10 @@ int32_t main(void)
   deserialzieEventsPool();
 
   //user poepe;
-  //strncpy(poepe.username, "poepe", LS_ARRAYSIZE(poepe.username));
+  //lsCopyString(poepe.username, "poepe");
   //const time_span_t pupusTime = time_span_from_minutes(120);
   //for (size_t i = 0; i < DaysPerWeek; i++)
-  //  local_list_add(&poepe.availableTimePerDay, pupusTime);
+  //  list_add(&poepe.availableTimePerDay, pupusTime);
   //
   //add_new_user(poepe);
 
@@ -134,10 +134,10 @@ void async_tasks()
       if (!_IsRunning)
         return;
 
-#ifdef _WIN32
+#ifdef LS_PLATFORM_WINDOWS
       Sleep(1000);
 #else
-#fail Sleep Not Implemented.
+      sleep(1000);
 #endif
     }
 
@@ -232,11 +232,11 @@ void writeUsersPoolToFile()
       element[_Index] = _item.index;
       element[_Username] = _item.pItem->username;
 
-      for (int8_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
-        element[_AvailableTimePerDay][i] = _item.pItem->availableTimePerDay[i];
+      for (size_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
+        element[_AvailableTimePerDay][(int64_t)i] = _item.pItem->availableTimePerDay[i];
 
-      for (int8_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
-        element[_CompletedTasks][i] = _item.pItem->completedTasksForCurrentDay[i];
+      for (size_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
+        element[_CompletedTasks][(int64_t)i] = _item.pItem->completedTasksForCurrentDay[i];
 
       jsonOut[idx] = std::move(element);
       idx++;
@@ -271,8 +271,8 @@ void writeEventsPoolToFile()
       element[_Name] = _item.pItem->name;
       element[_DurationTimeSpan] = _item.pItem->durationTimeSpan;
 
-      for (int8_t i = 0; i < _item.pItem->userIds.count; i++)
-        element[_UserIds][i] = _item.pItem->userIds[i];
+      for (size_t i = 0; i < _item.pItem->userIds.count; i++)
+        element[_UserIds][(int64_t)i] = _item.pItem->userIds[i];
 
       element[_Weight] = _item.pItem->weight;
       element[_WeightFactor] = _item.pItem->weightGrowthFactor;
@@ -321,14 +321,14 @@ void deserializeUsersPool()
     if (username.length() == 0)
       print_error_line("Filecontent of ", _FileNameUsers, " invalid: Lenght of username is 0.");
 
-    strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
+    lsCopyString(usr.username, username.c_str());
 
-    for (const auto _t : _item[_AvailableTimePerDay])
-      local_list_add(&usr.availableTimePerDay, _t.i());
+    for (const auto &_t : _item[_AvailableTimePerDay])
+      list_add(&usr.availableTimePerDay, _t.i());
 
     if (_item.has(_CompletedTasks))
       for (const auto &_i : _item[_CompletedTasks])
-        local_list_add(&usr.completedTasksForCurrentDay, (size_t)_i.i());
+        list_add(&usr.completedTasksForCurrentDay, (size_t)_i.i());
 
     pool_add(&_Users, &usr, &index);
   }
@@ -360,13 +360,13 @@ void deserialzieEventsPool()
     if (name.length() == 0)
       print_error_line("Filecontent of ", _FileNameEvents, " invalid: Lenght of event name is 0.");
 
-    strncpy(evnt.name, name.c_str(), LS_ARRAYSIZE(evnt.name));
+    lsCopyString(evnt.name, name.c_str());
 
     evnt.durationTimeSpan = _item[_DurationTimeSpan].i();
 
     if (_item.has(_UserIds))
-      for (const auto _i : _item[_UserIds])
-        local_list_add(&evnt.userIds, (size_t)_i.i());
+      for (const auto &_i : _item[_UserIds])
+        list_add(&evnt.userIds, (size_t)_i.i());
     
     evnt.weight = (uint64_t)_item[_Weight].i();
     evnt.weightGrowthFactor = (uint64_t)_item[_WeightFactor];
@@ -440,7 +440,7 @@ crow::response handle_user_registration(const crow::request &req)
   if (!(user_name_exists(username.c_str())))
     return crow::response(crow::status::BAD_REQUEST);
 
-  strncpy(usr.username, username.c_str(), LS_ARRAYSIZE(usr.username));
+  lsCopyString(usr.username, username.c_str());
 
   // Available Time per Day
   for (const auto &_item : body["availableTime"])
@@ -449,7 +449,7 @@ crow::response handle_user_registration(const crow::request &req)
       return crow::response(crow::status::BAD_REQUEST);
 
     lsAssert(_item.i() >= 0);
-    local_list_add(&usr.availableTimePerDay, time_span_from_minutes(_item.i()));
+    list_add(&usr.availableTimePerDay, time_span_from_minutes(_item.i()));
   }
 
   if (LS_FAILED(add_new_user(usr)))
@@ -485,8 +485,8 @@ crow::response handle_user_time_info(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < availableTime.count; i++)
-    ret[i] = minutes_from_time_span(availableTime[i]);
+  for (size_t i = 0; i < availableTime.count; i++)
+    ret[(int64_t)i] = minutes_from_time_span(availableTime[i]);
 
   return crow::response(crow::status::OK, ret);
 }
@@ -506,8 +506,8 @@ crow::response handle_user_edit(const crow::request &req)
 
   local_list<time_span_t, DaysPerWeek> availableTime;
 
-  for (const auto _item : body["availableTime"])
-    if (LS_FAILED(local_list_add(&availableTime, time_span_from_minutes(_item.i()))))
+  for (const auto &_item : body["availableTime"])
+    if (LS_FAILED(list_add(&availableTime, time_span_from_minutes(_item.i()))))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   if (LS_FAILED(replace_available_time(userId, availableTime)))
@@ -540,7 +540,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
     return crow::response(crow::status::FORBIDDEN);
   
   for (const auto &b : body["possibleExecutionDays"])
-    if (LS_FAILED(local_list_add(&executionDays, b.b())))
+    if (LS_FAILED(list_add(&executionDays, b.b())))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
   for (const auto &i : body["userIds"])
@@ -550,7 +550,7 @@ crow::response handle_task_creation_modification(const crow::request &req, const
     if (i.i() < 0)
       return crow::response(crow::status::BAD_REQUEST);;
 
-    if (LS_FAILED(local_list_add(&userIds, (size_t)i.i())))
+    if (LS_FAILED(list_add(&userIds, (size_t)i.i())))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
 
@@ -558,26 +558,23 @@ crow::response handle_task_creation_modification(const crow::request &req, const
 
   for (const auto &_item : userIds)
   {
-    if (LS_FAILED(local_list_add(&evnt.userIds, _item)))
+    if (LS_FAILED(list_add(&evnt.userIds, _item)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
   }
 
   if (eventName.length() == 0 || eventName.length() > LS_ARRAYSIZE(evnt.name))
     return crow::response(crow::status::BAD_REQUEST);
 
-  strncpy(evnt.name, eventName.c_str(), LS_ARRAYSIZE(evnt.name));
-
-  if (repetitionInDays < 0)
-    return crow::response(crow::status::BAD_REQUEST);
+  lsCopyString(evnt.name, eventName.c_str());
 
   evnt.repetitionTimeSpan = time_span_from_days(repetitionInDays);
 
-  if (weight < 0 || weight > 100)
+  if (weight > 100)
     return crow::response(crow::status::BAD_REQUEST);
 
   evnt.weight = weight;
 
-  if (weightFactor < 0 || weightFactor > 100)
+  if (weightFactor > 100)
     return crow::response(crow::status::BAD_REQUEST);
 
   evnt.weightGrowthFactor = weightFactor;
@@ -639,12 +636,13 @@ crow::response handle_user_schedule(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < currentTasks.count; i++)
+  for (size_t i = 0; i < currentTasks.count; i++)
   {
-    ret[i]["name"] = currentTasks[i].name;
-    ret[i]["duration"] = currentTasks[i].durationInMinutes;
-    ret[i]["id"] = currentTasks[i].id;
-    ret[i]["isCompleted"] = currentTasks[i].isCompleted;
+    auto &item = ret[(int64_t)i]; // is this legal? or does the underlying memory move...
+    item["name"] = currentTasks[i].name;
+    item["duration"] = currentTasks[i].durationInMinutes;
+    item["id"] = currentTasks[i].id;
+    item["isCompleted"] = currentTasks[i].isCompleted;
   }
 
   return crow::response(crow::status::OK, ret);
@@ -671,11 +669,12 @@ crow::response handle_event_search(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < searchResults.count; i++)
+  for (size_t i = 0; i < searchResults.count; i++)
   {
-    ret[i]["name"] = searchResults[i].name;
-    ret[i]["duration"] = searchResults[i].durationInMinutes;
-    ret[i]["id"] = searchResults[i].id;
+    auto &item = ret[(int64_t)i]; // is this legal? or does the underlying memory move...
+    item["name"] = searchResults[i].name;
+    item["duration"] = searchResults[i].durationInMinutes;
+    item["id"] = searchResults[i].id;
   }
 
   return crow::response(crow::status::OK, ret);
@@ -702,10 +701,11 @@ crow::response handle_user_search(const crow::request &req)
 
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < searchResults.count; i++)
+  for (size_t i = 0; i < searchResults.count; i++)
   {
-    ret[i]["name"] = searchResults[i].name;
-    ret[i]["id"] = searchResults[i].id;
+    auto &item = ret[(int64_t)i]; // is this legal? or does the underlying memory move...
+    item["name"] = searchResults[i].name;
+    item["id"] = searchResults[i].id;
   }
 
   return crow::response(crow::status::OK, ret);
@@ -764,8 +764,8 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["duration"] = minutes_from_time_span(evnt.durationTimeSpan);
 
-  for (int8_t i = 0; i < DaysPerWeek; i++)
-    ret["executionDays"][i] = !!(evnt.possibleExecutionDays & (1 << i));
+  for (size_t i = 0; i < DaysPerWeek; i++)
+    ret["executionDays"][(int64_t)i] = !!(evnt.possibleExecutionDays & (1 << i));
 
   ret["repetition"] = days_from_time_span(evnt.repetitionTimeSpan);
   ret["weight"] = evnt.weight;
@@ -773,7 +773,7 @@ crow::response handle_task_details(const crow::request &req)
 
   ret["users"] = crow::json::rvalue(crow::json::type::List);
 
-  for (int8_t i = 0; i < evnt.userIds.count; i++)
+  for (size_t i = 0; i < evnt.userIds.count; i++)
   {
     user_info info;
 

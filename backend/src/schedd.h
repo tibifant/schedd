@@ -6,6 +6,8 @@
 #include "pool.h"
 #include "small_list.h"
 
+#include <atomic>
+
 extern std::atomic<size_t> _UserDataEpoch;
 extern std::atomic<size_t> _EventDataEpoch;
 extern std::atomic<size_t> _ExplicitlyRequestsRescheduleEpoch;
