@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 #include <type_traits>
-#include <string>
+#include <cstring>
+#include <utility>
 #include <assert.h>
 
 namespace utf8
@@ -92,6 +93,9 @@ constexpr inline T _clamp(const T &a, const T &min, const T &max)
 
   return a;
 }
+
+template <typename T, size_t TCount>
+inline constexpr size_t _arraysize(const T(&)[TCount]) { return TCount; }
 
 template <typename T>
 constexpr inline T _isEquivalentIntegerTypeSigned(T) { return std::is_signed_v<T>; }
@@ -197,11 +201,13 @@ struct _isFormattable_t<char *>
   static constexpr bool value = true;
 };
 
+#ifdef WIN32
 template <>
 struct _isFormattable_t<wchar_t *>
 {
   static constexpr bool value = true;
 };
+#endif
 
 template <>
 struct _isFormattable_t<const char *>
@@ -209,11 +215,13 @@ struct _isFormattable_t<const char *>
   static constexpr bool value = true;
 };
 
+#ifdef WIN32
 template <>
 struct _isFormattable_t<const wchar_t *>
 {
   static constexpr bool value = true;
 };
+#endif
 
 template <size_t count>
 struct _isFormattable_t<char[count]>
@@ -221,6 +229,7 @@ struct _isFormattable_t<char[count]>
   static constexpr bool value = true;
 };
 
+#ifdef WIN32
 template <size_t count>
 struct _isFormattable_t<wchar_t[count]>
 {
@@ -233,6 +242,7 @@ struct _isListFormattable_t<T[count]>
   static constexpr bool value = !std::is_same<T, char>::value && !std::is_same<T, wchar_t>::value &&_isFormattable_t<T>::value;
   typedef T value_type;
 };
+#endif
 
 template <typename T>
 inline constexpr bool _isFormattable(const T &)
@@ -389,22 +399,9 @@ struct sformatState
 
   sformatState() = default;
   sformatState(const sformatState &copy) = default;
+  inline sformatState & operator = (const sformatState &move) = default;
 
-  // This should only be used to initialize the static formatters, as it actually MOVES!
-  inline sformatState & operator = (const sformatState &copy)
-  {
-    new (this) sformatState(copy);
-
-    textStart = nullptr;
-    textCapacity = 0;
-    textPosition = 0;
-    inFormatStatement = false;
-    pAllocator = &_default_sformat_allocator;
-    
-    return *this;
-  }
-
-  inline void SetTo(const sformatState &copy)
+  inline void SetTo(const sformatState &cp)
   {
     bool previousInFormatStatement = inFormatStatement;
     sformat_allocator *pPreviousAllocator = pAllocator;
@@ -412,7 +409,7 @@ struct sformatState
     size_t previousTextCapacity = textCapacity;
     size_t previousTextPosition = textPosition;
 
-    new (this) sformatState(copy);
+    *this = cp;
 
     inFormatStatement = previousInFormatStatement;
     pAllocator = pPreviousAllocator;
@@ -448,6 +445,9 @@ inline size_t sformat_GetMaxBytes(const T &value, const sformatState &fs)
     case FSO_NegativeOrFill:
     case FSO_NegativeOnly:
       signChars = 1;
+      break;
+
+    default:
       break;
     }
 
@@ -620,10 +620,12 @@ inline size_t sformat_GetCount(const char &value, const sformatState &)
   return 1;
 }
 
+#ifdef WIN32
 inline size_t sformat_GetMaxBytes(const wchar_t &, const sformatState &)
 {
   return 3; // i.e. 0x2026 will become 0xE2 0x80 0xA6 in UTF-8
 }
+#endif
 
 size_t _sformat_GetStringCount(const char *value, const size_t length);
 
@@ -653,6 +655,7 @@ inline size_t sformat_GetMaxBytes(T value, const sformatState &fs)
   return _clamp(strlen(value), fs.minChars * 4, fs.maxChars * 4);
 }
 
+#ifdef WIN32
 template <typename T, typename std::enable_if<std::is_same<T, const wchar_t *>::value>::type * = nullptr>
 inline size_t sformat_GetMaxBytes(const T value, const sformatState &fs)
 {
@@ -670,6 +673,7 @@ inline size_t sformat_GetMaxBytes(const T value, const sformatState &fs)
 
   return _clamp(wcslen(value) * _maxUtf16InUtf8Chars + 1, fs.minChars * 4, fs.maxChars * 4);
 }
+#endif
 
 template <size_t TCount>
 inline size_t sformat_GetCount(char(&value)[TCount], const sformatState &fs)
@@ -683,11 +687,13 @@ inline size_t sformat_GetMaxBytes(char(&)[TCount], const sformatState &fs)
   return _clamp(TCount, fs.minChars * 4, fs.maxChars * 4);
 }
 
+#ifdef WIN32
 template <size_t TCount>
 inline size_t sformat_GetMaxBytes(wchar_t(&)[TCount], const sformatState &fs)
 {
   return _clamp(TCount * _maxUtf16InUtf8Chars + 1, fs.minChars * 4, fs.maxChars * 4);
 }
+#endif
 
 template <size_t TCount>
 inline size_t sformat_GetCount(const char(&value)[TCount], const sformatState &fs)
@@ -701,11 +707,13 @@ inline size_t sformat_GetMaxBytes(const char(&)[TCount], const sformatState &fs)
   return _clamp(TCount, fs.minChars * 4, fs.maxChars * 4);
 }
 
+#ifdef WIN32
 template <size_t TCount>
 inline size_t sformat_GetMaxBytes(const wchar_t(&)[TCount], const sformatState &fs)
 {
   return _clamp(TCount * _maxUtf16InUtf8Chars + 1, fs.minChars * 4, fs.maxChars * 4);
 }
+#endif
 
 template <typename T, typename std::enable_if<std::is_integral<T>::value && !std::is_signed<T>::value && !std::is_same<bool, T>::value>::type * = nullptr>
 inline size_t sformat_GetCount(const T &value, const sformatState &fs)
@@ -723,6 +731,9 @@ inline size_t sformat_GetCount(const T &value, const sformatState &fs)
     case FSO_Both:
     case FSO_NegativeOrFill:
       signChars = 1;
+      break;
+
+    default:
       break;
     }
 
@@ -826,6 +837,9 @@ inline size_t sformat_GetCount(const T &value, const sformatState &fs)
       if (value < 0)
         signChars = 1;
       break;
+
+    default:
+      break;
     }
 
     const T negativeAbs = value < 0 ? value : -value; // because otherwise the minimum value couldn't be converted to a valid signed equivalent.
@@ -889,7 +903,7 @@ inline size_t sformat_GetCount(const T &value, const sformatState &fs)
 #pragma warning (pop)
 #endif
 
-inline size_t sformat_GetMaxBytes(const float_t, const sformatState &fs)
+inline size_t sformat_GetMaxBytes(const float, const sformatState &fs)
 {
   constexpr size_t maxDigits = sizeof("340282346638528859811704183484516925440") - 1;
 
@@ -899,7 +913,7 @@ inline size_t sformat_GetMaxBytes(const float_t, const sformatState &fs)
     return _clamp<size_t>(1 /* sign */ + maxDigits + _sformat_GetDigitGroupingCharCount(maxDigits, fs) * fs.digitGroupingCharLength + fs.decimalSeparatorLength + fs.fractionalDigits, fs.minChars, fs.maxChars);
 }
 
-inline size_t sformat_GetMaxBytes(const double_t, const sformatState &fs)
+inline size_t sformat_GetMaxBytes(const double, const sformatState &fs)
 {
   constexpr size_t maxDigits = sizeof("179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368") - 1;
 
@@ -972,8 +986,10 @@ inline size_t _sformat_Append(const char value, const sformatState &fs, char *te
 
 size_t _sformat_Append(const int64_t value, const sformatState &fs, char *text);
 size_t _sformat_Append(const uint64_t value, const sformatState &fs, char *text);
-size_t _sformat_Append(const float_t value, const sformatState &fs, char *text);
-size_t _sformat_Append(const double_t value, const sformatState &fs, char *text);
+size_t _sformat_Append(const float value, const sformatState &fs, char *text);
+size_t _sformat_Append(const double value, const sformatState &fs, char *text);
+
+#ifdef WIN32
 size_t _sformat_Append(const wchar_t value, const sformatState &fs, char *text);
 
 size_t _sformat_AppendWStringWithLength(const wchar_t *string, const size_t charCount, const sformatState &fs, char *text);
@@ -1007,6 +1023,7 @@ inline size_t _sformat_Append(const wchar_t(&value)[TCount], const sformatState 
 {
   return _sformat_AppendWStringWithLength(value, wcsnlen_s(value, TCount), fs, text);
 }
+#endif
 
 size_t _sformat_AppendBool(const bool value, const sformatState &fs, char *text);
 
@@ -1016,7 +1033,9 @@ inline size_t _sformat_Append(const T value, const sformatState &fs, char *text)
   return _sformat_AppendBool(value, fs, text);
 }
 
-inline size_t _sformat_Append(const signed long value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
+#ifdef _MSC_VER
+inline size_t _sformat_Append(const signed long value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); static_assert(!std::is_same_v<signed long, int64_t>); }
+#endif
 inline size_t _sformat_Append(const signed int value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
 inline size_t _sformat_Append(const signed short value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
 inline size_t _sformat_Append(const signed char value, const sformatState &fs, char *text) { return _sformat_Append((int64_t)value, fs, text); }
@@ -1211,8 +1230,8 @@ struct _sformatTypeInstance_Wrapper
 
 _M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FInt, int64_t);
 _M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FUInt, uint64_t);
-_M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FFloat, float_t);
-_M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FDouble, double_t);
+_M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FFloat, float);
+_M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FDouble, double);
 _M_FORMAT_DEFINE_SPECIALIZED_ALIAS(FBool, bool);
 
 template <typename T, typename ... Args>
