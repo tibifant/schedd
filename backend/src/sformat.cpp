@@ -1,5 +1,7 @@
 #include "sformat.h"
 
+#include <cstdlib>
+
 //////////////////////////////////////////////////////////////////////////
 
 // dependency: dragonbox:
@@ -3694,23 +3696,24 @@ static const class _sformat_LocaleSetter
 public:
   _sformat_LocaleSetter()
   {
-    new (&sformat_GlobalState) sformatState();
+    sformat_GlobalState = sformatState();
 
+#ifdef WIN32
     wchar_t wbuffer[128];
     int32_t size = 0;
 
     BOOL bFalse = FALSE;
 
-    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SDECIMAL, wbuffer, (int32_t)std::size(wbuffer));
-    sformat_GlobalState.decimalSeparatorLength = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.decimalSeparatorChars, (int32_t)std::size(sformat_GlobalState.decimalSeparatorChars), nullptr, &bFalse);
+    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SDECIMAL, wbuffer, (int32_t)_arraysize(wbuffer));
+    sformat_GlobalState.decimalSeparatorLength = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.decimalSeparatorChars, (int32_t)_arraysize(sformat_GlobalState.decimalSeparatorChars), nullptr, &bFalse);
     sformat_GlobalState.decimalSeparatorLength -= (size_t)!!sformat_GlobalState.decimalSeparatorLength;
 
-    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_STHOUSAND, wbuffer, (int32_t)std::size(wbuffer));
-    sformat_GlobalState.digitGroupingCharLength = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.digitGroupingChars, (int32_t)std::size(sformat_GlobalState.digitGroupingChars), nullptr, &bFalse);
+    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_STHOUSAND, wbuffer, (int32_t)_arraysize(wbuffer));
+    sformat_GlobalState.digitGroupingCharLength = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.digitGroupingChars, (int32_t)_arraysize(sformat_GlobalState.digitGroupingChars), nullptr, &bFalse);
     sformat_GlobalState.digitGroupingCharLength -= (size_t)!!sformat_GlobalState.digitGroupingCharLength;
 
     char buffer[32];
-    size = GetLocaleInfoA(LOCALE_NAME_USER_DEFAULT, LOCALE_SGROUPING, buffer, (int32_t)std::size(buffer));
+    size = GetLocaleInfoA(LOCALE_NAME_USER_DEFAULT, LOCALE_SGROUPING, buffer, (int32_t)_arraysize(buffer));
 
     if (buffer[0] == '4')
       sformat_GlobalState.digitGroupingOption = FDGO_TenThousand;
@@ -3719,20 +3722,21 @@ public:
     else
       sformat_GlobalState.digitGroupingOption = FDGO_Thousand;
 
-    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNEGINFINITY, wbuffer, (int32_t)std::size(wbuffer));
-    sformat_GlobalState.negativeInfinityBytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.negativeInfinityChars, (int32_t)std::size(sformat_GlobalState.negativeInfinityChars), nullptr, &bFalse);
+    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNEGINFINITY, wbuffer, (int32_t)_arraysize(wbuffer));
+    sformat_GlobalState.negativeInfinityBytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.negativeInfinityChars, (int32_t)_arraysize(sformat_GlobalState.negativeInfinityChars), nullptr, &bFalse);
     sformat_GlobalState.negativeInfinityCount = _sformat_GetStringCount(sformat_GlobalState.negativeInfinityChars, sformat_GlobalState.negativeInfinityBytes);
     sformat_GlobalState.negativeInfinityBytes -= (size_t)!!sformat_GlobalState.negativeInfinityBytes;
 
-    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SPOSINFINITY, wbuffer, (int32_t)std::size(wbuffer));
-    sformat_GlobalState.infinityBytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.infinityChars, (int32_t)std::size(sformat_GlobalState.infinityChars), nullptr, &bFalse);
+    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SPOSINFINITY, wbuffer, (int32_t)_arraysize(wbuffer));
+    sformat_GlobalState.infinityBytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.infinityChars, (int32_t)_arraysize(sformat_GlobalState.infinityChars), nullptr, &bFalse);
     sformat_GlobalState.infinityCount = _sformat_GetStringCount(sformat_GlobalState.infinityChars, sformat_GlobalState.infinityBytes);
     sformat_GlobalState.infinityBytes -= (size_t)!!sformat_GlobalState.infinityBytes;
 
-    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAN, wbuffer, (int32_t)std::size(wbuffer));
-    sformat_GlobalState.nanBytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.nanChars, (int32_t)std::size(sformat_GlobalState.nanChars), nullptr, &bFalse);
+    size = GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAN, wbuffer, (int32_t)_arraysize(wbuffer));
+    sformat_GlobalState.nanBytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, size, sformat_GlobalState.nanChars, (int32_t)_arraysize(sformat_GlobalState.nanChars), nullptr, &bFalse);
     sformat_GlobalState.nanCount = _sformat_GetStringCount(sformat_GlobalState.nanChars, sformat_GlobalState.nanBytes);
     sformat_GlobalState.nanBytes -= (size_t)!!sformat_GlobalState.nanBytes;
+#endif
   }
 
 } _sformat_SetLocale;
@@ -3818,10 +3822,15 @@ size_t _sformat_Append(const int64_t value, const sformatState &fs, char *text)
 
       break;
     }
+
+    default:
+    {
+      break;
+    }
     }
 
     char buffer[19];
-    char *pBuffer = &buffer[std::size(buffer) - 1];
+    char *pBuffer = &buffer[_arraysize(buffer) - 1];
 
     int64_t negativeAbs = value < 0 ? value : -value; // because otherwise the minimum value couldn't be converted to a valid signed equivalent.
 
@@ -3902,10 +3911,13 @@ size_t _sformat_Append(const uint64_t value, const sformatState &fs, char *text)
         signChar = fs.fillCharacter;
 
       break;
+
+    default:
+      break;
     }
 
     char buffer[20];
-    char *pBuffer = &buffer[std::size(buffer) - 1];
+    char *pBuffer = &buffer[_arraysize(buffer) - 1];
     uint64_t tmp = value;
 
     while (tmp >= 100)
@@ -3940,7 +3952,7 @@ size_t _sformat_Append(const uint64_t value, const sformatState &fs, char *text)
   case FBO_Hexadecimal:
   {
     char buffer[16];
-    char *pBuffer = &buffer[std::size(buffer) - 1];
+    char *pBuffer = &buffer[_arraysize(buffer) - 1];
     const size_t lowerCaseCorrectionValue = (!fs.hexadecimalUpperCase) * ('a' - 'A') - 0xA;
     uint64_t tmp = value;
     size_t numberBytes = 0;
@@ -3971,7 +3983,7 @@ size_t _sformat_Append(const uint64_t value, const sformatState &fs, char *text)
   case FBO_Binary:
   {
     char buffer[64];
-    char *pBuffer = &buffer[std::size(buffer) - 1];
+    char *pBuffer = &buffer[_arraysize(buffer) - 1];
 
     uint64_t tmp = value;
     size_t numberBytes = 0;
@@ -4052,10 +4064,15 @@ size_t _sformat_HandleNonzeroFloat(const bool isNegative, const uint64_t signifi
 
     break;
   }
+
+  default:
+  {
+    break;
+  }
   }
 
   char buffer[21];
-  char *pBuffer = &buffer[std::size(buffer) - 1];
+  char *pBuffer = &buffer[_arraysize(buffer) - 1];
 
   // Serialize significand.
   {
@@ -4145,7 +4162,7 @@ size_t _sformat_HandleNonzeroFloat(const bool isNegative, const uint64_t signifi
     int64_t scientificExponent = exponent + numberBytes - 1;
 
     char exponentBuffer[13];
-    char *pExponentBuffer = &exponentBuffer[std::size(exponentBuffer) - 1];
+    char *pExponentBuffer = &exponentBuffer[_arraysize(exponentBuffer) - 1];
     size_t exponentBytes = 0;
 
     {
@@ -4181,7 +4198,7 @@ size_t _sformat_HandleNonzeroFloat(const bool isNegative, const uint64_t signifi
   }
 }
 
-size_t _sformat_Append(const float_t value, const sformatState &fs, char *text)
+size_t _sformat_Append(const float value, const sformatState &fs, char *text)
 {
   typedef decltype(value) Float;
   typedef jkj::dragonbox::default_float_traits<Float> FloatTraits;
@@ -4223,6 +4240,9 @@ size_t _sformat_Append(const float_t value, const sformatState &fs, char *text)
           signChar = fs.fillCharacter;
 
         break;
+
+      default:
+        break;
       }
 
       char zero[] = "0";
@@ -4260,7 +4280,7 @@ size_t _sformat_Append(const float_t value, const sformatState &fs, char *text)
   }
 }
 
-size_t _sformat_Append(const double_t value, const sformatState &fs, char *text)
+size_t _sformat_Append(const double value, const sformatState &fs, char *text)
 {
   typedef decltype(value) Float;
   typedef jkj::dragonbox::default_float_traits<Float> FloatTraits;
@@ -4301,6 +4321,9 @@ size_t _sformat_Append(const double_t value, const sformatState &fs, char *text)
         else
           signChar = fs.fillCharacter;
 
+        break;
+
+      default:
         break;
       }
 
@@ -4347,6 +4370,7 @@ size_t _sformat_AppendBool(const bool value, const sformatState &fs, char *text)
     return _sformat_AppendStringWithLength(fs.falseChars, fs.falseBytes, fs, text);
 }
 
+#ifdef WIN32
 size_t _sformat_Append(const wchar_t value, const sformatState &fs, char *text)
 {
   if (value == 0)
@@ -4356,7 +4380,7 @@ size_t _sformat_Append(const wchar_t value, const sformatState &fs, char *text)
   wchar_t wbuffer[2] = { value, 0 };
   BOOL bFalse = FALSE;
 
-  const size_t bytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, (int32_t)std::size(wbuffer), buffer, (int32_t)std::size(buffer), nullptr, &bFalse);
+  const size_t bytes = WideCharToMultiByte(CP_UTF8, 0, wbuffer, (int32_t)_arraysize(wbuffer), buffer, (int32_t)_arraysize(buffer), nullptr, &bFalse);
 
   if (bytes <= 1 || fs.maxChars < bytes - 1)
     return 0;
@@ -4392,6 +4416,7 @@ size_t _sformat_AppendWStringWithLength(const wchar_t *string, const size_t char
 
   return _sformat_AppendStringWithLength(buffer, bytes - 1, fs, text);
 }
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -4439,13 +4464,10 @@ void _sformat_Append_DecimalDigitsWithGroupDigitsNoSign_Internal(const size_t nu
 
 void _sformat_Append_DisplayWithAlignNoGroupingWithSign_Internal(const size_t totalBytes, const size_t signChars, const char signChar, const size_t numberBytes, char *text, const char *buffer, const sformatState &fs)
 {
-  size_t alignedChars = totalBytes;
-
   if ((!fs.alignSign || fs.numberAlign == FA_Left) && signChars)
   {
     *text = signChar;
     text++;
-    alignedChars--;
   }
 
   switch (fs.numberAlign)
@@ -5504,13 +5526,10 @@ size_t _sformat_Append_Decimal(const bool negative, const char signChar, const s
     }
     else if (fs.minChars > totalBytes)
     {
-      size_t alignedChars = totalBytes;
-
       if ((!fs.alignSign || fs.numberAlign == FA_Left) && signChars)
       {
         *text = signChar;
         text++;
-        alignedChars--;
       }
 
       switch (fs.numberAlign)

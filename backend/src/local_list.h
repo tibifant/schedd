@@ -83,6 +83,84 @@ struct local_list_const_reverse_iterator
 //////////////////////////////////////////////////////////////////////////
 
 template <typename T, size_t internal_count>
+struct _local_list_reverse_it_wrapper
+{
+  local_list<T, internal_count> *pList;
+  inline local_list_reverse_iterator<T, internal_count> begin() { return local_list_reverse_iterator<T, internal_count>(pList); };
+  inline size_t end() { return 0; };
+};
+
+template <typename T, size_t internal_count>
+struct _local_list_it_from_wrapper
+{
+  local_list<T, internal_count> *pList;
+  size_t startIdx;
+
+  inline local_list_iterator<T, internal_count> begin()
+  {
+    const local_list_iterator<T, internal_count> it = local_list_iterator<T, internal_count>(pList);
+    it.position = startIdx;
+
+    return it;
+  };
+
+  inline size_t end() { return pList->count; };
+};
+
+template <typename T, size_t internal_count>
+struct _local_list_const_it_from_wrapper
+{
+  const local_list<T, internal_count> *pList;
+  size_t startIdx;
+
+  inline local_list_const_iterator<T, internal_count> begin()
+  {
+    const local_list_const_iterator<T, internal_count> it = local_list_const_iterator<T, internal_count>(pList);
+    it.position = startIdx;
+
+    return it;
+  };
+
+  inline size_t end() { return pList->count; };
+};
+
+template <typename T, size_t internal_count>
+struct _local_list_it_reverse_from_wrapper
+{
+  local_list<T, internal_count> *pList;
+  size_t startIdx;
+
+  inline local_list_reverse_iterator<T, internal_count> begin()
+  {
+    const local_list_reverse_iterator<T, internal_count> it = local_list_reverse_iterator<T, internal_count>(pList);
+    it.position = startIdx;
+
+    return it;
+  };
+
+  inline size_t end() { return 0; };
+};
+
+template <typename T, size_t internal_count>
+struct _local_list_const_it_reverse_from_wrapper
+{
+  local_list<T, internal_count> *pList;
+  size_t startIdx;
+
+  inline local_list_const_reverse_iterator<T, internal_count> begin()
+  {
+    const local_list_const_reverse_iterator<T, internal_count> it = local_list_const_reverse_iterator<T, internal_count>(pList);
+    it.position = startIdx;
+
+    return it;
+  };
+
+  inline size_t end() { return 0; };
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+template <typename T, size_t internal_count>
 struct local_list
 {
   T values[internal_count];
@@ -93,78 +171,13 @@ struct local_list
   inline size_t end() const { return count; };
   inline constexpr size_t capacity() const { return internal_count; };
 
-  inline struct
-  {
-    local_list<T, internal_count> *pList;
-    inline local_list_reverse_iterator<T, internal_count> begin() { return local_list_reverse_iterator<T, internal_count>(pList); };
-    inline size_t end() { return 0; };
-  } IterateReverse() { return { this }; };
-
   ~local_list();
 
-  inline struct
-  {
-    local_list<T, internal_count> *pList;
-    size_t startIdx;
-
-    inline local_list_iterator<T, internal_count> begin()
-    {
-      const local_list_iterator<T, internal_count> it = local_list_iterator<T, internal_count>(pList);
-      it.position = startIdx;
-
-      return it;
-    };
-
-    inline size_t end() { return count; };
-  } IterateFrom(const size_t idx) { return { this, idx }; };
-
-  inline struct
-  {
-    local_list<T, internal_count> *pList;
-    size_t startIdx;
-
-    inline local_list_const_iterator<T, internal_count> begin()
-    {
-      const local_list_const_iterator<T, internal_count> it = local_list_const_iterator<T, internal_count>(pList);
-      it.position = startIdx;
-
-      return it;
-    };
-
-    inline size_t end() { return count; };
-  } IterateFrom(const size_t idx) const { return { this, idx }; };
-
-  inline struct
-  {
-    local_list<T, internal_count> *pList;
-    size_t startIdx;
-
-    inline local_list_reverse_iterator<T, internal_count> begin()
-    {
-      const local_list_reverse_iterator<T, internal_count> it = local_list_reverse_iterator<T, internal_count>(pList);
-      it.position = startIdx;
-
-      return it;
-    };
-
-    inline size_t end() { return 0; };
-  } IterateReverseFrom(const size_t idx) { return { this, idx }; };
-
-  inline struct
-  {
-    local_list<T, internal_count> *pList;
-    size_t startIdx;
-
-    inline local_list_const_reverse_iterator<T, internal_count> begin()
-    {
-      const local_list_const_reverse_iterator<T, internal_count> it = local_list_const_reverse_iterator<T, internal_count>(pList);
-      it.position = startIdx;
-
-      return it;
-    };
-
-    inline size_t end() { return 0; };
-  } IterateReverseFrom(const size_t idx) const { return { this, idx }; };
+  inline _local_list_reverse_it_wrapper<T, internal_count> IterateReverse() { return { this }; };
+  inline _local_list_it_from_wrapper<T, internal_count> IterateFrom(const size_t idx) { return { this, idx }; };
+  inline _local_list_const_it_from_wrapper<T, internal_count> IterateFrom(const size_t idx) const { return { this, idx }; };
+  inline _local_list_it_reverse_from_wrapper<T, internal_count> IterateReverseFrom(const size_t idx) { return { this, idx }; };
+  inline _local_list_const_it_reverse_from_wrapper<T, internal_count> IterateReverseFrom(const size_t idx) const { return { this, idx }; };
 
   T &operator [](const size_t index);
   const T &operator [](const size_t index) const;
@@ -183,7 +196,7 @@ struct local_list
 
   inline local_list &operator = (local_list &&move)
   {
-    local_list_destroy(this);
+    list_destroy(this);
 
     count = move.count;
     lsMemcpy(values, move.values, lsMin(internal_count, count));
@@ -195,7 +208,7 @@ struct local_list
 };
 
 template <typename T, size_t internal_count>
-lsResult local_list_add(local_list<T, internal_count> *pList, const T *pItem)
+lsResult list_add(local_list<T, internal_count> *pList, const T *pItem)
 {
   lsResult result = lsR_Success;
 
@@ -210,7 +223,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_add(local_list<T, internal_count> *pList, T &&item)
+lsResult list_add(local_list<T, internal_count> *pList, T &&item)
 {
   lsResult result = lsR_Success;
 
@@ -225,13 +238,13 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_add(local_list<T, internal_count> *pList, const T &item)
+lsResult list_add(local_list<T, internal_count> *pList, const T &item)
 {
-  return local_list_add(pList, &item);
+  return list_add(pList, &item);
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_add_range(local_list<T, internal_count> *pList, const T *pItems, const size_t count)
+lsResult list_add_range(local_list<T, internal_count> *pList, const T *pItems, const size_t count)
 {
   lsResult result = lsR_Success;
 
@@ -247,7 +260,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-const T *local_list_get(const local_list<T, internal_count> *pList, const size_t index)
+const T *list_get(const local_list<T, internal_count> *pList, const size_t index)
 {
   lsAssert(index < pList->count);
 
@@ -255,7 +268,7 @@ const T *local_list_get(const local_list<T, internal_count> *pList, const size_t
 }
 
 template <typename T, size_t internal_count>
-T *local_list_get(local_list<T, internal_count> *pList, const size_t index)
+T *list_get(local_list<T, internal_count> *pList, const size_t index)
 {
   lsAssert(index < pList->count);
 
@@ -263,7 +276,7 @@ T *local_list_get(local_list<T, internal_count> *pList, const size_t index)
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_get_safe(const local_list<T, internal_count> *pList, const size_t index, _Out_ T *pItem)
+lsResult list_get_safe(const local_list<T, internal_count> *pList, const size_t index, _Out_ T *pItem)
 {
   lsResult result = lsR_Success;
 
@@ -277,7 +290,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_get_safe(local_list<T, internal_count> *pList, const size_t index, _Out_ T **ppItem)
+lsResult list_get_safe(local_list<T, internal_count> *pList, const size_t index, _Out_ T **ppItem)
 {
   lsResult result = lsR_Success;
 
@@ -291,7 +304,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_get_safe(const local_list<T, internal_count> *pList, const size_t index, _Out_ T *const *ppItem)
+lsResult list_get_safe(const local_list<T, internal_count> *pList, const size_t index, _Out_ T *const *ppItem)
 {
   lsResult result = lsR_Success;
 
@@ -305,7 +318,7 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-lsResult local_list_pop_back_safe(local_list<T, internal_count> *pList, _Out_ T *pItem = nullptr)
+lsResult list_pop_back_safe(local_list<T, internal_count> *pList, _Out_ T *pItem = nullptr)
 {
   lsResult result = lsR_Success;
 
@@ -313,7 +326,7 @@ lsResult local_list_pop_back_safe(local_list<T, internal_count> *pList, _Out_ T 
   LS_ERROR_IF(pList->count == 0, lsR_ArgumentOutOfBounds);
 
   if (pItem != nullptr)
-    *pItem = pList->values[pList->count - 1];
+    *pItem = std::move(pList->values[pList->count - 1]);
 
   pList->count--;
 
@@ -322,7 +335,64 @@ epilogue:
 }
 
 template <typename T, size_t internal_count>
-void local_list_clear(local_list<T, internal_count> *pList)
+T list_pop_back(local_list<T, internal_count> &list)
+{
+  lsAssert(list.count > 0);
+
+  list.count--;
+  return std::move(list.values[list.count]);
+}
+
+template <typename T, size_t internal_count>
+lsResult list_pop_front_safe(local_list<T, internal_count> *pList, _Out_ T *pItem = nullptr)
+{
+  lsResult result = lsR_Success;
+
+  LS_ERROR_IF(pList == nullptr, lsR_ArgumentNull);
+  LS_ERROR_IF(pList->count == 0, lsR_ArgumentOutOfBounds);
+
+  if (pItem != nullptr)
+    *pItem = std::move(pList->values[0]);
+
+  pList->count--;
+
+  if constexpr (std::is_trivially_move_constructible_v<T>)
+  {
+    lsMemmove(pList->values, pList->values + 1, pList->count);
+  }
+  else
+  {
+    for (size_t i = 0; i < pList->count; i++)
+      new (&pList->values[i]) T(std::move(pList->values[i + 1]));
+  }
+
+epilogue:
+  return result;
+}
+
+template <typename T, size_t internal_count>
+T list_pop_front(local_list<T, internal_count> &list)
+{
+  lsAssert(list.count > 0);
+
+  T tmp = std::move(list.values[0]);
+  list.count--;
+
+  if constexpr (std::is_trivially_move_constructible_v<T>)
+  {
+    lsMemmove(list.values, list.values + 1, list.count);
+  }
+  else
+  {
+    for (size_t i = 0; i < list.count; i++)
+      new (&list.values[i]) T(std::move(list.values[i + 1]));
+  }
+
+  return tmp;
+}
+
+template <typename T, size_t internal_count>
+void list_clear(local_list<T, internal_count> *pList)
 {
   if (pList == nullptr)
     return;
@@ -334,7 +404,7 @@ void local_list_clear(local_list<T, internal_count> *pList)
 }
 
 template <typename T, size_t internal_count>
-void local_list_destroy(local_list<T, internal_count> *pList)
+void list_destroy(local_list<T, internal_count> *pList)
 {
   if (pList == nullptr)
     return;
@@ -346,7 +416,7 @@ void local_list_destroy(local_list<T, internal_count> *pList)
 }
 
 template <typename T, size_t internal_count, typename U>
-T *local_list_contains(local_list<T, internal_count> &list, const U &cmp)
+T *list_contains(local_list<T, internal_count> &list, const U &cmp)
 {
   for (auto &_i : list)
     if (_i == cmp)
@@ -356,7 +426,7 @@ T *local_list_contains(local_list<T, internal_count> &list, const U &cmp)
 }
 
 template <typename T, size_t internal_count, typename U>
-const T *local_list_contains(const local_list<T, internal_count> &list, const U &cmp)
+const T *list_contains(const local_list<T, internal_count> &list, const U &cmp)
 {
   for (auto &_i : list)
     if (_i == cmp)
@@ -366,7 +436,7 @@ const T *local_list_contains(const local_list<T, internal_count> &list, const U 
 }
 
 template <typename T, size_t internal_count, typename U>
-const T *local_list_contains(const local_list<T, internal_count> &list, const U &cmp, bool (*CmpFunc)(T, U))
+const T *list_contains(const local_list<T, internal_count> &list, const U &cmp, bool (*CmpFunc)(T, U))
 {
   for (auto &_i : list)
     if (CmpFunc(_i, cmp))
@@ -376,7 +446,7 @@ const T *local_list_contains(const local_list<T, internal_count> &list, const U 
 }
 
 template <typename T, size_t internal_count, typename U>
-const T *local_list_contains(const local_list<T, internal_count> &list, const U &cmp, bool (*CmpFunc)(U, T))
+const T *list_contains(const local_list<T, internal_count> &list, const U &cmp, bool (*CmpFunc)(U, T))
 {
   for (auto &_i : list)
     if (CmpFunc(cmp, _i))
@@ -386,7 +456,7 @@ const T *local_list_contains(const local_list<T, internal_count> &list, const U 
 }
 
 template <typename T, size_t internal_count>
-const T *local_list_contains(const local_list<T, internal_count> &list, const T &cmp, int (*ComparatorResultFunc)(T, T))
+const T *list_contains(const local_list<T, internal_count> &list, const T &cmp, int (*ComparatorResultFunc)(T, T))
 {
   for (auto &_i : list)
     if (0 == ComparatorResultFunc(_i, cmp))
@@ -396,17 +466,17 @@ const T *local_list_contains(const local_list<T, internal_count> &list, const T 
 }
 
 template <typename T, size_t internal_count, typename U>
-T *local_list_contains(local_list<T, internal_count> *pList, const U &cmp)
+T *list_contains(local_list<T, internal_count> *pList, const U &cmp)
 {
   lsAssert(pList != nullptr);
-  return local_list_contains(*pList, cmp);
+  return list_contains(*pList, cmp);
 }
 
 template <typename T, size_t internal_count, typename U>
-const T *local_list_contains(const local_list<T, internal_count> *pList, const U &cmp)
+const T *list_contains(const local_list<T, internal_count> *pList, const U &cmp)
 {
   lsAssert(pList != nullptr);
-  return local_list_contains(*pList, cmp);
+  return list_contains(*pList, cmp);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -414,19 +484,19 @@ const T *local_list_contains(const local_list<T, internal_count> *pList, const U
 template<typename T, size_t internal_count>
 inline local_list<T, internal_count>::~local_list()
 {
-  local_list_destroy(this);
+  list_destroy(this);
 }
 
 template<typename T, size_t internal_count>
 inline T &local_list<T, internal_count>::operator[](const size_t index)
 {
-  return *local_list_get(this, index);
+  return *list_get(this, index);
 }
 
 template<typename T, size_t internal_count>
 inline const T &local_list<T, internal_count>::operator[](const size_t index) const
 {
-  return *local_list_get(this, index);
+  return *list_get(this, index);
 }
 
 //////////////////////////////////////////////////////////////////////////

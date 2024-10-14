@@ -12,9 +12,14 @@
 #include <memory.h>
 #include <malloc.h>
 
+#ifndef BIT_FALLBACK
+#include <bit>
+#endif
+
 #include <chrono>
 #include <algorithm>
 #include <utility>
+#include <concepts>
 
 #ifndef LS_PLATFORM_WINDOWS
 #if defined(_WIN64) || defined(_WIN32)
@@ -48,12 +53,8 @@
 
 #ifdef LS_PLATFORM_WINDOWS
 #include <intrin.h>
-#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
 #define NOMINMAX
-#endif
 #include <Windows.h>
 #undef near
 #undef far
@@ -75,6 +76,10 @@
 
 #ifndef _In_Out_
 #define _In_Out_
+#endif
+
+#ifndef _Out_opt_
+#define _Out_opt_
 #endif
 
 #ifdef _MSC_VER
@@ -111,7 +116,7 @@ enum lsResult
   lsR_InternalError,
   lsR_ResourceFull,
   lsR_ResourceInsufficient,
-  
+
   _lsResult_Count,
 };
 
@@ -224,16 +229,19 @@ public:
     __debugbreak(); \
   } while (0)
 
-#define lsAssert(a) \
+#define lsAssertInternal(a, expression_text) \
   do \
   { if (!(a)) \
-    { const char *__output_text = __FUNCTION__ ": Assertion Failed ('" LS_STRINGIFY(a) "') in File '" __FILE__ "' (Line " LS_STRINGIFY_VALUE(__LINE__) ")"; \
+    { const char *__output_text = __FUNCTION__ ": Assertion Failed ('" expression_text "') in File '" __FILE__ "' (Line " LS_STRINGIFY_VALUE(__LINE__) ")"; \
       if (lsPrintErrorCallback == nullptr) puts(__output_text); \
       else lsPrintErrorCallback(__output_text); \
       __debugbreak(); \
   } } while (0)
+
+#define lsAssert(a) lsAssertInternal(a, #a)
 #else
 #define lsFail() do { } while (0)
+#define lsAssertInternal(a, expression_text) do { if (!(a)) { } } while (0)
 #define lsAssert(a) do { if (!(a)) { } } while (0)
 #endif
 
@@ -241,14 +249,14 @@ public:
   do \
   { const lsResult __temp_result = (a); \
     (void)__temp_result; \
-    lsAssert(LS_SUCCESS(__temp_result)); \
+    lsAssertInternal(LS_SUCCESS(__temp_result), "LS_SUCCESS(" #a ")"); \
   } while (0)
 
 #define LS_DEBUG_ASSERT_TRUE(a) \
   do \
   { const bool __temp_result = !!(a); \
     (void)__temp_result; \
-    lsAssert(__temp_result); \
+    lsAssertInternal(__temp_result, #a); \
   } while (0)
 
 template <typename T, typename U>
@@ -286,13 +294,48 @@ inline constexpr size_t LS_ARRAYSIZE(const T(&)[TCount]) { return TCount; }
 
 //////////////////////////////////////////////////////////////////////////
 
+enum lsConsoleColor
+{
+  lsCC_Black,
+  lsCC_DarkRed,
+  lsCC_DarkGreen,
+  lsCC_DarkYellow,
+  lsCC_DarkBlue,
+  lsCC_DarkMagenta,
+  lsCC_DarkCyan,
+  lsCC_BrightGray,
+  lsCC_DarkGray,
+  lsCC_BrightRed,
+  lsCC_BrightGreen,
+  lsCC_BrightYellow,
+  lsCC_BrightBlue,
+  lsCC_BrightMagenta,
+  lsCC_BrightCyan,
+  lsCC_White
+};
+
+void lsCreateConsole();
+void lsResetConsoleColor();
+void lsSetConsoleColor(const lsConsoleColor foreground, const lsConsoleColor background);
+
+typedef void lsPrintCallbackFunc(const char *);
+extern lsPrintCallbackFunc *lsPrintCallback;
+extern lsPrintCallbackFunc *lsPrintErrorCallback;
+extern lsPrintCallbackFunc *lsPrintLogCallback;
+
+void lsDefaultPrint(const char *text);
+void lsDefaultPrintError(const char *text);
+void lsDefaultPrintLog(const char *text);
+
+//////////////////////////////////////////////////////////////////////////
+
 template <typename T>
 inline void lsZeroMemory(_Out_ T *pData, size_t count = 1)
 {
   if (pData == nullptr)
     return;
 
-  memset(pData, 0, sizeof(T) * count);
+  memset(reinterpret_cast<void *>(pData), 0, sizeof(T) * count);
 }
 
 template <typename T>
@@ -301,12 +344,13 @@ inline void lsMemset(_Out_ T *pData, const size_t count, uint8_t data = 0)
   if (pData == nullptr)
     return;
 
-  memset(pData, (int)data, sizeof(T) * count);
+  memset(reinterpret_cast<void *>(pData), (int)data, sizeof(T) * count);
 }
 
 template <typename T>
 inline void lsMemcpy(T *pDst, const T *pSrc, const size_t count)
 {
+  lsAssert((pDst < pSrc && pDst + count <= pSrc) || (pSrc < pDst && pSrc + count <= pDst)); // use memmove instead!
   memcpy(pDst, pSrc, sizeof(T) * count);
 }
 
@@ -320,7 +364,7 @@ template <typename T>
 inline lsResult lsAlloc(_Out_ T **ppData, const size_t count = 1)
 {
   lsResult result = lsR_Success;
-  
+
   LS_ERROR_IF(ppData == nullptr, lsR_ArgumentNull);
 
   // Allocate Memory.
@@ -373,7 +417,7 @@ epilogue:
 }
 
 template <typename T>
-inline void lsFreePtr(_Out_ T **ppData)
+inline void lsFreePtr(_In_Out_ T **ppData)
 {
   if (ppData != nullptr && *ppData != nullptr)
   {
@@ -392,11 +436,13 @@ constexpr double_t lsSQRT2 = M_SQRT2;
 constexpr double_t lsINVSQRT2 = M_SQRT1_2;
 constexpr double_t lsSQRT3 = 1.73205080756887729352744634150587236694;
 constexpr double_t lsINV_SQRT3 = 0.5773502691896257645091487805019574556;
+constexpr double_t lsSQRT5 = 2.23606797749978969640917366873127623544;
+constexpr double_t lsINV_SQRT5 = 0.4472135954999579392818347337462552471;
 
 constexpr float_t lsPIf = 3.141592653589793f;
 constexpr float_t lsTWOPIf = 6.283185307179586f;
-constexpr float_t lsHALFPIf = ((float)M_PI_2);
-constexpr float_t lsQUARTERPIf = ((float)M_PI_4);
+constexpr float_t lsHALFPIf = ((float_t)M_PI_2);
+constexpr float_t lsQUARTERPIf = ((float_t)M_PI_4);
 constexpr float_t lsSQRT2f = 1.414213562373095f;
 constexpr float_t lsINVSQRT2f = 0.7071067811865475f;
 constexpr float_t lsSQRT3f = 1.732050807568877f;
@@ -407,12 +453,14 @@ constexpr double_t lsLOG2E = M_LOG2E;
 constexpr double_t lsLOG10E = M_LOG10E;
 constexpr double_t lsLN2 = M_LN2;
 constexpr double_t lsLN10 = M_LN10;
+constexpr double_t lsPHI = 1.6180339887498948482045868; // golden ratio.
 
-constexpr float_t lsEULERf = ((float)M_E);
-constexpr float_t lsLOG2Ef = ((float)M_LOG2E);
-constexpr float_t lsLOG10Ef = ((float)M_LOG10E);
-constexpr float_t lsLN2f = ((float)M_LN2);
-constexpr float_t lsLN10f = ((float)M_LN10);
+constexpr float_t lsEULERf = ((float_t)M_E);
+constexpr float_t lsLOG2Ef = ((float_t)M_LOG2E);
+constexpr float_t lsLOG10Ef = ((float_t)M_LOG10E);
+constexpr float_t lsLN2f = ((float_t)M_LN2);
+constexpr float_t lsLN10f = ((float_t)M_LN10);
+constexpr float_t lsPHIf = 1.6180339887498948482045868f; // golden ratio.
 
 constexpr double_t lsDEG2RAD = (lsPI / 180.0);
 constexpr float_t lsDEG2RADf = (lsPIf / 180.0f);
@@ -584,83 +632,86 @@ inline auto lsPow(const T value, const U value2) -> typename std::enable_if_t<!s
 }
 
 template <typename T>
-struct lsFloatTypeFrom
+struct lsFloatTypeFrom_Internal
 {
   typedef double_t type;
 };
 
 template <>
-struct lsFloatTypeFrom<float_t>
+struct lsFloatTypeFrom_Internal<float_t>
 {
   typedef float_t type;
 };
 
-template <typename T> constexpr inline auto lsLog(const T value) -> typename lsFloatTypeFrom<T>::type { return (typename lsFloatTypeFrom<T>::type)log((typename lsFloatTypeFrom<T>::type)value); }
-template <typename T> constexpr inline auto lsLog10(const T value) -> typename lsFloatTypeFrom<T>::type { return (typename lsFloatTypeFrom<T>::type)log10((typename lsFloatTypeFrom<T>::type)value); }
-template <typename T> constexpr inline auto lsLog2(const T value) -> typename lsFloatTypeFrom<T>::type { return (typename lsFloatTypeFrom<T>::type)log2((typename lsFloatTypeFrom<T>::type)value); }
-template <typename T> constexpr inline auto lsLogN(const T logarithm, const T value) -> typename lsFloatTypeFrom<T>::type { return lsLog(value) / lsLog(logarithm); }
+template <typename T>
+using lsFloatTypeFrom = typename lsFloatTypeFrom_Internal<T>::type;
+
+template <typename T> constexpr inline auto lsLog(const T value) -> lsFloatTypeFrom<T> { return (lsFloatTypeFrom<T>)log((lsFloatTypeFrom<T>)value); }
+template <typename T> constexpr inline auto lsLog10(const T value) -> lsFloatTypeFrom<T> { return (lsFloatTypeFrom<T>)log10((lsFloatTypeFrom<T>)value); }
+template <typename T> constexpr inline auto lsLog2(const T value) -> lsFloatTypeFrom<T> { return (lsFloatTypeFrom<T>)log2((lsFloatTypeFrom<T>)value); }
+template <typename T> constexpr inline auto lsLogN(const T logarithm, const T value) -> lsFloatTypeFrom<T> { return lsLog(value) / lsLog(logarithm); }
 
 template <typename T>
 T lsMod(const T value, const T modulus);
 
 template <>
-uint64_t constexpr lsMod<uint64_t>(const uint64_t value, const uint64_t lsodulus)
+uint64_t constexpr lsMod<uint64_t>(const uint64_t value, const uint64_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-int64_t constexpr lsMod<int64_t>(const int64_t value, const int64_t lsodulus)
+int64_t constexpr lsMod<int64_t>(const int64_t value, const int64_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-uint32_t constexpr lsMod<uint32_t>(const uint32_t value, const uint32_t lsodulus)
+uint32_t constexpr lsMod<uint32_t>(const uint32_t value, const uint32_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-int32_t constexpr lsMod<int32_t>(const int32_t value, const int32_t lsodulus)
+int32_t constexpr lsMod<int32_t>(const int32_t value, const int32_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-uint16_t constexpr lsMod<uint16_t>(const uint16_t value, const uint16_t lsodulus)
+uint16_t constexpr lsMod<uint16_t>(const uint16_t value, const uint16_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-int16_t constexpr lsMod<int16_t>(const int16_t value, const int16_t lsodulus)
+int16_t constexpr lsMod<int16_t>(const int16_t value, const int16_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-uint8_t constexpr lsMod<uint8_t>(const uint8_t value, const uint8_t lsodulus)
+uint8_t constexpr lsMod<uint8_t>(const uint8_t value, const uint8_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-int8_t constexpr lsMod<int8_t>(const int8_t value, const int8_t lsodulus)
+int8_t constexpr lsMod<int8_t>(const int8_t value, const int8_t modulus)
 {
-  return value % lsodulus;
+  return value % modulus;
 }
 
 template <>
-inline float_t lsMod<float_t>(const float_t value, const float_t lsodulus)
+inline float_t lsMod<float_t>(const float_t value, const float_t modulus)
 {
-  return fmodf(value, lsodulus);
+  return fmodf(value, modulus);
 }
 
 template <>
-inline double_t lsMod<double_t>(const double_t value, const double_t lsodulus)
+inline double_t lsMod<double_t>(const double_t value, const double_t modulus)
 {
-  return fmod(value, lsodulus);
+  return fmod(value, modulus);
 }
 
 // Euclidean modulo. (For positive modulus).
@@ -680,8 +731,11 @@ inline constexpr T lsAngleCompare(const T a, const T b)
 
 //////////////////////////////////////////////////////////////////////////
 
-inline uint64_t lsLowestBit(const uint64_t value)
+inline constexpr uint64_t lsLowestBit(const uint64_t value)
 {
+#ifndef BIT_FALLBACK
+  return std::countr_zero(value);
+#else
 #ifdef _MSC_VER
   unsigned long bit;
   _BitScanForward64(&bit, value);
@@ -690,10 +744,14 @@ inline uint64_t lsLowestBit(const uint64_t value)
 #endif
 
   return bit;
+#endif
 }
 
-inline uint32_t lsLowestBit(const uint32_t value)
+inline constexpr uint32_t lsLowestBit(const uint32_t value)
 {
+#ifndef BIT_FALLBACK
+  return std::countr_zero(value);
+#else
 #ifdef _MSC_VER
   unsigned long bit;
   _BitScanForward(&bit, value);
@@ -702,10 +760,14 @@ inline uint32_t lsLowestBit(const uint32_t value)
 #endif
 
   return bit;
+#endif
 }
 
-inline uint64_t lsHighestBit(const uint64_t value)
+inline constexpr uint64_t lsHighestBit(const uint64_t value)
 {
+#ifndef BIT_FALLBACK
+  return 63 - std::countl_zero(value);
+#else
 #ifdef _MSC_VER
   unsigned long bit;
   _BitScanReverse64(&bit, value);
@@ -714,10 +776,14 @@ inline uint64_t lsHighestBit(const uint64_t value)
 #endif
 
   return bit;
+#endif
 }
 
-inline uint32_t lsHighestBit(const uint32_t value)
+inline constexpr uint32_t lsHighestBit(const uint32_t value)
 {
+#ifndef BIT_FALLBACK
+  return 31 - std::countl_zero(value);
+#else
 #ifdef _MSC_VER
   unsigned long bit;
   _BitScanReverse(&bit, value);
@@ -726,10 +792,12 @@ inline uint32_t lsHighestBit(const uint32_t value)
 #endif
 
   return bit;
+#endif
 }
 
 template <typename T>
-inline constexpr auto lsBitCeil(const T x) -> std::enable_if_t<std::is_integral<T>::value &&std::is_unsigned<T>::value, T>
+  requires (std::is_integral_v<T> &&std::is_unsigned_v<T>)
+inline constexpr T lsBitCeil(const T x)
 {
   if (x <= 1)
     return 1;
@@ -738,7 +806,8 @@ inline constexpr auto lsBitCeil(const T x) -> std::enable_if_t<std::is_integral<
 }
 
 template <typename T>
-inline constexpr auto lsBitFloor(const T x) -> std::enable_if_t<std::is_integral<T>::value &&std::is_unsigned<T>::value, T>
+  requires (std::is_integral_v<T> &&std::is_unsigned_v<T>)
+inline constexpr T lsBitFloor(const T x)
 {
   if (x == 0)
     return 0;
@@ -777,8 +846,10 @@ typename std::enable_if<(std::is_integral<TKey>::value || std::is_enum<TKey>::va
 template <typename T>
 struct vec2t
 {
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4201)
+#endif
   union
   {
     T asArray[2];
@@ -788,7 +859,9 @@ struct vec2t
       T x, y;
     };
   };
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
   inline constexpr vec2t() : x(0), y(0) {}
   inline constexpr explicit vec2t(T _v) : x(_v), y(_v) {}
@@ -821,12 +894,12 @@ struct vec2t
   inline bool      operator == (const vec2t<T> &a) const { return x == a.x && y == a.y; };
   inline bool      operator != (const vec2t<T> &a) const { return x != a.x || y != a.y; };
 
-  inline typename lsFloatTypeFrom<T>::type Length() const { return lsSqrt(x * x + y * y); };
+  inline lsFloatTypeFrom<T> Length() const { return lsSqrt(x * x + y * y); };
   inline T LengthSquared() const { return x * x + y * y; };
   inline vec2t<T> Normalize() const { return *this / (T)Length(); };
 
-  inline typename float_t AspectRatio() const { return (float_t)x / (float_t)y; };
-  inline typename float_t InverseAspectRatio() const { return (float_t)y / (float_t)x; };
+  inline float_t AspectRatio() const { return (float_t)x / (float_t)y; };
+  inline float_t InverseAspectRatio() const { return (float_t)y / (float_t)x; };
 
   inline static T Dot(const vec2t<T> a, const vec2t<T> b)
   {
@@ -881,8 +954,10 @@ typedef vec2t<double_t> vec2d;
 template <typename T>
 struct vec3t
 {
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4201)
+#endif
   union
   {
     T asArray[3];
@@ -892,7 +967,9 @@ struct vec3t
       T x, y, z;
     };
   };
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
   constexpr inline vec3t() : x(0), y(0), z(0) {}
   constexpr inline explicit vec3t(T _v) : x(_v), y(_v), z(_v) {}
@@ -924,7 +1001,7 @@ struct vec3t
   constexpr inline bool      operator == (const vec3t<T> &a) const { return x == a.x && y == a.y && z == a.z; };
   constexpr inline bool      operator != (const vec3t<T> &a) const { return x != a.x || y != a.y || z != a.z; };
 
-  inline typename lsFloatTypeFrom<T>::type Length() const { return lsSqrt(x * x + y * y + z * z); };
+  inline lsFloatTypeFrom<T> Length() const { return lsSqrt(x * x + y * y + z * z); };
   constexpr inline T LengthSquared() const { return x * x + y * y + z * z; };
   inline vec3t<T> Normalize() const { return *this / (T)Length(); };
 
@@ -1027,8 +1104,10 @@ typedef vec3t<double_t> vec3d;
 template <typename T>
 struct vec4t
 {
+#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4201)
+#endif
   union
   {
     T asArray[4];
@@ -1038,7 +1117,9 @@ struct vec4t
       T x, y, z, w;
     };
   };
+#ifdef _MSC_VER
 #pragma warning(pop)
+#endif
 
   constexpr inline vec4t() : x(0), y(0), z(0), w(0) {}
   constexpr inline explicit vec4t(T _v) : x(_v), y(_v), z(_v), w(_v) {}
@@ -1068,7 +1149,7 @@ struct vec4t
   constexpr inline bool      operator == (const vec4t<T> &a) const { return x == a.x && y == a.y && z == a.z && w == a.w; };
   constexpr inline bool      operator != (const vec4t<T> &a) const { return x != a.x || y != a.y || z != a.z || w != a.w; };
 
-  inline typename lsFloatTypeFrom<T>::type Length() const { return lsSqrt(x * x + y * y + z * z + w * w); };
+  inline lsFloatTypeFrom<T> Length() const { return lsSqrt(x * x + y * y + z * z + w * w); };
   constexpr inline T LengthSquared() const { return x * x + y * y + z * z + w * w; };
   inline vec4t<T> Normalize() const { return *this / (T)Length(); };
 
@@ -1167,9 +1248,6 @@ typedef vec4t<int32_t> vec4i32;
 typedef vec4t<uint32_t> vec4u32;
 typedef vec4t<float_t> vec4f;
 typedef vec4t<double_t> vec4d;
-
-//////////////////////////////////////////////////////////////////////////
-
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1373,6 +1451,7 @@ constexpr inline T lsClampWrap(T val, const T min, const T max)
 
 int64_t lsGetCurrentTimeMs();
 int64_t lsGetCurrentTimeNs();
+inline int64_t lsGetCurrentTicks() { return __rdtsc(); }
 uint64_t lsGetRand();
 
 struct rand_seed
@@ -1381,45 +1460,10 @@ struct rand_seed
 
   inline rand_seed() { v[0] = lsGetRand(); v[1] = lsGetRand(); };
   inline rand_seed(const rand_seed &) = default;
-  rand_seed & operator =(const rand_seed &) = default;
+  rand_seed &operator =(const rand_seed &) = default;
 };
 
 uint64_t lsGetRand(rand_seed &seed);
-
-//////////////////////////////////////////////////////////////////////////
-
-enum lsConsoleColor
-{
-  lsCC_Black,
-  lsCC_DarkRed,
-  lsCC_DarkGreen,
-  lsCC_DarkYellow,
-  lsCC_DarkBlue,
-  lsCC_DarkMagenta,
-  lsCC_DarkCyan,
-  lsCC_BrightGray,
-  lsCC_DarkGray,
-  lsCC_BrightRed,
-  lsCC_BrightGreen,
-  lsCC_BrightYellow,
-  lsCC_BrightBlue,
-  lsCC_BrightMagenta,
-  lsCC_BrightCyan,
-  lsCC_White
-};
-
-void lsCreateConsole();
-void lsResetConsoleColor();
-void lsSetConsoleColor(const lsConsoleColor foreground, const lsConsoleColor background);
-
-typedef void lsPrintCallbackFunc(const char *);
-extern lsPrintCallbackFunc *lsPrintCallback;
-extern lsPrintCallbackFunc *lsPrintErrorCallback;
-extern lsPrintCallbackFunc *lsPrintLogCallback;
-
-void lsDefaultPrint(const char *text);
-void lsDefaultPrintError(const char *text);
-void lsDefaultPrintLog(const char *text);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1434,7 +1478,7 @@ inline void lsPrintToFunction(lsPrintCallbackFunc *pFunc, const char *text)
 }
 
 template <typename ...Args>
-inline void lsPrintToFunction(lsPrintCallbackFunc *pFunc, Args && ... args)
+inline void lsPrintToFunction(lsPrintCallbackFunc *pFunc, Args ... args)
 {
   if (pFunc != nullptr)
     (*pFunc)(sformat(args...));
@@ -1448,9 +1492,6 @@ void lsPrintToOutput(const char *text);
 template <size_t Tcount>
 inline void lsPrintToOutputArray(const char(&text)[Tcount])
 {
-  if (text == nullptr)
-    return;
-
 #ifdef LS_PLATFORM_WINDOWS
   lsPrintToOutputWithLength(text, strnlen(text, Tcount));
 #else
@@ -1458,16 +1499,19 @@ inline void lsPrintToOutputArray(const char(&text)[Tcount])
 #endif
 }
 
+#ifdef LS_PLATFORM_WINDOWS
 lsResult lsSetOutputFilePath(const char *path, const bool append = true);
 void lsResetOutputFile();
+#endif
 void lsFlushOutput();
 
-#define print(text, ...) lsPrintToFunction(lsPrintCallback, text, __VA_ARGS__)
-#define print_error_line(text, ...) lsPrintToFunction(lsPrintErrorCallback, text, __VA_ARGS__)
-#define print_log_line(text, ...) lsPrintToFunction(lsPrintLogCallback, text, __VA_ARGS__)
+#define print(...) lsPrintToFunction(lsPrintCallback, __VA_ARGS__)
+#define print_error_line(...) lsPrintToFunction(lsPrintErrorCallback, __VA_ARGS__)
+#define print_log_line(...) lsPrintToFunction(lsPrintLogCallback, __VA_ARGS__)
 
 void print_to_dbgcon(const char *text);
 
+#ifdef LS_PLATFORM_WINDOWS
 lsResult lsToWide(_In_ const char *string, const size_t inChars, _Out_ wchar_t *out, const size_t capacity, _Out_ size_t &writtenChars);
 
 inline lsResult lsToWide(_In_ const char *string, _Out_ wchar_t *out, const size_t capacity, _Out_ size_t &writtenChars)
@@ -1479,6 +1523,124 @@ inline lsResult lsToWide(_In_ const char *string, _Out_ wchar_t *out, const size
 {
   size_t _unused;
   return lsToWide(string, out, capacity, _unused);
+}
+#endif
+
+//////////////////////////////////////////////////////////////////////////
+
+inline bool lsCopyString(char *dst, const size_t dstSize, const char *src, const size_t srcSize)
+{
+  const size_t max = lsMin(dstSize, srcSize);
+
+  for (size_t i = 0; i < max; i++)
+  {
+    dst[i] = src[i];
+
+    if (src[i] == '\0')
+      return true;
+  }
+
+  if (max)
+    dst[max - 1] = '\0';
+
+  return false;
+}
+
+inline bool lsCopyString(wchar_t *dst, const size_t dstCount, const wchar_t *src, const size_t srcCount)
+{
+  const size_t max = lsMin(dstCount, srcCount);
+
+  for (size_t i = 0; i < max; i++)
+  {
+    dst[i] = src[i];
+
+    if (src[i] == '\0')
+      return true;
+  }
+
+  if (max)
+    dst[max - 1] = '\0';
+
+  return false;
+}
+
+template <size_t DstSize, size_t SrcSize>
+bool lsCopyString(char(&dst)[DstSize], const char(&src)[SrcSize])
+{
+  return lsCopyString(dst, DstSize, src, SrcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(char(&dst)[DstSize], const char *src, const size_t srcSize)
+{
+  return lsCopyString(dst, DstSize, src, srcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(char(&dst)[DstSize], const char *src)
+{
+  return lsCopyString(dst, DstSize, src, (size_t)-1);
+}
+
+template <size_t DstSize, size_t SrcSize>
+bool lsCopyString(wchar_t(&dst)[DstSize], const wchar_t(&src)[SrcSize])
+{
+  return lsCopyString(dst, DstSize, src, SrcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(wchar_t(&dst)[DstSize], const wchar_t *src, const size_t srcSize)
+{
+  return lsCopyString(dst, DstSize, src, srcSize);
+}
+
+template <size_t DstSize>
+bool lsCopyString(wchar_t(&dst)[DstSize], const wchar_t *src)
+{
+  return lsCopyString(dst, DstSize, src, (size_t)-1);
+}
+
+inline bool lsStringEquals(const char *a, const size_t aSize, const char *b, const size_t bSize)
+{
+  return strncmp(a, b, lsMin(aSize, bSize)) == 0;
+}
+
+template <size_t ASize, size_t BSize>
+bool lsStringEquals(const char(&a)[ASize], const char(&b)[BSize])
+{
+  return lsStringEquals(a, ASize, b, BSize);
+}
+
+template <size_t ASize, typename T>
+std::enable_if_t<std::is_same<char *, T>::value || std::is_same<const char *, T>::value, bool> lsStringEquals(const char(&a)[ASize], T b)
+{
+  return lsStringEquals(a, ASize, b, ASize);
+}
+
+template <size_t ASize>
+bool lsStringEquals(const char(&a)[ASize], const char *b, const size_t bSize)
+{
+  return lsStringEquals(a, ASize, b, bSize);
+}
+
+inline size_t lsStringLength(const char *text, const size_t maxCount)
+{
+  if (text == nullptr)
+    return 0;
+  
+  return strnlen(text, maxCount);
+}
+
+template <size_t Size>
+size_t lsStringLength(const char(&text)[Size])
+{
+  return lsStringLength(text, Size);
+}
+
+template <typename T>
+std::enable_if_t<std::is_same<char *, T>::value || std::is_same<const char *, T>::value, size_t> lsStringLength(T text)
+{
+  return strlen(text);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1514,280 +1676,6 @@ bool lsStartsWithInt(_In_ const wchar_t *text);
 bool lsStartsWithInt(_In_ const wchar_t *text, const size_t length);
 bool lsStartsWithUInt(_In_ const wchar_t *text);
 bool lsStartsWithUInt(_In_ const wchar_t *text, const size_t length);
-
-//////////////////////////////////////////////////////////////////////////
-
-template <typename T>
-struct aabb2
-{
-  aabb2();
-  aabb2(const vec2t<T> position);
-  aabb2(const vec2t<T> startPosition, const vec2t<T> endPosition);
-
-  void GrowToContain(const vec2t<T> position);
-
-  bool Contains(const vec2t<T> position) const;
-  bool Instersects(aabb2<T> &other) const;
-
-  vec2t<T> GetStartPosition() const;
-  vec2t<T> GetEndPosition() const;
-
-  void GetCorners(vec2t<T> corners[4]) const;
-
-  vec2t<T> GetClosestPoint(const vec2t<T> position) const;
-
-  template<typename TRet = typename lsFloatTypeFrom<T>::type>
-  TRet GetClosestDistance(const vec2t<T> position) const;
-
-  template<typename TRet = typename lsFloatTypeFrom<T>::type>
-  TRet GetClosestDistanceSquared(const vec2t<T> position) const;
-
-  vec2t<T> startPos, endPos;
-
-  inline vec2t<T> GetSize() const
-  {
-    return endPos - startPos;
-  }
-
-  inline aabb2<T> Intersect(const aabb2<T> &rect) const
-  {
-    const float_t _x = lsMax(startPos.x, rect.startPos.x);
-    const float_t _y = lsMax(startPos.y, rect.startPos.y);
-    const float_t _w = lsMin(endPos.x, rect.endPos.x) - _x;
-    const float_t _h = lsMin(endPos.y, rect.endPos.y) - _y;
-
-    return aabb2<T>(_x, _y, _w, _h);
-  }
-
-  inline aabb2<T> OffsetCopy(const vec2t<T> offset) const
-  {
-    return aabb2<T>(startPos + offset, endPos + offset);
-  }
-
-  inline aabb2<T> & OffsetSelf(const vec2t<T> offset) const
-  {
-    startPos += offset;
-    endPos += offset;
-
-    return *this;
-  }
-};
-
-template<typename T>
-inline aabb2<T>::aabb2()
-  : startPos(vec2t<T>(0))
-  , endPos(vec2t<T>(0))
-{ }
-
-template<typename T>
-inline aabb2<T>::aabb2(const vec2t<T> position)
-{
-  startPos = position;
-  endPos = position;
-}
-
-template<typename T>
-inline aabb2<T>::aabb2(const vec2t<T> startPosition, const vec2t<T> endPosition)
-{
-  startPos = startPosition;
-  endPos = endPosition;
-
-  if (startPos.x > endPos.x)
-    std::swap(startPos.x, endPos.x);
-
-  if (startPos.y > endPos.y)
-    std::swap(startPos.y, endPos.y);
-}
-
-template<typename T>
-inline void aabb2<T>::GrowToContain(const vec2t<T> position)
-{
-  if (Contains(position))
-    return;
-
-  if (startPos.x > position.x)
-    startPos.x = position.x;
-  else if (endPos.x < position.x)
-    endPos.x = position.x;
-
-  if (startPos.y > position.y)
-    startPos.y = position.y;
-  else if (endPos.y < position.y)
-    endPos.y = position.y;
-}
-
-template<typename T>
-inline bool aabb2<T>::Contains(const vec2t<T> position) const
-{
-  return position.x >= startPos.x && position.y >= startPos.y && position.x <= endPos.x && position.y <= endPos.y;
-}
-
-template<typename T>
-inline bool aabb2<T>::Instersects(aabb2<T> &other) const
-{
-  const bool x0 = startPos.x > other.endPos.x; // aabb starts right of others end.
-  const bool y0 = startPos.y > other.endPos.y; // aabb starts below others end.
-  const bool x1 = endPos.x < other.startPos.x; // aabb ends above others start.
-  const bool y1 = endPos.y < other.startPos.y; // aabb ends left of others start.
-
-  return !(x0 || y0 || x1 || y1);
-}
-
-template<typename T>
-void aabb2<T>::GetCorners(vec2t<T> corners[4]) const
-{
-  corners[0] = startPos;
-  corners[1] = vec2t<T>(endPos.x, startPos.y);
-  corners[2] = vec2t<T>(startPos.x, endPos.y);
-  corners[3] = endPos;
-}
-
-template<typename T>
-inline vec2t<T> aabb2<T>::GetClosestPoint(const vec2t<T> position) const
-{
-  if (Contains(position))
-    return position;
-
-  vec2t<T> ret = position;
-
-  if (position.x > endPos.x)
-    ret.x = endPos.x;
-  else if (position.x < startPos.x)
-    ret.x = startPos.x;
-
-  if (position.y > endPos.y)
-    ret.y = endPos.y;
-  else if (position.y < startPos.y)
-    ret.y = startPos.y;
-}
-
-template<typename T>
-template<typename TRet>
-inline TRet aabb2<T>::GetClosestDistance(const vec2t<T> position) const
-{
-  if (Contains(position))
-    return (TRet)0;
-
-  int64_t xcomp = 0;
-  int64_t ycomp = 0;
-
-  if (position.x > endPos.x)
-    xcomp = 1;
-  else if (position.x < startPos.x)
-    xcomp = -1;
-
-  if (position.y > endPos.y)
-    ycomp = 1;
-  else if (position.y < startPos.y)
-    ycomp = -1;
-
-  if (xcomp)
-  {
-    if (!ycomp)
-    {
-      if (xcomp == 1)
-        return (TRet)(position.x - endPos.x);
-
-      return (TRet)(startPos.x - position.x);
-    }
-    else
-    {
-      vec2t<T> comp;
-
-      if (xcomp == 1)
-        comp.x = endPos.x;
-      else
-        comp.x = startPos.x;
-
-      if (ycomp == 1)
-        comp.y = endPos.y;
-      else
-        comp.y = startPos.y;
-
-      return (TRet)vec2t<T>(comp - position).Length();
-    }
-  }
-  else // ycomp & !xcomp
-  {
-    if (ycomp == 1)
-      return (TRet)(position.y - endPos.y);
-
-    return (TRet)(startPos.y - position.y);
-  }
-}
-
-template<typename T>
-template<typename TRet>
-inline TRet aabb2<T>::GetClosestDistanceSquared(const vec2t<T> position) const
-{
-  if (Contains(position))
-    return 0.0;
-
-  int64_t xcomp = 0;
-  int64_t ycomp = 0;
-
-  if (position.x > endPos.x)
-    xcomp = 1;
-  else if (position.x < startPos.x)
-    xcomp = -1;
-
-  if (position.y > endPos.y)
-    ycomp = 1;
-  else if (position.y < startPos.y)
-    ycomp = -1;
-
-  if (xcomp)
-  {
-    if (!ycomp)
-    {
-      if (xcomp == 1)
-      {
-        const TRet ret = (TRet)(position.x - endPos.x);
-        return (TRet)(ret * ret);
-      }
-
-      const TRet ret = (TRet)(startPos.x - position.x);
-      return (TRet)(ret * ret);
-    }
-    else
-    {
-      vec2t<T> comp;
-
-      if (xcomp == 1)
-        comp.x = endPos.x;
-      else
-        comp.x = startPos.x;
-
-      if (ycomp == 1)
-        comp.y = endPos.y;
-      else
-        comp.y = startPos.y;
-
-      return (TRet)vec2t<T>(comp - position).LengthSquared();
-    }
-  }
-  else // ycomp & !xcomp
-  {
-    if (ycomp == 1)
-    {
-      const TRet ret = (TRet)(position.y - endPos.y);
-      return (TRet)(ret * ret);
-    }
-
-    const TRet ret = (TRet)(startPos.y - position.y);
-    return (TRet)(ret * ret);
-  }
-}
-
-template<typename T> inline vec2t<T> aabb2<T>::GetStartPosition() const
-{
-  return startPos;
-}
-
-template<typename T> inline vec2t<T> aabb2<T>::GetEndPosition() const
-{
-  return endPos;
-}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1832,7 +1720,7 @@ inline vec2t<U> lsVectorDecomposition(const vec2t<T> &p, const vec2t<T> &q, cons
   const U divisor = (U)(p.y * q.x - p.x * q.y);
   const U a = -(U)(q.y * x.x - q.x * x.y) / divisor;
   const U b = (U)(p.y * x.x - p.x * x.y) / divisor;
-  
+
   return vec2t<U>(a, b);
 }
 
@@ -1849,7 +1737,7 @@ inline vec3t<U> lsVectorDecomposition(const vec3t<T> &p, const vec3t<T> &q, cons
   const U a = (q.x * fac0 + r.x * (q.y * x.z - q.z * x.y) + fac1 * x.x) / divisor;
   const U b = -(p.x * fac0 + r.x * fac3 + (p.z * r.y - p.y * r.z) * x.x) / divisor;
   const U c = (p.x * (q.z * x.y - q.y * x.z) + q.x * fac3 + fac2 * x.x) / divisor;
-  
+
   return vec3t<U>(a, b, c);
 }
 
@@ -2060,3 +1948,87 @@ inline size_t _sformat_Append(const vec4t<T> &value, const sformatState &fs, cha
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+template <typename TObj, typename T>
+concept random_iterable_sized_container_type = requires(const TObj & t, size_t idx) {
+  { t.count } -> std::convertible_to<size_t>;
+  { t[idx] } -> std::convertible_to<T>;
+};
+
+template <typename T>
+struct const_ptr_wrapper
+{
+  const T *pData;
+  const size_t count;
+
+  inline const_ptr_wrapper(const T *pData, const size_t count) : pData(pData), count(count) { lsAssert(pData != nullptr || count == 0); }
+
+  inline const T &operator [] (const size_t index) const
+  {
+    lsAssert(index < count);
+    return pData[index];
+  };
+};
+
+template <typename T, size_t TCount>
+struct const_array_wrapper
+{
+  const T *pData;
+  constexpr static size_t count = TCount;
+
+  inline const_array_wrapper(const T(&arr)[TCount]) : pData(arr) {}
+
+  inline const T &operator [] (const size_t index) const
+  {
+    lsAssert(index < TCount);
+    return pData[index];
+  };
+};
+
+//////////////////////////////////////////////////////////////////////////
+
+template <uint8_t bits>
+struct bits_to_uint
+{
+  static_assert(bits != 0 && bits <= 63);
+  using type = uint64_t;
+};
+
+template <> struct bits_to_uint<0> { using type = uint8_t; };
+template <> struct bits_to_uint<1> { using type = uint8_t; };
+template <> struct bits_to_uint<2> { using type = uint8_t; };
+template <> struct bits_to_uint<3> { using type = uint8_t; };
+template <> struct bits_to_uint<4> { using type = uint8_t; };
+template <> struct bits_to_uint<5> { using type = uint8_t; };
+template <> struct bits_to_uint<6> { using type = uint8_t; };
+template <> struct bits_to_uint<7> { using type = uint8_t; };
+template <> struct bits_to_uint<8> { using type = uint16_t; };
+template <> struct bits_to_uint<9> { using type = uint16_t; };
+template <> struct bits_to_uint<10> { using type = uint16_t; };
+template <> struct bits_to_uint<11> { using type = uint16_t; };
+template <> struct bits_to_uint<12> { using type = uint16_t; };
+template <> struct bits_to_uint<13> { using type = uint16_t; };
+template <> struct bits_to_uint<14> { using type = uint16_t; };
+template <> struct bits_to_uint<15> { using type = uint16_t; };
+template <> struct bits_to_uint<16> { using type = uint32_t; };
+template <> struct bits_to_uint<17> { using type = uint32_t; };
+template <> struct bits_to_uint<18> { using type = uint32_t; };
+template <> struct bits_to_uint<19> { using type = uint32_t; };
+template <> struct bits_to_uint<20> { using type = uint32_t; };
+template <> struct bits_to_uint<21> { using type = uint32_t; };
+template <> struct bits_to_uint<22> { using type = uint32_t; };
+template <> struct bits_to_uint<23> { using type = uint32_t; };
+template <> struct bits_to_uint<24> { using type = uint32_t; };
+template <> struct bits_to_uint<25> { using type = uint32_t; };
+template <> struct bits_to_uint<26> { using type = uint32_t; };
+template <> struct bits_to_uint<27> { using type = uint32_t; };
+template <> struct bits_to_uint<28> { using type = uint32_t; };
+template <> struct bits_to_uint<29> { using type = uint32_t; };
+template <> struct bits_to_uint<30> { using type = uint32_t; };
+template <> struct bits_to_uint<31> { using type = uint32_t; };
+
+template <uint64_t value>
+using count_to_uint = std::conditional_t<value == 0, uint8_t, typename bits_to_uint<(uint8_t)lsHighestBit(value - 1)>::type>;
+
+template <uint64_t value>
+using value_to_uint = std::conditional_t<value == 0, uint8_t, typename bits_to_uint<(uint8_t)lsHighestBit(value)>::type>;

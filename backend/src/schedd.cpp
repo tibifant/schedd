@@ -34,11 +34,6 @@ struct sortable_event
   }
 };
 
-// coc where does one put this?
-#ifndef _WIN32
-#fail not implemented
-#endif
-
 struct time_info
 {
   size_t dayIndex;
@@ -80,13 +75,13 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
         if (foundUserId)
         {
           const auto score = get_score_for_event(*_evnt.pItem);
-          LS_DEBUG_ERROR_ASSERT(small_list_add(&userEvents, sortable_event(_evnt.index, score)));
+          LS_DEBUG_ERROR_ASSERT(list_add(&userEvents, sortable_event(_evnt.index, score)));
         }
       }
     }
   }
 
-  small_list_sort_descending(userEvents);
+  list_sort_descending(userEvents);
 
   // Pick.
   time_span_t freeTime = 0; // needs to be initialized before `LS_ERROR_IF`.
@@ -94,7 +89,7 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
   user *pUser = pool_get(&_Users, userId);
   LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
 
-  local_list_clear(&pUser->tasksForCurrentDay);
+  list_clear(&pUser->tasksForCurrentDay);
 
   freeTime = pUser->availableTimePerDay[time.dayIndex];
 
@@ -108,7 +103,7 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
       if (pEvent->durationTimeSpan > freeTime)
         continue;
 
-      LS_DEBUG_ERROR_ASSERT(local_list_add(&pUser->tasksForCurrentDay, _sortable_event.event_id));
+      LS_DEBUG_ERROR_ASSERT(list_add(&pUser->tasksForCurrentDay, _sortable_event.event_id));
       freeTime -= pEvent->durationTimeSpan;
      
       lsAssert(freeTime >= 0);
@@ -368,7 +363,7 @@ lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<e
         }
       }
 
-      LS_ERROR_CHECK(local_list_add(pOutCurrentEvents, info));
+      LS_ERROR_CHECK(list_add(pOutCurrentEvents, info));
     }
   }
 
@@ -397,7 +392,7 @@ lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_l
       info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
       strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
 
-      LS_ERROR_CHECK(local_list_add(pOutCompletedTasks, info));
+      LS_ERROR_CHECK(list_add(pOutCompletedTasks, info));
     }
   }
 
@@ -459,7 +454,7 @@ lsResult add_completed_task(const size_t eventId, const size_t userId)
 
     user *pUser = nullptr;
     LS_ERROR_CHECK(pool_get_safe(&_Users, userId, &pUser));
-    LS_ERROR_CHECK(local_list_add(&pUser->completedTasksForCurrentDay, eventId));
+    LS_ERROR_CHECK(list_add(&pUser->completedTasksForCurrentDay, eventId));
   }
 
 epilogue:
@@ -483,7 +478,7 @@ lsResult search_events_by_name(const char *searchTerm, _Out_ local_list<event_in
         strncpy(info.name, _evnt.pItem->name, LS_ARRAYSIZE(info.name));
         info.durationInMinutes = minutes_from_time_span(_evnt.pItem->durationTimeSpan);
 
-        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutSearchResults, info));
+        LS_DEBUG_ERROR_ASSERT(list_add(pOutSearchResults, info));
 
         if (pOutSearchResults->count == pOutSearchResults->capacity())
           break;
@@ -517,6 +512,9 @@ lsResult search_events_by_user_by_name(const size_t userId, const char *searchTe
         }
       }
 
+      if (!userIdFound)
+        continue;
+
       if (strstr(_evnt.pItem->name, searchTerm) != nullptr)
       {
         event_info info;
@@ -524,7 +522,7 @@ lsResult search_events_by_user_by_name(const size_t userId, const char *searchTe
         strncpy(info.name, _evnt.pItem->name, LS_ARRAYSIZE(info.name));
         info.durationInMinutes = minutes_from_time_span(_evnt.pItem->durationTimeSpan);
 
-        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutSearchResults, info));
+        LS_DEBUG_ERROR_ASSERT(list_add(pOutSearchResults, info));
 
         if (pOutSearchResults->count == pOutSearchResults->capacity())
           break;
@@ -553,7 +551,7 @@ lsResult search_users_by_name(const char *searchTerm, _Out_ local_list<user_info
         info.id = _user.index;
         strncpy(info.name, _user.pItem->username, LS_ARRAYSIZE(info.name));
 
-        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutSearchResults, info));
+        LS_DEBUG_ERROR_ASSERT(list_add(pOutSearchResults, info));
 
         if (pOutSearchResults->count == pOutSearchResults->capacity())
           break;
@@ -581,7 +579,7 @@ lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t
         if (_id != userId)
           continue;
 
-        LS_DEBUG_ERROR_ASSERT(local_list_add(pOutEventIds, _evnt.index));
+        LS_DEBUG_ERROR_ASSERT(list_add(pOutEventIds, _evnt.index));
 
         if (pOutEventIds->count == pOutEventIds->capacity())
           goto epilogue;
@@ -631,7 +629,7 @@ void clearCompletedTasks()
     std::scoped_lock lock(_ThreadLock);
 
     for (const auto &&_user : _Users)
-      local_list_clear(&_user.pItem->completedTasksForCurrentDay);
+      list_clear(&_user.pItem->completedTasksForCurrentDay);
   }
 }
 
