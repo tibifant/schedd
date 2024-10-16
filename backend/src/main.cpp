@@ -233,10 +233,10 @@ void writeUsersPoolToFile()
       element[_Username] = _item.pItem->username;
 
       for (size_t i = 0; i < _item.pItem->availableTimePerDay.count; i++)
-        element[_AvailableTimePerDay][(int64_t)i] = _item.pItem->availableTimePerDay[i];
+        element[_AvailableTimePerDay][(uint32_t)i] = _item.pItem->availableTimePerDay[i];
 
       for (size_t i = 0; i < _item.pItem->completedTasksForCurrentDay.count; i++)
-        element[_CompletedTasks][(int64_t)i] = _item.pItem->completedTasksForCurrentDay[i];
+        element[_CompletedTasks][(uint32_t)i] = _item.pItem->completedTasksForCurrentDay[i];
 
       jsonOut[idx] = std::move(element);
       idx++;
@@ -272,7 +272,7 @@ void writeEventsPoolToFile()
       element[_DurationTimeSpan] = _item.pItem->durationTimeSpan;
 
       for (size_t i = 0; i < _item.pItem->userIds.count; i++)
-        element[_UserIds][(int64_t)i] = _item.pItem->userIds[i];
+        element[_UserIds][(uint32_t)i] = _item.pItem->userIds[i];
 
       element[_Weight] = _item.pItem->weight;
       element[_WeightFactor] = _item.pItem->weightGrowthFactor;
@@ -486,7 +486,7 @@ crow::response handle_user_time_info(const crow::request &req)
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
   for (size_t i = 0; i < availableTime.count; i++)
-    ret[(int64_t)i] = minutes_from_time_span(availableTime[i]);
+    ret[(uint32_t)i] = minutes_from_time_span(availableTime[i]);
 
   return crow::response(crow::status::OK, ret);
 }
@@ -638,7 +638,7 @@ crow::response handle_user_schedule(const crow::request &req)
 
   for (size_t i = 0; i < currentTasks.count; i++)
   {
-    auto &item = ret[(int64_t)i]; // is this legal? or does the underlying memory move...
+    auto &item = ret[(uint32_t)i]; // is this legal? or does the underlying memory move...
     item["name"] = currentTasks[i].name;
     item["duration"] = currentTasks[i].durationInMinutes;
     item["id"] = currentTasks[i].id;
@@ -671,7 +671,7 @@ crow::response handle_event_search(const crow::request &req)
 
   for (size_t i = 0; i < searchResults.count; i++)
   {
-    auto &item = ret[(int64_t)i]; // is this legal? or does the underlying memory move...
+    auto &item = ret[(uint32_t)i]; // is this legal? or does the underlying memory move...
     item["name"] = searchResults[i].name;
     item["duration"] = searchResults[i].durationInMinutes;
     item["id"] = searchResults[i].id;
@@ -703,7 +703,7 @@ crow::response handle_user_search(const crow::request &req)
 
   for (size_t i = 0; i < searchResults.count; i++)
   {
-    auto &item = ret[(int64_t)i]; // is this legal? or does the underlying memory move...
+    auto &item = ret[(uint32_t)i]; // is this legal? or does the underlying memory move...
     item["name"] = searchResults[i].name;
     item["id"] = searchResults[i].id;
   }
@@ -765,7 +765,7 @@ crow::response handle_task_details(const crow::request &req)
   ret["duration"] = minutes_from_time_span(evnt.durationTimeSpan);
 
   for (size_t i = 0; i < DaysPerWeek; i++)
-    ret["executionDays"][(int64_t)i] = !!(evnt.possibleExecutionDays & (1 << i));
+    ret["executionDays"][(uint32_t)i] = !!(evnt.possibleExecutionDays & (1 << i));
 
   ret["repetition"] = days_from_time_span(evnt.repetitionTimeSpan);
   ret["weight"] = evnt.weight;
@@ -780,8 +780,8 @@ crow::response handle_task_details(const crow::request &req)
     if (LS_FAILED(get_user_info(evnt.userIds[i], &info)))
       return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
-    ret["users"][i]["name"] = info.name;
-    ret["users"][i]["id"] = info.id;
+    ret["users"][(uint32_t)i]["name"] = info.name;
+    ret["users"][(uint32_t)i]["id"] = info.id;
   }
 
   return crow::response(crow::status::OK, ret);

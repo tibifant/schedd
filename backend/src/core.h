@@ -54,7 +54,9 @@
 #ifdef LS_PLATFORM_WINDOWS
 #include <intrin.h>
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <Windows.h>
 #undef near
 #undef far
@@ -222,6 +224,15 @@ public:
   do { lsErrorPushSilentImpl __silence__##__LINE__##_; LS_ERROR_IF(conditional, resultOnError); } while (0)
 
 
+#define LS_ARRAYSIZE_C_STYLE(arrayName) (sizeof(arrayName) / sizeof(arrayName[0]))
+
+#ifdef LS_FORCE_ARRAYSIZE_C_STYLE
+#define LS_ARRAYSIZE(arrayName) LS_ARRAYSIZE_C_STYLE(arrayName)
+#else
+template <typename T, size_t TCount>
+inline constexpr size_t LS_ARRAYSIZE(const T(&)[TCount]) { return TCount; }
+#endif
+
 #ifdef _DEBUG
 #define lsFail() \
   do \
@@ -232,7 +243,12 @@ public:
 #define lsAssertInternal(a, expression_text) \
   do \
   { if (!(a)) \
-    { const char *__output_text = __FUNCTION__ ": Assertion Failed ('" expression_text "') in File '" __FILE__ "' (Line " LS_STRINGIFY_VALUE(__LINE__) ")"; \
+    { const char *__func_name = __FUNCTION__; \
+      constexpr size_t __func_size = LS_ARRAYSIZE(__FUNCTION__); \
+      constexpr size_t __assert_text_size = LS_ARRAYSIZE(": Assertion Failed ('" expression_text "') in File '" __FILE__ "' (Line " LS_STRINGIFY_VALUE(__LINE__) ")");\
+      char __output_text[__assert_text_size + __func_size] = ": Assertion Failed ('" expression_text "') in File '" __FILE__ "' (Line " LS_STRINGIFY_VALUE(__LINE__) ")"; \
+      memmove(__output_text + __func_size - 1, __output_text, __assert_text_size); \
+      memcpy(__output_text, __func_name, __func_size - 1); \
       if (lsPrintErrorCallback == nullptr) puts(__output_text); \
       else lsPrintErrorCallback(__output_text); \
       __debugbreak(); \
@@ -282,15 +298,6 @@ constexpr inline T lsClamp(const T &a, const T &min, const T &max)
 
   return a;
 }
-
-#define LS_ARRAYSIZE_C_STYLE(arrayName) (sizeof(arrayName) / sizeof(arrayName[0]))
-
-#ifdef LS_FORCE_ARRAYSIZE_C_STYLE
-#define LS_ARRAYSIZE(arrayName) LS_ARRAYSIZE_C_STYLE(arrayName)
-#else
-template <typename T, size_t TCount>
-inline constexpr size_t LS_ARRAYSIZE(const T(&)[TCount]) { return TCount; }
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1627,7 +1634,7 @@ inline size_t lsStringLength(const char *text, const size_t maxCount)
 {
   if (text == nullptr)
     return 0;
-  
+
   return strnlen(text, maxCount);
 }
 
@@ -1961,11 +1968,11 @@ struct const_ptr_wrapper
   const T *pData;
   const size_t count;
 
-  inline const_ptr_wrapper(const T *pData, const size_t count) : pData(pData), count(count) { lsAssert(pData != nullptr || count == 0); }
+  inline const_ptr_wrapper(const T *pData, const size_t count) : pData(pData), count(count) { { lsAssert(pData != nullptr || count == 0); } }
 
   inline const T &operator [] (const size_t index) const
   {
-    lsAssert(index < count);
+    { lsAssert(index < count); }
     return pData[index];
   };
 };
@@ -1980,7 +1987,7 @@ struct const_array_wrapper
 
   inline const T &operator [] (const size_t index) const
   {
-    lsAssert(index < TCount);
+    { lsAssert(index < TCount); }
     return pData[index];
   };
 };
