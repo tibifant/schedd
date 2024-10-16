@@ -64,6 +64,7 @@
 #undef FAR
 #else
 #include <x86intrin.h>
+#include <unistd.h>
 
 #define __debugbreak() __builtin_trap()
 #endif

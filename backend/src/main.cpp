@@ -137,7 +137,7 @@ void async_tasks()
 #ifdef LS_PLATFORM_WINDOWS
       Sleep(1000);
 #else
-      sleep(1000);
+      sleep(1);
 #endif
     }
 
