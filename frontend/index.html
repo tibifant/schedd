@@ -64,6 +64,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////
 
       let event = { 'id': '', 'userIds': [] };
+      let selectedSearchResults = []; // this is awful. selectedSearchResults needs to be cleared everywhere where users could be selected for a task via the user search.
 
 ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -204,6 +205,8 @@
 
       function show_task_creation() {
         document.getElementsByClassName("task_creation")[0].style.display = "block";
+        selectedSearchResults = []; // this is awful. selectedSearchResults needs to be cleared everywhere where users could be selected for a task via the user search.
+        event = {}; // Clear event.
       }
       
       function task_creation_failure() {
@@ -213,6 +216,7 @@
 
       function submit_new_task() {
         document.getElementById('user_search_failure').style.display = "none";
+
         let obj = {};
 
         obj.name = document.getElementById("task_name").value;
@@ -229,7 +233,7 @@
         obj.repetition = document.getElementById("task_repetition").value;
         obj.weight = document.getElementById("task_weight").value;
         obj.weightFactor = document.getElementById("task_weight_factor").value;
-        obj.userIds = event.userIds;
+        obj.userIds = selectedSearchResults
         obj.sessionId = get_session_token();
 
         function onTaskCreationSuccess(obj) {
@@ -289,6 +293,8 @@
       
       function show_user_search() {
         document.getElementsByClassName('user_search')[0].style.display = 'block';
+        // Clear list when searching again!
+        document.getElementById('user_search_results').innerHTML = '';
       }
 
       function user_search_failure() {
@@ -301,12 +307,11 @@
 
         function onUserSearchSuccess(obj) {
           document.getElementById('task_search_failure').style.display = 'none';
-          let selectedSearchResults = [];
 
           for (let i = 0; i < obj.length; i++) {
             let elem = append_element(document.getElementById('user_search_results'), 'li', '', obj[i].name);
             
-            (() => { // TODO: Do this properly
+            (() => { // TODO: Do this properly.
               let u = obj[i];
               let idx = i;
 
@@ -325,8 +330,6 @@
               };
             })();
           }
-
-          event.userIds = selectedSearchResults;
         }
 
         let query = document.getElementById('user_search_query').value;
@@ -407,6 +410,8 @@
       }
 
       function on_task_search_click() {
+        selectedSearchResults = []; // this is awful. selectedSearchResults needs to be cleared everywhere where users could be selected for a task via the user search.
+
         // Clear list
         document.getElementById('task_search_results').innerHTML = '';
 
@@ -471,19 +476,21 @@
             elem.className = 'selected';
             
             (() => { // TODO: Do this properly
-              let idx = i;
               let u = obj.users[i];
               event.userIds.push(u.id);
 
               elem.onclick = () => {
                 if (event.userIds.includes(u.id)) {
-                  event.userIds.splice(idx, 1);
+                  for (let j = 0; j < event.userIds.length; j++)
+                    if (event.userIds[j] == u.id)
+                      event.userIds.splice(j, 1);
+
                   elem.className = 'li';
                 } else {
                   event.userIds.push(u.id);
                   elem.className = 'selected';
                 }
-              };           
+              };
             })();
           }
         }
@@ -502,6 +509,8 @@
 
       function submit_task_modification() {
         document.getElementsByClassName('user_search')[0].style.display = 'none';
+
+        event.userIds = event.userIds.concat(selectedSearchResults);
 
         let obj = {};
         obj.name = document.getElementById("task_name_edit").value;
@@ -527,7 +536,9 @@
           document.getElementsByClassName('user_search')[0].style.display = 'none';
         }
 
-        load_backend_url("task-edit", onTaskEditSuccess, obj, task_edit_failure)
+        load_backend_url("task-edit", onTaskEditSuccess, obj, task_edit_failure);
+
+        selectedSearchResults = [];
       }
 
       function task_edit_failure() {
