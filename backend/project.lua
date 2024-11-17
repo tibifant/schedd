@@ -24,6 +24,9 @@ project(ProjectName)
     toolset("clang")
     cppdialect "C++17"
     defines { "__llvm__" }
+
+  filter { "architecture:ARM64" }
+    gccprefix "aarch64-linux-gnu-"
   
   filter { }
   
@@ -44,9 +47,11 @@ project(ProjectName)
 
   filter { "system:windows" }
     --links { "3rdParty/asio/.lib" }
-  filter { "system:linux" }
-    libdirs { "/usr/lib/x86_64-linux-gnu" }
+  filter { "system:linux", "architecture:not ARM64" }
     links { "tinfo" }
+    libdirs { "/usr/lib/x86_64-linux-gnu" }
+  filter { "system:linux", "architecture:ARM64" }
+    libdirs { "/usr/lib/aarch64-linux-gnu" }
   filter { }
     
   targetname(ProjectName)

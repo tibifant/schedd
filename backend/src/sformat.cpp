@@ -459,7 +459,8 @@ namespace jkj::dragonbox {
     float_bits() = default;
     constexpr explicit float_bits(carrier_uint bit_pattern) noexcept : u{ bit_pattern } {}
     constexpr explicit float_bits(T float_value) noexcept
-      : u{ traits_type::float_to_carrier(float_value) } {}
+      : u{ traits_type::float_to_carrier(float_value) } {
+    }
 
     constexpr T to_float() const noexcept { return traits_type::carrier_to_float(u); }
 
@@ -525,7 +526,8 @@ namespace jkj::dragonbox {
 
     signed_significand_bits() = default;
     constexpr explicit signed_significand_bits(carrier_uint bit_pattern) noexcept
-      : u{ bit_pattern } {}
+      : u{ bit_pattern } {
+    }
 
     // Shift the obtained signed significand bits to the left by 1 to remove the sign bit.
     constexpr carrier_uint remove_sign_bit_and_shift() const noexcept {
@@ -587,7 +589,8 @@ namespace jkj::dragonbox {
         std::uint64_t low_;
 
         constexpr uint128(std::uint64_t high, std::uint64_t low) noexcept
-          : high_{ high }, low_{ low } {}
+          : high_{ high }, low_{ low } {
+        }
 
         constexpr std::uint64_t high() const noexcept { return high_; }
         constexpr std::uint64_t low() const noexcept { return low_; }
@@ -900,8 +903,8 @@ namespace jkj::dragonbox {
 #ifdef _MSC_VER
 #pragma warning (pop)
 #endif
-      }
     }
+  }
 
   ////////////////////////////////////////////////////////////////////////////////////////
   // Return types for the main interface function.
@@ -1328,18 +1331,18 @@ namespace jkj::dragonbox {
         return res;
         }();
 
-        struct pow5_holder_t {
-          std::uint64_t table[compression_ratio];
-        };
-        static constexpr pow5_holder_t pow5 = [] {
-          pow5_holder_t res{};
-          std::uint64_t p = 1;
-          for (std::size_t i = 0; i < compression_ratio; ++i) {
-            res.table[i] = p;
-            p *= 5;
-          }
-          return res;
-          }();
+      struct pow5_holder_t {
+        std::uint64_t table[compression_ratio];
+      };
+      static constexpr pow5_holder_t pow5 = [] {
+        pow5_holder_t res{};
+        std::uint64_t p = 1;
+        for (std::size_t i = 0; i < compression_ratio; ++i) {
+          res.table[i] = p;
+          p *= 5;
+        }
+        return res;
+        }();
     };
   }
 
@@ -1967,629 +1970,629 @@ namespace jkj::dragonbox {
           -log::floor_log10_pow2(int(max_exponent - significand_bits)) + kappa;
         return a < b ? a : b;
         }();
-        static_assert(min_k >= cache_holder<format>::min_k);
+      static_assert(min_k >= cache_holder<format>::min_k);
 
-        static constexpr int max_k = [] {
-          // We do invoke shorter_interval_case for exponent == min_exponent case,
-          // so we should not add 1 here.
-          constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
-            int(min_exponent - significand_bits /*+ 1*/));
-          constexpr auto b =
-            -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa;
-          return a > b ? a : b;
-          }();
-          static_assert(max_k <= cache_holder<format>::max_k);
+      static constexpr int max_k = [] {
+        // We do invoke shorter_interval_case for exponent == min_exponent case,
+        // so we should not add 1 here.
+        constexpr auto a = -log::floor_log10_pow2_minus_log10_4_over_3(
+          int(min_exponent - significand_bits /*+ 1*/));
+        constexpr auto b =
+          -log::floor_log10_pow2(int(min_exponent - significand_bits)) + kappa;
+        return a > b ? a : b;
+        }();
+      static_assert(max_k <= cache_holder<format>::max_k);
 
-          using cache_entry_type = typename cache_holder<format>::cache_entry_type;
-          static constexpr auto cache_bits = cache_holder<format>::cache_bits;
+      using cache_entry_type = typename cache_holder<format>::cache_entry_type;
+      static constexpr auto cache_bits = cache_holder<format>::cache_bits;
 
-          static constexpr int max_power_of_factor_of_5 =
-            log::floor_log5_pow2(int(significand_bits + 2));
-          static constexpr int divisibility_check_by_5_threshold =
-            log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1);
+      static constexpr int max_power_of_factor_of_5 =
+        log::floor_log5_pow2(int(significand_bits + 2));
+      static constexpr int divisibility_check_by_5_threshold =
+        log::floor_log2_pow10(max_power_of_factor_of_5 + kappa + 1);
 
-          static constexpr int case_fc_pm_half_lower_threshold =
-            -kappa - log::floor_log5_pow2(kappa);
+      static constexpr int case_fc_pm_half_lower_threshold =
+        -kappa - log::floor_log5_pow2(kappa);
 
-          static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
-          static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
-            2 +
-            log::floor_log2(
-              compute_power<
-              count_factors<5>((carrier_uint(1) << (significand_bits + 2)) - 1) + 1>(10) /
-              3);
+      static constexpr int case_shorter_interval_left_endpoint_lower_threshold = 2;
+      static constexpr int case_shorter_interval_left_endpoint_upper_threshold =
+        2 +
+        log::floor_log2(
+          compute_power<
+          count_factors<5>((carrier_uint(1) << (significand_bits + 2)) - 1) + 1>(10) /
+          3);
 
-          static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 0;
-          static constexpr int case_shorter_interval_right_endpoint_upper_threshold =
-            2 +
-            log::floor_log2(
-              compute_power<
-              count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) + 1>(10) /
-              3);
+      static constexpr int case_shorter_interval_right_endpoint_lower_threshold = 0;
+      static constexpr int case_shorter_interval_right_endpoint_upper_threshold =
+        2 +
+        log::floor_log2(
+          compute_power<
+          count_factors<5>((carrier_uint(1) << (significand_bits + 1)) + 1) + 1>(10) /
+          3);
 
-          static constexpr int shorter_interval_tie_lower_threshold =
-            -log::floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
-          static constexpr int shorter_interval_tie_upper_threshold =
-            -log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
+      static constexpr int shorter_interval_tie_lower_threshold =
+        -log::floor_log5_pow2_minus_log5_3(significand_bits + 4) - 2 - significand_bits;
+      static constexpr int shorter_interval_tie_upper_threshold =
+        -log::floor_log5_pow2(significand_bits + 2) - 2 - significand_bits;
 
-          struct compute_mul_result {
-            carrier_uint result;
-            bool is_integer;
-          };
-          struct compute_mul_parity_result {
-            bool parity;
-            bool is_integer;
-          };
+      struct compute_mul_result {
+        carrier_uint result;
+        bool is_integer;
+      };
+      struct compute_mul_parity_result {
+        bool parity;
+        bool is_integer;
+      };
 
-          //// The main algorithm assumes the input is a normal/subnormal finite number
+      //// The main algorithm assumes the input is a normal/subnormal finite number
 
-          template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
-            class BinaryToDecimalRoundingPolicy, class CachePolicy,
-            class... AdditionalArgs>
-          JKJ_SAFEBUFFERS static ReturnType
-            compute_nearest_normal(carrier_uint const two_fc, int const exponent,
-              AdditionalArgs... additional_args) noexcept {
-            //////////////////////////////////////////////////////////////////////
-            // Step 1: Schubfach multiplier calculation
-            //////////////////////////////////////////////////////////////////////
+      template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
+        class BinaryToDecimalRoundingPolicy, class CachePolicy,
+        class... AdditionalArgs>
+      JKJ_SAFEBUFFERS static ReturnType
+        compute_nearest_normal(carrier_uint const two_fc, int const exponent,
+          AdditionalArgs... additional_args) noexcept {
+        //////////////////////////////////////////////////////////////////////
+        // Step 1: Schubfach multiplier calculation
+        //////////////////////////////////////////////////////////////////////
 
-            ReturnType ret_value;
-            IntervalType interval_type{ additional_args... };
+        ReturnType ret_value;
+        IntervalType interval_type{ additional_args... };
 
-            // Compute k and beta.
-            int const minus_k = log::floor_log10_pow2(exponent) - kappa;
-            auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-            int const beta = exponent + log::floor_log2_pow10(-minus_k);
+        // Compute k and beta.
+        int const minus_k = log::floor_log10_pow2(exponent) - kappa;
+        auto const cache = CachePolicy::template get_cache<format>(-minus_k);
+        int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
-            // Compute zi and deltai.
-            // 10^kappa <= deltai < 10^(kappa + 1)
-            auto const deltai = compute_delta(cache, beta);
-            // For the case of binary32, the result of integer check is not correct for
-            // 29711844 * 2^-82
-            // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
-            // and 29711844 * 2^-81
-            // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17,
-            // and they are the unique counterexamples. However, since 29711844 is even,
-            // this does not cause any problem for the endpoints calculations; it can only
-            // cause a problem when we need to perform integer check for the center.
-            // Fortunately, with these inputs, that branch is never executed, so we are fine.
-            auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta, cache);
-
-
-            //////////////////////////////////////////////////////////////////////
-            // Step 2: Try larger divisor; remove trailing zeros if necessary
-            //////////////////////////////////////////////////////////////////////
-
-            constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
-            constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
-
-            // Using an upper bound on zi, we might be able to optimize the division
-            // better than the compiler; we are computing zi / big_divisor here.
-            ret_value.significand =
-              div::divide_by_pow10<kappa + 1, carrier_uint,
-              (carrier_uint(1) << (significand_bits + 1)) *big_divisor -
-              1>(zi);
-            auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
-
-            if (r < deltai) {
-              // Exclude the right endpoint if necessary.
-              if (r == 0 && is_z_integer && !interval_type.include_right_endpoint()) {
-                if constexpr (BinaryToDecimalRoundingPolicy::tag ==
-                  policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
-                  ret_value.significand *= 10;
-                  ret_value.exponent = minus_k + kappa;
-                  --ret_value.significand;
-                  TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-                  return ret_value;
-                }
-                else {
-                  --ret_value.significand;
-                  r = big_divisor;
-                  goto small_divisor_case_label;
-                }
-              }
-            }
-            else if (r > deltai) {
-              goto small_divisor_case_label;
-            }
-            else {
-              // r == deltai; compare fractional parts.
-              auto const two_fl = two_fc - 1;
-
-              if (!interval_type.include_left_endpoint() ||
-                exponent < case_fc_pm_half_lower_threshold ||
-                exponent > divisibility_check_by_5_threshold) {
-                // If the left endpoint is not included, the condition for
-                // success is z^(f) < delta^(f) (odd parity).
-                // Otherwise, the inequalities on exponent ensure that
-                // x is not an integer, so if z^(f) >= delta^(f) (even parity), we in fact
-                // have strict inequality.
-                if (!compute_mul_parity(two_fl, cache, beta).parity) {
-                  goto small_divisor_case_label;
-                }
-              }
-              else {
-                auto const [xi_parity, x_is_integer] =
-                  compute_mul_parity(two_fl, cache, beta);
-                if (!xi_parity && !x_is_integer) {
-                  goto small_divisor_case_label;
-                }
-              }
-            }
-            ret_value.exponent = minus_k + kappa + 1;
-
-            // We may need to remove trailing zeros.
-            TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-            return ret_value;
+        // Compute zi and deltai.
+        // 10^kappa <= deltai < 10^(kappa + 1)
+        auto const deltai = compute_delta(cache, beta);
+        // For the case of binary32, the result of integer check is not correct for
+        // 29711844 * 2^-82
+        // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
+        // and 29711844 * 2^-81
+        // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17,
+        // and they are the unique counterexamples. However, since 29711844 is even,
+        // this does not cause any problem for the endpoints calculations; it can only
+        // cause a problem when we need to perform integer check for the center.
+        // Fortunately, with these inputs, that branch is never executed, so we are fine.
+        auto const [zi, is_z_integer] = compute_mul((two_fc | 1) << beta, cache);
 
 
-            //////////////////////////////////////////////////////////////////////
-            // Step 3: Find the significand with the smaller divisor
-            //////////////////////////////////////////////////////////////////////
+        //////////////////////////////////////////////////////////////////////
+        // Step 2: Try larger divisor; remove trailing zeros if necessary
+        //////////////////////////////////////////////////////////////////////
 
-          small_divisor_case_label:
-            TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-            ret_value.significand *= 10;
-            ret_value.exponent = minus_k + kappa;
+        constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
+        constexpr auto small_divisor = compute_power<kappa>(std::uint32_t(10));
 
+        // Using an upper bound on zi, we might be able to optimize the division
+        // better than the compiler; we are computing zi / big_divisor here.
+        ret_value.significand =
+          div::divide_by_pow10<kappa + 1, carrier_uint,
+          (carrier_uint(1) << (significand_bits + 1)) *big_divisor -
+          1>(zi);
+        auto r = std::uint32_t(zi - big_divisor * ret_value.significand);
+
+        if (r < deltai) {
+          // Exclude the right endpoint if necessary.
+          if (r == 0 && is_z_integer && !interval_type.include_right_endpoint()) {
             if constexpr (BinaryToDecimalRoundingPolicy::tag ==
               policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
-              // Normally, we want to compute
-              // ret_value.significand += r / small_divisor
-              // and return, but we need to take care of the case that the resulting
-              // value is exactly the right endpoint, while that is not included in the
-              // interval.
-              if (!interval_type.include_right_endpoint()) {
-                // Is r divisible by 10^kappa?
-                if (is_z_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
-                  // This should be in the interval.
-                  ret_value.significand += r - 1;
-                }
-                else {
-                  ret_value.significand += r;
-                }
-              }
-              else {
-                ret_value.significand += div::small_division_by_pow10<kappa>(r);
-              }
-            }
-            else {
-              auto dist = r - (deltai / 2) + (small_divisor / 2);
-              bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
-
-              // Is dist divisible by 10^kappa?
-              bool const divisible_by_small_divisor =
-                div::check_divisibility_and_divide_by_pow10<kappa>(dist);
-
-              // Add dist / 10^kappa to the significand.
-              ret_value.significand += dist;
-
-              if (divisible_by_small_divisor) {
-                // Check z^(f) >= epsilon^(f).
-                // We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
-                // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f).
-                // Since there are only 2 possibilities, we only need to care about the
-                // parity. Also, zi and r should have the same parity since the divisor is
-                // an even number.
-                auto const [yi_parity, is_y_integer] =
-                  compute_mul_parity(two_fc, cache, beta);
-                if (yi_parity != approx_y_parity) {
-                  --ret_value.significand;
-                }
-                else {
-                  // If z^(f) >= epsilon^(f), we might have a tie
-                  // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
-                  // For tie-to-up case, we can just choose the upper one.
-                  if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
-                    is_y_integer) {
-                    --ret_value.significand;
-                  }
-                }
-              }
-            }
-            return ret_value;
-          }
-
-          template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
-            class BinaryToDecimalRoundingPolicy, class CachePolicy,
-            class... AdditionalArgs>
-          JKJ_SAFEBUFFERS static ReturnType
-            compute_nearest_shorter(int const exponent,
-              AdditionalArgs... additional_args) noexcept {
-            ReturnType ret_value;
-            IntervalType interval_type{ additional_args... };
-
-            // Compute k and beta.
-            int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
-            int const beta = exponent + log::floor_log2_pow10(-minus_k);
-
-            // Compute xi and zi.
-            auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-
-            auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta);
-            auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta);
-
-            // If we don't accept the right endpoint and
-            // if the right endpoint is an integer, decrease it.
-            if (!interval_type.include_right_endpoint() &&
-              is_right_endpoint_integer_shorter_interval(exponent)) {
-              --zi;
-            }
-            // If we don't accept the left endpoint or
-            // if the left endpoint is not an integer, increase it.
-            if (!interval_type.include_left_endpoint() ||
-              !is_left_endpoint_integer_shorter_interval(exponent)) {
-              ++xi;
-            }
-
-            // Try bigger divisor.
-            ret_value.significand = zi / 10;
-
-            // If succeed, remove trailing zeros if necessary and return.
-            if (ret_value.significand * 10 >= xi) {
-              ret_value.exponent = minus_k + 1;
-              TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+              ret_value.significand *= 10;
+              ret_value.exponent = minus_k + kappa;
+              --ret_value.significand;
+              TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
               return ret_value;
             }
+            else {
+              --ret_value.significand;
+              r = big_divisor;
+              goto small_divisor_case_label;
+            }
+          }
+        }
+        else if (r > deltai) {
+          goto small_divisor_case_label;
+        }
+        else {
+          // r == deltai; compare fractional parts.
+          auto const two_fl = two_fc - 1;
 
-            // Otherwise, compute the round-up of y.
-            TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-            ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta);
-            ret_value.exponent = minus_k;
+          if (!interval_type.include_left_endpoint() ||
+            exponent < case_fc_pm_half_lower_threshold ||
+            exponent > divisibility_check_by_5_threshold) {
+            // If the left endpoint is not included, the condition for
+            // success is z^(f) < delta^(f) (odd parity).
+            // Otherwise, the inequalities on exponent ensure that
+            // x is not an integer, so if z^(f) >= delta^(f) (even parity), we in fact
+            // have strict inequality.
+            if (!compute_mul_parity(two_fl, cache, beta).parity) {
+              goto small_divisor_case_label;
+            }
+          }
+          else {
+            auto const [xi_parity, x_is_integer] =
+              compute_mul_parity(two_fl, cache, beta);
+            if (!xi_parity && !x_is_integer) {
+              goto small_divisor_case_label;
+            }
+          }
+        }
+        ret_value.exponent = minus_k + kappa + 1;
 
-            // When tie occurs, choose one of them according to the rule.
-            if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
-              exponent >= shorter_interval_tie_lower_threshold &&
-              exponent <= shorter_interval_tie_upper_threshold) {
+        // We may need to remove trailing zeros.
+        TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+        return ret_value;
+
+
+        //////////////////////////////////////////////////////////////////////
+        // Step 3: Find the significand with the smaller divisor
+        //////////////////////////////////////////////////////////////////////
+
+      small_divisor_case_label:
+        TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
+        ret_value.significand *= 10;
+        ret_value.exponent = minus_k + kappa;
+
+        if constexpr (BinaryToDecimalRoundingPolicy::tag ==
+          policy_impl::binary_to_decimal_rounding::tag_t::do_not_care) {
+          // Normally, we want to compute
+          // ret_value.significand += r / small_divisor
+          // and return, but we need to take care of the case that the resulting
+          // value is exactly the right endpoint, while that is not included in the
+          // interval.
+          if (!interval_type.include_right_endpoint()) {
+            // Is r divisible by 10^kappa?
+            if (is_z_integer && div::check_divisibility_and_divide_by_pow10<kappa>(r)) {
+              // This should be in the interval.
+              ret_value.significand += r - 1;
+            }
+            else {
+              ret_value.significand += r;
+            }
+          }
+          else {
+            ret_value.significand += div::small_division_by_pow10<kappa>(r);
+          }
+        }
+        else {
+          auto dist = r - (deltai / 2) + (small_divisor / 2);
+          bool const approx_y_parity = ((dist ^ (small_divisor / 2)) & 1) != 0;
+
+          // Is dist divisible by 10^kappa?
+          bool const divisible_by_small_divisor =
+            div::check_divisibility_and_divide_by_pow10<kappa>(dist);
+
+          // Add dist / 10^kappa to the significand.
+          ret_value.significand += dist;
+
+          if (divisible_by_small_divisor) {
+            // Check z^(f) >= epsilon^(f).
+            // We have either yi == zi - epsiloni or yi == (zi - epsiloni) - 1,
+            // where yi == zi - epsiloni if and only if z^(f) >= epsilon^(f).
+            // Since there are only 2 possibilities, we only need to care about the
+            // parity. Also, zi and r should have the same parity since the divisor is
+            // an even number.
+            auto const [yi_parity, is_y_integer] =
+              compute_mul_parity(two_fc, cache, beta);
+            if (yi_parity != approx_y_parity) {
               --ret_value.significand;
             }
-            else if (ret_value.significand < xi) {
-              ++ret_value.significand;
+            else {
+              // If z^(f) >= epsilon^(f), we might have a tie
+              // when z^(f) == epsilon^(f), or equivalently, when y is an integer.
+              // For tie-to-up case, we can just choose the upper one.
+              if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
+                is_y_integer) {
+                --ret_value.significand;
+              }
             }
-            return ret_value;
           }
+        }
+        return ret_value;
+      }
 
-          template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-          JKJ_SAFEBUFFERS static ReturnType
-            compute_left_closed_directed(carrier_uint const two_fc, int exponent) noexcept {
-            //////////////////////////////////////////////////////////////////////
-            // Step 1: Schubfach multiplier calculation
-            //////////////////////////////////////////////////////////////////////
+      template <class ReturnType, class IntervalType, class TrailingZeroPolicy,
+        class BinaryToDecimalRoundingPolicy, class CachePolicy,
+        class... AdditionalArgs>
+      JKJ_SAFEBUFFERS static ReturnType
+        compute_nearest_shorter(int const exponent,
+          AdditionalArgs... additional_args) noexcept {
+        ReturnType ret_value;
+        IntervalType interval_type{ additional_args... };
 
-            ReturnType ret_value;
+        // Compute k and beta.
+        int const minus_k = log::floor_log10_pow2_minus_log10_4_over_3(exponent);
+        int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
-            // Compute k and beta.
-            int const minus_k = log::floor_log10_pow2(exponent) - kappa;
-            auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-            int const beta = exponent + log::floor_log2_pow10(-minus_k);
+        // Compute xi and zi.
+        auto const cache = CachePolicy::template get_cache<format>(-minus_k);
 
-            // Compute xi and deltai.
-            // 10^kappa <= deltai < 10^(kappa + 1)
-            auto const deltai = compute_delta(cache, beta);
-            auto [xi, is_x_integer] = compute_mul(two_fc << beta, cache);
+        auto xi = compute_left_endpoint_for_shorter_interval_case(cache, beta);
+        auto zi = compute_right_endpoint_for_shorter_interval_case(cache, beta);
 
-            // Deal with the unique exceptional cases
-            // 29711844 * 2^-82
-            // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
-            // and 29711844 * 2^-81
-            // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
-            // for binary32.
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              if (exponent <= -80) {
-                is_x_integer = false;
-              }
-            }
+        // If we don't accept the right endpoint and
+        // if the right endpoint is an integer, decrease it.
+        if (!interval_type.include_right_endpoint() &&
+          is_right_endpoint_integer_shorter_interval(exponent)) {
+          --zi;
+        }
+        // If we don't accept the left endpoint or
+        // if the left endpoint is not an integer, increase it.
+        if (!interval_type.include_left_endpoint() ||
+          !is_left_endpoint_integer_shorter_interval(exponent)) {
+          ++xi;
+        }
 
-            if (!is_x_integer) {
-              ++xi;
-            }
+        // Try bigger divisor.
+        ret_value.significand = zi / 10;
 
-            //////////////////////////////////////////////////////////////////////
-            // Step 2: Try larger divisor; remove trailing zeros if necessary
-            //////////////////////////////////////////////////////////////////////
+        // If succeed, remove trailing zeros if necessary and return.
+        if (ret_value.significand * 10 >= xi) {
+          ret_value.exponent = minus_k + 1;
+          TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+          return ret_value;
+        }
 
-            constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
+        // Otherwise, compute the round-up of y.
+        TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
+        ret_value.significand = compute_round_up_for_shorter_interval_case(cache, beta);
+        ret_value.exponent = minus_k;
 
-            // Using an upper bound on xi, we might be able to optimize the division
-            // better than the compiler; we are computing xi / big_divisor here.
-            ret_value.significand =
-              div::divide_by_pow10<kappa + 1, carrier_uint,
-              (carrier_uint(1) << (significand_bits + 1)) *big_divisor -
-              1>(xi);
-            auto r = std::uint32_t(xi - big_divisor * ret_value.significand);
+        // When tie occurs, choose one of them according to the rule.
+        if (BinaryToDecimalRoundingPolicy::prefer_round_down(ret_value) &&
+          exponent >= shorter_interval_tie_lower_threshold &&
+          exponent <= shorter_interval_tie_upper_threshold) {
+          --ret_value.significand;
+        }
+        else if (ret_value.significand < xi) {
+          ++ret_value.significand;
+        }
+        return ret_value;
+      }
 
-            if (r != 0) {
-              ++ret_value.significand;
-              r = big_divisor - r;
-            }
+      template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
+      JKJ_SAFEBUFFERS static ReturnType
+        compute_left_closed_directed(carrier_uint const two_fc, int exponent) noexcept {
+        //////////////////////////////////////////////////////////////////////
+        // Step 1: Schubfach multiplier calculation
+        //////////////////////////////////////////////////////////////////////
 
-            if (r > deltai) {
-              goto small_divisor_case_label;
-            }
-            else if (r == deltai) {
-              // Compare the fractional parts.
-              // This branch is never taken for the exceptional cases
-              // 2f_c = 29711482, e = -81
-              // (6.1442649164096937243516663440523473127541365101933479309082... * 10^-18)
-              // and 2f_c = 29711482, e = -80
-              // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
-              auto const [zi_parity, is_z_integer] =
-                compute_mul_parity(two_fc + 2, cache, beta);
-              if (zi_parity || is_z_integer) {
-                goto small_divisor_case_label;
-              }
-            }
+        ReturnType ret_value;
 
-            // The ceiling is inside, so we are done.
-            ret_value.exponent = minus_k + kappa + 1;
-            TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-            return ret_value;
+        // Compute k and beta.
+        int const minus_k = log::floor_log10_pow2(exponent) - kappa;
+        auto const cache = CachePolicy::template get_cache<format>(-minus_k);
+        int const beta = exponent + log::floor_log2_pow10(-minus_k);
 
+        // Compute xi and deltai.
+        // 10^kappa <= deltai < 10^(kappa + 1)
+        auto const deltai = compute_delta(cache, beta);
+        auto [xi, is_x_integer] = compute_mul(two_fc << beta, cache);
 
-            //////////////////////////////////////////////////////////////////////
-            // Step 3: Find the significand with the smaller divisor
-            //////////////////////////////////////////////////////////////////////
-
-          small_divisor_case_label:
-            ret_value.significand *= 10;
-            ret_value.significand -= div::small_division_by_pow10<kappa>(r);
-            ret_value.exponent = minus_k + kappa;
-            TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-            return ret_value;
+        // Deal with the unique exceptional cases
+        // 29711844 * 2^-82
+        // = 6.1442653300000000008655037797566933477355632930994033813476... * 10^-18
+        // and 29711844 * 2^-81
+        // = 1.2288530660000000001731007559513386695471126586198806762695... * 10^-17
+        // for binary32.
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          if (exponent <= -80) {
+            is_x_integer = false;
           }
+        }
 
-          template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
-          JKJ_SAFEBUFFERS static ReturnType
-            compute_right_closed_directed(carrier_uint const two_fc, int const exponent,
-              bool shorter_interval) noexcept {
-            //////////////////////////////////////////////////////////////////////
-            // Step 1: Schubfach multiplier calculation
-            //////////////////////////////////////////////////////////////////////
+        if (!is_x_integer) {
+          ++xi;
+        }
 
-            ReturnType ret_value;
+        //////////////////////////////////////////////////////////////////////
+        // Step 2: Try larger divisor; remove trailing zeros if necessary
+        //////////////////////////////////////////////////////////////////////
 
-            // Compute k and beta.
-            int const minus_k =
-              log::floor_log10_pow2(exponent - (shorter_interval ? 1 : 0)) - kappa;
-            auto const cache = CachePolicy::template get_cache<format>(-minus_k);
-            int const beta = exponent + log::floor_log2_pow10(-minus_k);
+        constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
 
-            // Compute zi and deltai.
-            // 10^kappa <= deltai < 10^(kappa + 1)
-            auto const deltai =
-              shorter_interval ? compute_delta(cache, beta - 1) : compute_delta(cache, beta);
-            carrier_uint const zi = compute_mul(two_fc << beta, cache).result;
+        // Using an upper bound on xi, we might be able to optimize the division
+        // better than the compiler; we are computing xi / big_divisor here.
+        ret_value.significand =
+          div::divide_by_pow10<kappa + 1, carrier_uint,
+          (carrier_uint(1) << (significand_bits + 1)) *big_divisor -
+          1>(xi);
+        auto r = std::uint32_t(xi - big_divisor * ret_value.significand);
 
+        if (r != 0) {
+          ++ret_value.significand;
+          r = big_divisor - r;
+        }
 
-            //////////////////////////////////////////////////////////////////////
-            // Step 2: Try larger divisor; remove trailing zeros if necessary
-            //////////////////////////////////////////////////////////////////////
-
-            constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
-
-            // Using an upper bound on zi, we might be able to optimize the division better than
-            // the compiler; we are computing zi / big_divisor here.
-            ret_value.significand =
-              div::divide_by_pow10<kappa + 1, carrier_uint,
-              (carrier_uint(1) << (significand_bits + 1)) *big_divisor -
-              1>(zi);
-            auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
-
-            if (r > deltai) {
-              goto small_divisor_case_label;
-            }
-            else if (r == deltai) {
-              // Compare the fractional parts.
-              if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache, beta)
-                .parity) {
-                goto small_divisor_case_label;
-              }
-            }
-
-            // The floor is inside, so we are done.
-            ret_value.exponent = minus_k + kappa + 1;
-            TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
-            return ret_value;
-
-
-            //////////////////////////////////////////////////////////////////////
-            // Step 3: Find the significand with the small divisor
-            //////////////////////////////////////////////////////////////////////
-
-          small_divisor_case_label:
-            ret_value.significand *= 10;
-            ret_value.significand += div::small_division_by_pow10<kappa>(r);
-            ret_value.exponent = minus_k + kappa;
-            TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
-            return ret_value;
+        if (r > deltai) {
+          goto small_divisor_case_label;
+        }
+        else if (r == deltai) {
+          // Compare the fractional parts.
+          // This branch is never taken for the exceptional cases
+          // 2f_c = 29711482, e = -81
+          // (6.1442649164096937243516663440523473127541365101933479309082... * 10^-18)
+          // and 2f_c = 29711482, e = -80
+          // (1.2288529832819387448703332688104694625508273020386695861816... * 10^-17).
+          auto const [zi_parity, is_z_integer] =
+            compute_mul_parity(two_fc + 2, cache, beta);
+          if (zi_parity || is_z_integer) {
+            goto small_divisor_case_label;
           }
+        }
 
-          // Remove trailing zeros from n and return the number of zeros removed.
-          JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint &n) noexcept {
-            assert(n != 0);
+        // The ceiling is inside, so we are done.
+        ret_value.exponent = minus_k + kappa + 1;
+        TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+        return ret_value;
 
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
-              constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
-              int s = 0;
-              while (true) {
-                auto q = bits::rotr(n * mod_inv_25, 2);
-                if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
-                  n = q;
-                  s += 2;
-                }
-                else {
-                  break;
-                }
-              }
-              auto q = bits::rotr(n * mod_inv_5, 1);
-              if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
-                n = q;
-                s |= 1;
-              }
+        //////////////////////////////////////////////////////////////////////
+        // Step 3: Find the significand with the smaller divisor
+        //////////////////////////////////////////////////////////////////////
 
-              return s;
+      small_divisor_case_label:
+        ret_value.significand *= 10;
+        ret_value.significand -= div::small_division_by_pow10<kappa>(r);
+        ret_value.exponent = minus_k + kappa;
+        TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
+        return ret_value;
+      }
+
+      template <class ReturnType, class TrailingZeroPolicy, class CachePolicy>
+      JKJ_SAFEBUFFERS static ReturnType
+        compute_right_closed_directed(carrier_uint const two_fc, int const exponent,
+          bool shorter_interval) noexcept {
+        //////////////////////////////////////////////////////////////////////
+        // Step 1: Schubfach multiplier calculation
+        //////////////////////////////////////////////////////////////////////
+
+        ReturnType ret_value;
+
+        // Compute k and beta.
+        int const minus_k =
+          log::floor_log10_pow2(exponent - (shorter_interval ? 1 : 0)) - kappa;
+        auto const cache = CachePolicy::template get_cache<format>(-minus_k);
+        int const beta = exponent + log::floor_log2_pow10(-minus_k);
+
+        // Compute zi and deltai.
+        // 10^kappa <= deltai < 10^(kappa + 1)
+        auto const deltai =
+          shorter_interval ? compute_delta(cache, beta - 1) : compute_delta(cache, beta);
+        carrier_uint const zi = compute_mul(two_fc << beta, cache).result;
+
+
+        //////////////////////////////////////////////////////////////////////
+        // Step 2: Try larger divisor; remove trailing zeros if necessary
+        //////////////////////////////////////////////////////////////////////
+
+        constexpr auto big_divisor = compute_power<kappa + 1>(std::uint32_t(10));
+
+        // Using an upper bound on zi, we might be able to optimize the division better than
+        // the compiler; we are computing zi / big_divisor here.
+        ret_value.significand =
+          div::divide_by_pow10<kappa + 1, carrier_uint,
+          (carrier_uint(1) << (significand_bits + 1)) *big_divisor -
+          1>(zi);
+        auto const r = std::uint32_t(zi - big_divisor * ret_value.significand);
+
+        if (r > deltai) {
+          goto small_divisor_case_label;
+        }
+        else if (r == deltai) {
+          // Compare the fractional parts.
+          if (!compute_mul_parity(two_fc - (shorter_interval ? 1 : 2), cache, beta)
+            .parity) {
+            goto small_divisor_case_label;
+          }
+        }
+
+        // The floor is inside, so we are done.
+        ret_value.exponent = minus_k + kappa + 1;
+        TrailingZeroPolicy::template on_trailing_zeros<impl>(ret_value);
+        return ret_value;
+
+
+        //////////////////////////////////////////////////////////////////////
+        // Step 3: Find the significand with the small divisor
+        //////////////////////////////////////////////////////////////////////
+
+      small_divisor_case_label:
+        ret_value.significand *= 10;
+        ret_value.significand += div::small_division_by_pow10<kappa>(r);
+        ret_value.exponent = minus_k + kappa;
+        TrailingZeroPolicy::template no_trailing_zeros<impl>(ret_value);
+        return ret_value;
+      }
+
+      // Remove trailing zeros from n and return the number of zeros removed.
+      JKJ_FORCEINLINE static int remove_trailing_zeros(carrier_uint &n) noexcept {
+        assert(n != 0);
+
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
+          constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
+
+          int s = 0;
+          while (true) {
+            auto q = bits::rotr(n * mod_inv_25, 2);
+            if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
+              n = q;
+              s += 2;
             }
             else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
+              break;
+            }
+          }
+          auto q = bits::rotr(n * mod_inv_5, 1);
+          if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
+            n = q;
+            s |= 1;
+          }
 
-              // Divide by 10^8 and reduce to 32-bits if divisible.
-              // Since ret_value.significand <= (2^53 * 1000 - 1) / 1000 < 10^16,
-              // n is at most of 16 digits.
+          return s;
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
 
-              // This magic number is ceil(2^90 / 10^8).
-              constexpr auto magic_number = std::uint64_t(12379400392853802749ull);
-              auto nm = wuint::umul128(n, magic_number);
+          // Divide by 10^8 and reduce to 32-bits if divisible.
+          // Since ret_value.significand <= (2^53 * 1000 - 1) / 1000 < 10^16,
+          // n is at most of 16 digits.
 
-              // Is n is divisible by 10^8?
-              if ((nm.high() & ((std::uint64_t(1) << (90 - 64)) - 1)) == 0 &&
-                nm.low() < magic_number) {
-                // If yes, work with the quotient.
-                auto n32 = std::uint32_t(nm.high() >> (90 - 64));
+          // This magic number is ceil(2^90 / 10^8).
+          constexpr auto magic_number = std::uint64_t(12379400392853802749ull);
+          auto nm = wuint::umul128(n, magic_number);
 
-                constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
-                constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
+          // Is n is divisible by 10^8?
+          if ((nm.high() & ((std::uint64_t(1) << (90 - 64)) - 1)) == 0 &&
+            nm.low() < magic_number) {
+            // If yes, work with the quotient.
+            auto n32 = std::uint32_t(nm.high() >> (90 - 64));
 
-                int s = 8;
-                while (true) {
-                  auto q = bits::rotr(n32 * mod_inv_25, 2);
-                  if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
-                    n32 = q;
-                    s += 2;
-                  }
-                  else {
-                    break;
-                  }
-                }
-                auto q = bits::rotr(n32 * mod_inv_5, 1);
-                if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
-                  n32 = q;
-                  s |= 1;
-                }
+            constexpr auto mod_inv_5 = std::uint32_t(0xcccc'cccd);
+            constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
 
-                n = n32;
-                return s;
+            int s = 8;
+            while (true) {
+              auto q = bits::rotr(n32 * mod_inv_25, 2);
+              if (q <= std::numeric_limits<std::uint32_t>::max() / 100) {
+                n32 = q;
+                s += 2;
               }
-
-              // If n is not divisible by 10^8, work with n itself.
-              constexpr auto mod_inv_5 = std::uint64_t(0xcccc'cccc'cccc'cccd);
-              constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
-
-              int s = 0;
-              while (true) {
-                auto q = bits::rotr(n * mod_inv_25, 2);
-                if (q <= std::numeric_limits<std::uint64_t>::max() / 100) {
-                  n = q;
-                  s += 2;
-                }
-                else {
-                  break;
-                }
+              else {
+                break;
               }
-              auto q = bits::rotr(n * mod_inv_5, 1);
-              if (q <= std::numeric_limits<std::uint64_t>::max() / 10) {
-                n = q;
-                s |= 1;
-              }
-
-              return s;
             }
+            auto q = bits::rotr(n32 * mod_inv_5, 1);
+            if (q <= std::numeric_limits<std::uint32_t>::max() / 10) {
+              n32 = q;
+              s |= 1;
+            }
+
+            n = n32;
+            return s;
           }
 
-          static compute_mul_result compute_mul(carrier_uint u,
-            cache_entry_type const &cache) noexcept {
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              auto r = wuint::umul96_upper64(u, cache);
-              return { carrier_uint(r >> 32), carrier_uint(r) == 0 };
+          // If n is not divisible by 10^8, work with n itself.
+          constexpr auto mod_inv_5 = std::uint64_t(0xcccc'cccc'cccc'cccd);
+          constexpr auto mod_inv_25 = mod_inv_5 * mod_inv_5;
+
+          int s = 0;
+          while (true) {
+            auto q = bits::rotr(n * mod_inv_25, 2);
+            if (q <= std::numeric_limits<std::uint64_t>::max() / 100) {
+              n = q;
+              s += 2;
             }
             else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
-              auto r = wuint::umul192_upper128(u, cache);
-              return { r.high(), r.low() == 0 };
+              break;
             }
           }
-
-          static constexpr std::uint32_t compute_delta(cache_entry_type const &cache,
-            int beta) noexcept {
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              return std::uint32_t(cache >> (cache_bits - 1 - beta));
-            }
-            else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
-              return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
-            }
+          auto q = bits::rotr(n * mod_inv_5, 1);
+          if (q <= std::numeric_limits<std::uint64_t>::max() / 10) {
+            n = q;
+            s |= 1;
           }
 
-          static compute_mul_parity_result compute_mul_parity(carrier_uint two_f,
-            cache_entry_type const &cache,
-            int beta) noexcept {
-            assert(beta >= 1);
-            assert(beta < 64);
+          return s;
+        }
+      }
 
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              auto r = wuint::umul96_lower64(two_f, cache);
-              return { ((r >> (64 - beta)) & 1) != 0, std::uint32_t(r >> (32 - beta)) == 0 };
-            }
-            else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
-              auto r = wuint::umul192_lower128(two_f, cache);
-              return { ((r.high() >> (64 - beta)) & 1) != 0,
-                      ((r.high() << beta) | (r.low() >> (64 - beta))) == 0 };
-            }
-          }
+      static compute_mul_result compute_mul(carrier_uint u,
+        cache_entry_type const &cache) noexcept {
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          auto r = wuint::umul96_upper64(u, cache);
+          return { carrier_uint(r >> 32), carrier_uint(r) == 0 };
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
+          auto r = wuint::umul192_upper128(u, cache);
+          return { r.high(), r.low() == 0 };
+        }
+      }
 
-          static constexpr carrier_uint
-            compute_left_endpoint_for_shorter_interval_case(cache_entry_type const &cache,
-              int beta) noexcept {
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
-                (cache_bits - significand_bits - 1 - beta));
-            }
-            else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
-              return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
-                (carrier_bits - significand_bits - 1 - beta);
-            }
-          }
+      static constexpr std::uint32_t compute_delta(cache_entry_type const &cache,
+        int beta) noexcept {
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          return std::uint32_t(cache >> (cache_bits - 1 - beta));
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
+          return std::uint32_t(cache.high() >> (carrier_bits - 1 - beta));
+        }
+      }
 
-          static constexpr carrier_uint
-            compute_right_endpoint_for_shorter_interval_case(cache_entry_type const &cache,
-              int beta) noexcept {
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
-                (cache_bits - significand_bits - 1 - beta));
-            }
-            else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
-              return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
-                (carrier_bits - significand_bits - 1 - beta);
-            }
-          }
+      static compute_mul_parity_result compute_mul_parity(carrier_uint two_f,
+        cache_entry_type const &cache,
+        int beta) noexcept {
+        assert(beta >= 1);
+        assert(beta < 64);
 
-          static constexpr carrier_uint
-            compute_round_up_for_shorter_interval_case(cache_entry_type const &cache,
-              int beta) noexcept {
-            if constexpr (std::is_same_v<format, ieee754_binary32>) {
-              return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) /
-                2;
-            }
-            else {
-              static_assert(std::is_same_v<format, ieee754_binary64>);
-              return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) + 1) / 2;
-            }
-          }
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          auto r = wuint::umul96_lower64(two_f, cache);
+          return { ((r >> (64 - beta)) & 1) != 0, std::uint32_t(r >> (32 - beta)) == 0 };
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
+          auto r = wuint::umul192_lower128(two_f, cache);
+          return { ((r.high() >> (64 - beta)) & 1) != 0,
+                  ((r.high() << beta) | (r.low() >> (64 - beta))) == 0 };
+        }
+      }
 
-          static constexpr bool
-            is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
-            return exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
-              exponent <= case_shorter_interval_right_endpoint_upper_threshold;
-          }
+      static constexpr carrier_uint
+        compute_left_endpoint_for_shorter_interval_case(cache_entry_type const &cache,
+          int beta) noexcept {
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          return carrier_uint((cache - (cache >> (significand_bits + 2))) >>
+            (cache_bits - significand_bits - 1 - beta));
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
+          return (cache.high() - (cache.high() >> (significand_bits + 2))) >>
+            (carrier_bits - significand_bits - 1 - beta);
+        }
+      }
 
-          static constexpr bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
-            return exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
-              exponent <= case_shorter_interval_left_endpoint_upper_threshold;
-          }
+      static constexpr carrier_uint
+        compute_right_endpoint_for_shorter_interval_case(cache_entry_type const &cache,
+          int beta) noexcept {
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          return carrier_uint((cache + (cache >> (significand_bits + 1))) >>
+            (cache_bits - significand_bits - 1 - beta));
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
+          return (cache.high() + (cache.high() >> (significand_bits + 1))) >>
+            (carrier_bits - significand_bits - 1 - beta);
+        }
+      }
+
+      static constexpr carrier_uint
+        compute_round_up_for_shorter_interval_case(cache_entry_type const &cache,
+          int beta) noexcept {
+        if constexpr (std::is_same_v<format, ieee754_binary32>) {
+          return (carrier_uint(cache >> (cache_bits - significand_bits - 2 - beta)) + 1) /
+            2;
+        }
+        else {
+          static_assert(std::is_same_v<format, ieee754_binary64>);
+          return ((cache.high() >> (carrier_bits - significand_bits - 2 - beta)) + 1) / 2;
+        }
+      }
+
+      static constexpr bool
+        is_right_endpoint_integer_shorter_interval(int exponent) noexcept {
+        return exponent >= case_shorter_interval_right_endpoint_lower_threshold &&
+          exponent <= case_shorter_interval_right_endpoint_upper_threshold;
+      }
+
+      static constexpr bool is_left_endpoint_integer_shorter_interval(int exponent) noexcept {
+        return exponent >= case_shorter_interval_left_endpoint_lower_threshold &&
+          exponent <= case_shorter_interval_left_endpoint_upper_threshold;
+      }
     };
 
 
@@ -2903,7 +2906,7 @@ namespace jkj::dragonbox {
 
     return to_decimal<Float, FloatTraits>(s, exponent_bits, policies...);
   }
-      }
+}
 
 #undef JKJ_FORCEINLINE
 #undef JKJ_SAFEBUFFERS
@@ -2933,90 +2936,90 @@ namespace jkj::dragonbox {
 #ifndef JKJ_HEADER_DRAGONBOX_TO_CHARS
 #define JKJ_HEADER_DRAGONBOX_TO_CHARS
 
-      namespace jkj::dragonbox {
-        namespace to_chars_detail {
-          template <class Float, class FloatTraits>
-          extern char *to_chars(typename FloatTraits::carrier_uint significand, int exponent,
-            char *buffer) noexcept;
+namespace jkj::dragonbox {
+  namespace to_chars_detail {
+    template <class Float, class FloatTraits>
+    extern char *to_chars(typename FloatTraits::carrier_uint significand, int exponent,
+      char *buffer) noexcept;
 
-          // Avoid needless ABI overhead incurred by tag dispatch.
-          template <class PolicyHolder, class Float, class FloatTraits>
-          char *to_chars_n_impl(float_bits<Float, FloatTraits> br, char *buffer) noexcept {
-            auto const exponent_bits = br.extract_exponent_bits();
-            auto const s = br.remove_exponent_bits(exponent_bits);
+    // Avoid needless ABI overhead incurred by tag dispatch.
+    template <class PolicyHolder, class Float, class FloatTraits>
+    char *to_chars_n_impl(float_bits<Float, FloatTraits> br, char *buffer) noexcept {
+      auto const exponent_bits = br.extract_exponent_bits();
+      auto const s = br.remove_exponent_bits(exponent_bits);
 
-            if (br.is_finite(exponent_bits)) {
-              if (s.is_negative()) {
-                *buffer = '-';
-                ++buffer;
-              }
-              if (br.is_nonzero()) {
-                auto result = to_decimal<Float, FloatTraits>(
-                  s, exponent_bits, policy::sign::ignore, policy::trailing_zero::remove,
-                  typename PolicyHolder::decimal_to_binary_rounding_policy{},
-                  typename PolicyHolder::binary_to_decimal_rounding_policy{},
-                  typename PolicyHolder::cache_policy{});
-                return to_chars_detail::to_chars<Float, FloatTraits>(result.significand,
-                  result.exponent, buffer);
-              }
-              else {
-                std::memcpy(buffer, "0E0", 3);
-                return buffer + 3;
-              }
-            }
-            else {
-              if (s.has_all_zero_significand_bits()) {
-                if (s.is_negative()) {
-                  *buffer = '-';
-                  ++buffer;
-                }
-                std::memcpy(buffer, "Infinity", 8);
-                return buffer + 8;
-              }
-              else {
-                std::memcpy(buffer, "NaN", 3);
-                return buffer + 3;
-              }
-            }
-          }
+      if (br.is_finite(exponent_bits)) {
+        if (s.is_negative()) {
+          *buffer = '-';
+          ++buffer;
         }
-
-        // Returns the next-to-end position
-        template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-        char *to_chars_n(Float x, char *buffer, Policies... policies) noexcept {
-          using namespace jkj::dragonbox::detail::policy_impl;
-          using policy_holder = decltype(make_policy_holder(
-            base_default_pair_list<base_default_pair<decimal_to_binary_rounding::base,
-            decimal_to_binary_rounding::nearest_to_even>,
-            base_default_pair<binary_to_decimal_rounding::base,
-            binary_to_decimal_rounding::to_even>,
-            base_default_pair<cache::base, cache::full>>{},
-            policies...));
-
-          return to_chars_detail::to_chars_n_impl<policy_holder>(float_bits<Float, FloatTraits>(x),
-            buffer);
+        if (br.is_nonzero()) {
+          auto result = to_decimal<Float, FloatTraits>(
+            s, exponent_bits, policy::sign::ignore, policy::trailing_zero::remove,
+            typename PolicyHolder::decimal_to_binary_rounding_policy{},
+            typename PolicyHolder::binary_to_decimal_rounding_policy{},
+            typename PolicyHolder::cache_policy{});
+          return to_chars_detail::to_chars<Float, FloatTraits>(result.significand,
+            result.exponent, buffer);
         }
-
-        // Null-terminate and bypass the return value of fp_to_chars_n
-        template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
-        char *to_chars(Float x, char *buffer, Policies... policies) noexcept {
-          auto ptr = to_chars_n<Float, FloatTraits>(x, buffer, policies...);
-          *ptr = '\0';
-          return ptr;
+        else {
+          std::memcpy(buffer, "0E0", 3);
+          return buffer + 3;
         }
-
-        // Maximum required buffer size (excluding null-terminator)
-        template <class FloatFormat>
-        inline constexpr std::size_t max_output_string_length =
-          std::is_same_v<FloatFormat, ieee754_binary32>
-          ?
-          // sign(1) + significand(9) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(2)
-          (1 + 9 + 1 + 1 + 1 + 2)
-          :
-          // format == ieee754_format::binary64
-          // sign(1) + significand(17) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(3)
-          (1 + 17 + 1 + 1 + 1 + 3);
       }
+      else {
+        if (s.has_all_zero_significand_bits()) {
+          if (s.is_negative()) {
+            *buffer = '-';
+            ++buffer;
+          }
+          std::memcpy(buffer, "Infinity", 8);
+          return buffer + 8;
+        }
+        else {
+          std::memcpy(buffer, "NaN", 3);
+          return buffer + 3;
+        }
+      }
+    }
+  }
+
+  // Returns the next-to-end position
+  template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
+  char *to_chars_n(Float x, char *buffer, Policies... policies) noexcept {
+    using namespace jkj::dragonbox::detail::policy_impl;
+    using policy_holder = decltype(make_policy_holder(
+      base_default_pair_list<base_default_pair<decimal_to_binary_rounding::base,
+      decimal_to_binary_rounding::nearest_to_even>,
+      base_default_pair<binary_to_decimal_rounding::base,
+      binary_to_decimal_rounding::to_even>,
+      base_default_pair<cache::base, cache::full>>{},
+      policies...));
+
+    return to_chars_detail::to_chars_n_impl<policy_holder>(float_bits<Float, FloatTraits>(x),
+      buffer);
+  }
+
+  // Null-terminate and bypass the return value of fp_to_chars_n
+  template <class Float, class FloatTraits = default_float_traits<Float>, class... Policies>
+  char *to_chars(Float x, char *buffer, Policies... policies) noexcept {
+    auto ptr = to_chars_n<Float, FloatTraits>(x, buffer, policies...);
+    *ptr = '\0';
+    return ptr;
+  }
+
+  // Maximum required buffer size (excluding null-terminator)
+  template <class FloatFormat>
+  inline constexpr std::size_t max_output_string_length =
+    std::is_same_v<FloatFormat, ieee754_binary32>
+    ?
+    // sign(1) + significand(9) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(2)
+    (1 + 9 + 1 + 1 + 1 + 2)
+    :
+    // format == ieee754_format::binary64
+    // sign(1) + significand(17) + decimal_point(1) + exp_marker(1) + exp_sign(1) + exp(3)
+    (1 + 17 + 1 + 1 + 1 + 3);
+}
 
 #endif
 
@@ -3047,237 +3050,134 @@ namespace jkj::dragonbox {
 #define JKJ_FORCEINLINE inline
 #endif
 
-      namespace jkj::dragonbox {
-        namespace to_chars_detail {
-          // These "//"'s are to prevent clang-format to ruin this nice alignment.
-          // Thanks to reddit user u/mcmcc:
-          // https://www.reddit.com/r/cpp/comments/so3wx9/dragonbox_110_is_released_a_fast_floattostring/hw8z26r/?context=3
-          static constexpr char radix_100_table[] = {
-              '0', '0', '0', '1', '0', '2', '0', '3', '0', '4', //
-              '0', '5', '0', '6', '0', '7', '0', '8', '0', '9', //
-              '1', '0', '1', '1', '1', '2', '1', '3', '1', '4', //
-              '1', '5', '1', '6', '1', '7', '1', '8', '1', '9', //
-              '2', '0', '2', '1', '2', '2', '2', '3', '2', '4', //
-              '2', '5', '2', '6', '2', '7', '2', '8', '2', '9', //
-              '3', '0', '3', '1', '3', '2', '3', '3', '3', '4', //
-              '3', '5', '3', '6', '3', '7', '3', '8', '3', '9', //
-              '4', '0', '4', '1', '4', '2', '4', '3', '4', '4', //
-              '4', '5', '4', '6', '4', '7', '4', '8', '4', '9', //
-              '5', '0', '5', '1', '5', '2', '5', '3', '5', '4', //
-              '5', '5', '5', '6', '5', '7', '5', '8', '5', '9', //
-              '6', '0', '6', '1', '6', '2', '6', '3', '6', '4', //
-              '6', '5', '6', '6', '6', '7', '6', '8', '6', '9', //
-              '7', '0', '7', '1', '7', '2', '7', '3', '7', '4', //
-              '7', '5', '7', '6', '7', '7', '7', '8', '7', '9', //
-              '8', '0', '8', '1', '8', '2', '8', '3', '8', '4', //
-              '8', '5', '8', '6', '8', '7', '8', '8', '8', '9', //
-              '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', //
-              '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'  //
-          };
+namespace jkj::dragonbox {
+  namespace to_chars_detail {
+    // These "//"'s are to prevent clang-format to ruin this nice alignment.
+    // Thanks to reddit user u/mcmcc:
+    // https://www.reddit.com/r/cpp/comments/so3wx9/dragonbox_110_is_released_a_fast_floattostring/hw8z26r/?context=3
+    static constexpr char radix_100_table[] = {
+        '0', '0', '0', '1', '0', '2', '0', '3', '0', '4', //
+        '0', '5', '0', '6', '0', '7', '0', '8', '0', '9', //
+        '1', '0', '1', '1', '1', '2', '1', '3', '1', '4', //
+        '1', '5', '1', '6', '1', '7', '1', '8', '1', '9', //
+        '2', '0', '2', '1', '2', '2', '2', '3', '2', '4', //
+        '2', '5', '2', '6', '2', '7', '2', '8', '2', '9', //
+        '3', '0', '3', '1', '3', '2', '3', '3', '3', '4', //
+        '3', '5', '3', '6', '3', '7', '3', '8', '3', '9', //
+        '4', '0', '4', '1', '4', '2', '4', '3', '4', '4', //
+        '4', '5', '4', '6', '4', '7', '4', '8', '4', '9', //
+        '5', '0', '5', '1', '5', '2', '5', '3', '5', '4', //
+        '5', '5', '5', '6', '5', '7', '5', '8', '5', '9', //
+        '6', '0', '6', '1', '6', '2', '6', '3', '6', '4', //
+        '6', '5', '6', '6', '6', '7', '6', '8', '6', '9', //
+        '7', '0', '7', '1', '7', '2', '7', '3', '7', '4', //
+        '7', '5', '7', '6', '7', '7', '7', '8', '7', '9', //
+        '8', '0', '8', '1', '8', '2', '8', '3', '8', '4', //
+        '8', '5', '8', '6', '8', '7', '8', '8', '8', '9', //
+        '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', //
+        '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'  //
+    };
 
-          // These digit generation routines are inspired by James Anhalt's itoa algorithm:
-          // https://github.com/jeaiii/itoa
-          // The main idea is for given n, find y such that floor(10^k * y / 2^32) = n holds,
-          // where k is an appropriate integer depending on the length of n.
-          // For example, if n = 1234567, we set k = 6. In this case, we have
-          // floor(y / 2^32) = 1,
-          // floor(10^2 * ((10^0 * y) mod 2^32) / 2^32) = 23,
-          // floor(10^2 * ((10^2 * y) mod 2^32) / 2^32) = 45, and
-          // floor(10^2 * ((10^4 * y) mod 2^32) / 2^32) = 67.
-          // See https://jk-jeon.github.io/posts/2022/02/jeaiii-algorithm/ for more explanation.
+    // These digit generation routines are inspired by James Anhalt's itoa algorithm:
+    // https://github.com/jeaiii/itoa
+    // The main idea is for given n, find y such that floor(10^k * y / 2^32) = n holds,
+    // where k is an appropriate integer depending on the length of n.
+    // For example, if n = 1234567, we set k = 6. In this case, we have
+    // floor(y / 2^32) = 1,
+    // floor(10^2 * ((10^0 * y) mod 2^32) / 2^32) = 23,
+    // floor(10^2 * ((10^2 * y) mod 2^32) / 2^32) = 45, and
+    // floor(10^2 * ((10^4 * y) mod 2^32) / 2^32) = 67.
+    // See https://jk-jeon.github.io/posts/2022/02/jeaiii-algorithm/ for more explanation.
 
-          JKJ_FORCEINLINE static void print_9_digits(std::uint32_t s32, int &exponent,
-            char *&buffer) noexcept {
-            if (s32 < 100) {
-              if (s32 < 10) {
-                // 1 digit.
-                buffer[0] = char('0' + s32);
-                buffer += 1;
-              }
-              else {
-                // 2 digits.
-                buffer[0] = radix_100_table[int(s32) * 2];
-                buffer[1] = '.';
-                buffer[2] = radix_100_table[int(s32) * 2 + 1];
-                buffer += 3;
-                exponent += 1;
-              }
+    JKJ_FORCEINLINE static void print_9_digits(std::uint32_t s32, int &exponent,
+      char *&buffer) noexcept {
+      if (s32 < 100) {
+        if (s32 < 10) {
+          // 1 digit.
+          buffer[0] = char('0' + s32);
+          buffer += 1;
+        }
+        else {
+          // 2 digits.
+          buffer[0] = radix_100_table[int(s32) * 2];
+          buffer[1] = '.';
+          buffer[2] = radix_100_table[int(s32) * 2 + 1];
+          buffer += 3;
+          exponent += 1;
+        }
+      }
+      else {
+        if (s32 < 100'0000) {
+          if (s32 < 1'0000) {
+            // 3 or 4 digits.
+            // 42949673 = ceil(2^32 / 100)
+            auto prod = s32 * std::uint64_t(42949673);
+            auto two_digits = int(prod >> 32);
+
+            // 3 digits.
+            if (two_digits < 10) {
+              buffer[0] = char(two_digits + '0');
+              buffer[1] = '.';
+              exponent += 2;
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
+              buffer += 4;
             }
+            // 4 digits.
             else {
-              if (s32 < 100'0000) {
-                if (s32 < 1'0000) {
-                  // 3 or 4 digits.
-                  // 42949673 = ceil(2^32 / 100)
-                  auto prod = s32 * std::uint64_t(42949673);
-                  auto two_digits = int(prod >> 32);
-
-                  // 3 digits.
-                  if (two_digits < 10) {
-                    buffer[0] = char(two_digits + '0');
-                    buffer[1] = '.';
-                    exponent += 2;
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
-                    buffer += 4;
-                  }
-                  // 4 digits.
-                  else {
-                    buffer[0] = radix_100_table[two_digits * 2];
-                    buffer[1] = '.';
-                    buffer[2] = radix_100_table[two_digits * 2 + 1];
-                    exponent += 3;
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 3, radix_100_table + int(prod >> 32) * 2, 2);
-                    buffer += 5;
-                  }
-                }
-                else {
-                  // 5 or 6 digits.
-                  // 429497 = ceil(2^32 / 1'0000)
-                  auto prod = s32 * std::uint64_t(429497);
-                  auto two_digits = int(prod >> 32);
-
-                  // 5 digits.
-                  if (two_digits < 10) {
-                    buffer[0] = char(two_digits + '0');
-                    buffer[1] = '.';
-                    exponent += 4;
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 4, radix_100_table + int(prod >> 32) * 2, 2);
-                    buffer += 6;
-                  }
-                  // 6 digits.
-                  else {
-                    buffer[0] = radix_100_table[two_digits * 2];
-                    buffer[1] = '.';
-                    buffer[2] = radix_100_table[two_digits * 2 + 1];
-                    exponent += 5;
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 3, radix_100_table + int(prod >> 32) * 2, 2);
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 5, radix_100_table + int(prod >> 32) * 2, 2);
-                    buffer += 7;
-                  }
-                }
-              }
-              else {
-                if (s32 < 1'0000'0000) {
-                  // 7 or 8 digits.
-                  // 281474978 = ceil(2^48 / 100'0000) + 1
-                  auto prod = s32 * std::uint64_t(281474978);
-                  prod >>= 16;
-                  auto two_digits = int(prod >> 32);
-
-                  // 7 digits.
-                  if (two_digits < 10) {
-                    buffer[0] = char(two_digits + '0');
-                    buffer[1] = '.';
-                    exponent += 6;
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 4, radix_100_table + int(prod >> 32) * 2, 2);
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 6, radix_100_table + int(prod >> 32) * 2, 2);
-                    buffer += 8;
-                  }
-                  // 8 digits.
-                  else {
-                    buffer[0] = radix_100_table[two_digits * 2];
-                    buffer[1] = '.';
-                    buffer[2] = radix_100_table[two_digits * 2 + 1];
-                    exponent += 7;
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 3, radix_100_table + int(prod >> 32) * 2, 2);
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 5, radix_100_table + int(prod >> 32) * 2, 2);
-                    prod = std::uint32_t(prod) * std::uint64_t(100);
-                    std::memcpy(buffer + 7, radix_100_table + int(prod >> 32) * 2, 2);
-                    buffer += 9;
-                  }
-                }
-                else {
-                  // 9 digits.
-                  // 1441151882 = ceil(2^57 / 1'0000'0000) + 1
-                  auto prod = s32 * std::uint64_t(1441151882);
-                  prod >>= 25;
-                  buffer[0] = char(int(prod >> 32) + '0');
-                  buffer[1] = '.';
-                  exponent += 8;
-
-                  prod = std::uint32_t(prod) * std::uint64_t(100);
-                  std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
-                  prod = std::uint32_t(prod) * std::uint64_t(100);
-                  std::memcpy(buffer + 4, radix_100_table + int(prod >> 32) * 2, 2);
-                  prod = std::uint32_t(prod) * std::uint64_t(100);
-                  std::memcpy(buffer + 6, radix_100_table + int(prod >> 32) * 2, 2);
-                  prod = std::uint32_t(prod) * std::uint64_t(100);
-                  std::memcpy(buffer + 8, radix_100_table + int(prod >> 32) * 2, 2);
-                  buffer += 10;
-                }
-              }
+              buffer[0] = radix_100_table[two_digits * 2];
+              buffer[1] = '.';
+              buffer[2] = radix_100_table[two_digits * 2 + 1];
+              exponent += 3;
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 3, radix_100_table + int(prod >> 32) * 2, 2);
+              buffer += 5;
             }
           }
+          else {
+            // 5 or 6 digits.
+            // 429497 = ceil(2^32 / 1'0000)
+            auto prod = s32 * std::uint64_t(429497);
+            auto two_digits = int(prod >> 32);
 
-          template <>
-          char *to_chars<float, default_float_traits<float>>(std::uint32_t s32, int exponent,
-            char *buffer) noexcept {
-            // Print significand.
-            print_9_digits(s32, exponent, buffer);
-
-            // Print exponent and return
-            if (exponent < 0) {
-              std::memcpy(buffer, "E-", 2);
-              buffer += 2;
-              exponent = -exponent;
+            // 5 digits.
+            if (two_digits < 10) {
+              buffer[0] = char(two_digits + '0');
+              buffer[1] = '.';
+              exponent += 4;
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 4, radix_100_table + int(prod >> 32) * 2, 2);
+              buffer += 6;
             }
+            // 6 digits.
             else {
-              buffer[0] = 'E';
-              buffer += 1;
+              buffer[0] = radix_100_table[two_digits * 2];
+              buffer[1] = '.';
+              buffer[2] = radix_100_table[two_digits * 2 + 1];
+              exponent += 5;
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 3, radix_100_table + int(prod >> 32) * 2, 2);
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 5, radix_100_table + int(prod >> 32) * 2, 2);
+              buffer += 7;
             }
-
-            if (exponent >= 10) {
-              std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
-              buffer += 2;
-            }
-            else {
-              buffer[0] = (char)('0' + exponent);
-              buffer += 1;
-            }
-
-            return buffer;
           }
+        }
+        else {
+          if (s32 < 1'0000'0000) {
+            // 7 or 8 digits.
+            // 281474978 = ceil(2^48 / 100'0000) + 1
+            auto prod = s32 * std::uint64_t(281474978);
+            prod >>= 16;
+            auto two_digits = int(prod >> 32);
 
-          template <>
-          char *to_chars<double, default_float_traits<double>>(std::uint64_t const significand,
-            int exponent, char *buffer) noexcept {
-            std::uint32_t first_block, second_block = 0;
-            bool have_second_block;
-
-            if (significand < 10'0000'0000) {
-              first_block = std::uint32_t(significand);
-              have_second_block = false;
-            }
-            else {
-              first_block = std::uint32_t(significand / 1'0000'0000);
-              second_block = std::uint32_t(significand) - first_block * 1'0000'0000;
-              have_second_block = true;
-            }
-
-            // Print the first block of significand.
-            print_9_digits(first_block, exponent, buffer);
-
-            // Print second block if necessary.
-            if (have_second_block) {
-              // 281474978 = ceil(2^48 / 100'0000) + 1
-              auto prod = second_block * std::uint64_t(281474978);
-              prod >>= 16;
-              prod += 1;
-              exponent += 8;
-
-              std::memcpy(buffer + 0, radix_100_table + int(prod >> 32) * 2, 2);
+            // 7 digits.
+            if (two_digits < 10) {
+              buffer[0] = char(two_digits + '0');
+              buffer[1] = '.';
+              exponent += 6;
               prod = std::uint32_t(prod) * std::uint64_t(100);
               std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
               prod = std::uint32_t(prod) * std::uint64_t(100);
@@ -3286,42 +3186,145 @@ namespace jkj::dragonbox {
               std::memcpy(buffer + 6, radix_100_table + int(prod >> 32) * 2, 2);
               buffer += 8;
             }
-
-            // Print exponent and return
-            if (exponent < 0) {
-              std::memcpy(buffer, "E-", 2);
-              buffer += 2;
-              exponent = -exponent;
-            }
+            // 8 digits.
             else {
-              buffer[0] = 'E';
-              buffer += 1;
+              buffer[0] = radix_100_table[two_digits * 2];
+              buffer[1] = '.';
+              buffer[2] = radix_100_table[two_digits * 2 + 1];
+              exponent += 7;
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 3, radix_100_table + int(prod >> 32) * 2, 2);
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 5, radix_100_table + int(prod >> 32) * 2, 2);
+              prod = std::uint32_t(prod) * std::uint64_t(100);
+              std::memcpy(buffer + 7, radix_100_table + int(prod >> 32) * 2, 2);
+              buffer += 9;
             }
+          }
+          else {
+            // 9 digits.
+            // 1441151882 = ceil(2^57 / 1'0000'0000) + 1
+            auto prod = s32 * std::uint64_t(1441151882);
+            prod >>= 25;
+            buffer[0] = char(int(prod >> 32) + '0');
+            buffer[1] = '.';
+            exponent += 8;
 
-            if (exponent >= 100) {
-              // d1 = exponent / 10; d2 = exponent % 10;
-              // 6554 = ceil(2^16 / 10)
-              auto prod = std::uint32_t(exponent) * std::uint32_t(6554);
-              auto d1 = prod >> 16;
-              prod = std::uint16_t(prod) * std::uint32_t(5); // * 10
-              auto d2 = prod >> 15;                          // >> 16
-              std::memcpy(buffer, &radix_100_table[d1 * 2], 2);
-              buffer[2] = char('0' + d2);
-              buffer += 3;
-            }
-            else if (exponent >= 10) {
-              std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
-              buffer += 2;
-            }
-            else {
-              buffer[0] = char('0' + exponent);
-              buffer += 1;
-            }
-
-            return buffer;
+            prod = std::uint32_t(prod) * std::uint64_t(100);
+            std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
+            prod = std::uint32_t(prod) * std::uint64_t(100);
+            std::memcpy(buffer + 4, radix_100_table + int(prod >> 32) * 2, 2);
+            prod = std::uint32_t(prod) * std::uint64_t(100);
+            std::memcpy(buffer + 6, radix_100_table + int(prod >> 32) * 2, 2);
+            prod = std::uint32_t(prod) * std::uint64_t(100);
+            std::memcpy(buffer + 8, radix_100_table + int(prod >> 32) * 2, 2);
+            buffer += 10;
           }
         }
       }
+    }
+
+    template <>
+    char *to_chars<float, default_float_traits<float>>(std::uint32_t s32, int exponent,
+      char *buffer) noexcept {
+      // Print significand.
+      print_9_digits(s32, exponent, buffer);
+
+      // Print exponent and return
+      if (exponent < 0) {
+        std::memcpy(buffer, "E-", 2);
+        buffer += 2;
+        exponent = -exponent;
+      }
+      else {
+        buffer[0] = 'E';
+        buffer += 1;
+      }
+
+      if (exponent >= 10) {
+        std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
+        buffer += 2;
+      }
+      else {
+        buffer[0] = (char)('0' + exponent);
+        buffer += 1;
+      }
+
+      return buffer;
+    }
+
+    template <>
+    char *to_chars<double, default_float_traits<double>>(std::uint64_t const significand,
+      int exponent, char *buffer) noexcept {
+      std::uint32_t first_block, second_block = 0;
+      bool have_second_block;
+
+      if (significand < 10'0000'0000) {
+        first_block = std::uint32_t(significand);
+        have_second_block = false;
+      }
+      else {
+        first_block = std::uint32_t(significand / 1'0000'0000);
+        second_block = std::uint32_t(significand) - first_block * 1'0000'0000;
+        have_second_block = true;
+      }
+
+      // Print the first block of significand.
+      print_9_digits(first_block, exponent, buffer);
+
+      // Print second block if necessary.
+      if (have_second_block) {
+        // 281474978 = ceil(2^48 / 100'0000) + 1
+        auto prod = second_block * std::uint64_t(281474978);
+        prod >>= 16;
+        prod += 1;
+        exponent += 8;
+
+        std::memcpy(buffer + 0, radix_100_table + int(prod >> 32) * 2, 2);
+        prod = std::uint32_t(prod) * std::uint64_t(100);
+        std::memcpy(buffer + 2, radix_100_table + int(prod >> 32) * 2, 2);
+        prod = std::uint32_t(prod) * std::uint64_t(100);
+        std::memcpy(buffer + 4, radix_100_table + int(prod >> 32) * 2, 2);
+        prod = std::uint32_t(prod) * std::uint64_t(100);
+        std::memcpy(buffer + 6, radix_100_table + int(prod >> 32) * 2, 2);
+        buffer += 8;
+      }
+
+      // Print exponent and return
+      if (exponent < 0) {
+        std::memcpy(buffer, "E-", 2);
+        buffer += 2;
+        exponent = -exponent;
+      }
+      else {
+        buffer[0] = 'E';
+        buffer += 1;
+      }
+
+      if (exponent >= 100) {
+        // d1 = exponent / 10; d2 = exponent % 10;
+        // 6554 = ceil(2^16 / 10)
+        auto prod = std::uint32_t(exponent) * std::uint32_t(6554);
+        auto d1 = prod >> 16;
+        prod = std::uint16_t(prod) * std::uint32_t(5); // * 10
+        auto d2 = prod >> 15;                          // >> 16
+        std::memcpy(buffer, &radix_100_table[d1 * 2], 2);
+        buffer[2] = char('0' + d2);
+        buffer += 3;
+      }
+      else if (exponent >= 10) {
+        std::memcpy(buffer, &radix_100_table[exponent * 2], 2);
+        buffer += 2;
+      }
+      else {
+        buffer[0] = char('0' + exponent);
+        buffer += 1;
+      }
+
+      return buffer;
+    }
+  }
+}
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -3330,266 +3333,267 @@ namespace jkj::dragonbox {
 
 namespace utf8
 {
-//////////////////////////////////////////////////////////////////////////
-//utf8_iter
+  //////////////////////////////////////////////////////////////////////////
+  //utf8_iter
 
-void utf8_init(utf8_iter *iter, const char *ptr) {
-  if (iter) {
-    iter->ptr = ptr;
-    iter->codepoint = 0;
-    iter->position = 0;
-    iter->next = 0;
-    iter->count = 0;
-    iter->length = ptr == nullptr ? 0 : strlen(ptr);
-  }
-}
-
-void utf8_initEx(utf8_iter *iter, const char *ptr, size_t length) {
-  if (iter) {
-    iter->ptr = ptr;
-    iter->codepoint = 0;
-    iter->position = 0;
-    iter->next = 0;
-    iter->count = 0;
-    iter->length = length;
-  }
-}
-
-uint8_t	utf8_next(utf8_iter *iter) {
-
-  if (iter == NULL) return 0;
-  if (iter->ptr == NULL) return 0;
-
-  const char *pointer;
-
-  if (iter->next < iter->length) {
-
-    iter->position = iter->next;
-
-    pointer = iter->ptr + iter->next; //Set Current Pointer
-    iter->size = utf8_charsize(pointer);
-
-    if (iter->size == 0) return 0;
-
-    iter->next = iter->next + iter->size;
-    iter->codepoint = utf8_converter(pointer, iter->size);
-
-    if (iter->codepoint == 0) return 0;
-
-    iter->count++;
-
-    return 1;
-  }
-  else {
-    iter->position = iter->next;
-    return 0;
-  }
-}
-
-uint8_t	utf8_previous(utf8_iter *iter) {
-
-  if (iter == NULL) return 0;
-  if (iter->ptr == NULL) return 0;
-
-  if (iter->length != 0) {
-    if (iter->position == 0 && iter->next == 0) {
-      iter->position = iter->length;
-      iter->count = utf8_strnlen(iter->ptr, iter->length);
+  void utf8_init(utf8_iter *iter, const char *ptr) {
+    if (iter) {
+      iter->ptr = ptr;
+      iter->codepoint = 0;
+      iter->position = 0;
+      iter->next = 0;
+      iter->count = 0;
+      iter->length = ptr == nullptr ? 0 : strlen(ptr);
     }
   }
 
-  const char *pointer;
+  void utf8_initEx(utf8_iter *iter, const char *ptr, size_t length) {
+    if (iter) {
+      iter->ptr = ptr;
+      iter->codepoint = 0;
+      iter->position = 0;
+      iter->next = 0;
+      iter->count = 0;
+      iter->length = length;
+    }
+  }
 
-  if (iter->position > 0) {
+  uint8_t	utf8_next(utf8_iter *iter) {
 
-    iter->next = iter->position;
-    iter->position--;
+    if (iter == NULL) return 0;
+    if (iter->ptr == NULL) return 0;
 
-    if ((iter->ptr[iter->position] & 0x80) == 0) {
-      iter->size = 1;
+    const char *pointer;
+
+    if (iter->next < iter->length) {
+
+      iter->position = iter->next;
+
+      pointer = iter->ptr + iter->next; //Set Current Pointer
+      iter->size = utf8_charsize(pointer);
+
+      if (iter->size == 0) return 0;
+
+      iter->next = iter->next + iter->size;
+      iter->codepoint = utf8_converter(pointer, iter->size);
+
+      if (iter->codepoint == 0) return 0;
+
+      iter->count++;
+
+      return 1;
     }
     else {
-      iter->size = 1;
-      while ((iter->ptr[iter->position] & 0xC0) == 0x80 && iter->size < 6) {
-        iter->position--;
-        iter->size++;
+      iter->position = iter->next;
+      return 0;
+    }
+  }
+
+  uint8_t	utf8_previous(utf8_iter *iter) {
+
+    if (iter == NULL) return 0;
+    if (iter->ptr == NULL) return 0;
+
+    if (iter->length != 0) {
+      if (iter->position == 0 && iter->next == 0) {
+        iter->position = iter->length;
+        iter->count = utf8_strnlen(iter->ptr, iter->length);
       }
     }
 
-    pointer = iter->ptr + iter->position;
+    const char *pointer;
 
-    iter->codepoint = utf8_converter(pointer, iter->size);
+    if (iter->position > 0) {
 
-    if (iter->codepoint == 0) return 0;
+      iter->next = iter->position;
+      iter->position--;
 
-    iter->count--;
+      if ((iter->ptr[iter->position] & 0x80) == 0) {
+        iter->size = 1;
+      }
+      else {
+        iter->size = 1;
+        while ((iter->ptr[iter->position] & 0xC0) == 0x80 && iter->size < 6) {
+          iter->position--;
+          iter->size++;
+        }
+      }
 
-    return 1;
+      pointer = iter->ptr + iter->position;
+
+      iter->codepoint = utf8_converter(pointer, iter->size);
+
+      if (iter->codepoint == 0) return 0;
+
+      iter->count--;
+
+      return 1;
+    }
+    else {
+      iter->next = 0;
+      return 0;
+    }
   }
-  else {
-    iter->next = 0;
+
+  const char *utf8_getchar(utf8_iter *iter) {
+
+    static char str[10];
+
+    str[0] = '\0';
+
+    if (iter == NULL)		return str;
+    if (iter->ptr == NULL)	return str;
+    if (iter->size == 0)	return str;
+    if (iter->size >= sizeof(str))	return str;
+
+    if (iter->size == 1) {
+      str[0] = iter->ptr[iter->position];
+      str[1] = '\0';
+      return str;
+    }
+
+    const char *pointer = iter->ptr + iter->position;
+
+    for (uint8_t i = 0; i < iter->size; i++) {
+      str[i] = pointer[i];
+    }
+
+    str[iter->size] = '\0';
+
+    return str;
+  }
+
+  //Utilities
+
+  size_t utf8_strlen(const char *string) {
+
+    if (string == NULL) return 0;
+
+    size_t length = 0;
+    size_t position = 0;
+
+    while (string[position]) {
+      position = position + utf8_charsize(string + position);
+      length++;
+    }
+
+    return length;
+  }
+
+  size_t utf8_strnlen(const char *string, size_t end) {
+
+    if (string == NULL) return 0;
+
+    size_t length = 0;
+    size_t position = 0;
+
+    while (string[position] && position < end) {
+      position = position + utf8_charsize(string + position);
+      length++;
+    }
+
+    return length;
+  }
+
+  uint32_t utf8_to_unicode(const char *character) {
+
+    if (character == NULL) return 0;
+    if (character[0] == 0) return 0;
+
+    uint8_t size = utf8_charsize(character);
+
+    if (size == 0) return 0;
+
+    return utf8_converter(character, size);
+  }
+
+  const char *unicode_to_utf8(uint32_t codepoint) {
+    return unicode_converter(codepoint, unicode_charsize(codepoint));
+  }
+
+  //Internal use / Advanced use.
+
+  ////// UTF8 to Unicode
+
+  uint8_t utf8_charsize(const char *character) {
+
+    if (character == NULL) return 0;
+    if (character[0] == 0) return 0;
+
+    if ((character[0] & 0x80) == 0) return 1;
+    else if ((character[0] & 0xE0) == 0xC0) return 2;
+    else if ((character[0] & 0xF0) == 0xE0) return 3;
+    else if ((character[0] & 0xF8) == 0xF0) return 4;
+    else if ((character[0] & 0xFC) == 0xF8) return 5;
+    else if ((character[0] & 0xFE) == 0xFC) return 6;
+
     return 0;
   }
-}
 
-const char *utf8_getchar(utf8_iter *iter) {
+  static const uint8_t table_unicode[] = { 0, 0, 0x1F, 0xF, 0x7, 0x3, 0x1 };
 
-  static char str[10];
+  uint32_t utf8_converter(const char *character, uint8_t size) {
 
-  str[0] = '\0';
+    if (size == 0) return 0;
+    if (character == NULL) return 0;
+    if (character[0] == 0) return 0;
 
-  if (iter == NULL)		return str;
-  if (iter->ptr == NULL)	return str;
-  if (iter->size == 0)	return str;
+    static uint32_t codepoint = 0;
 
-  if (iter->size == 1) {
-    str[0] = iter->ptr[iter->position];
-    str[1] = '\0';
+    if (size == 1) {
+      return character[0];
+    }
+
+    codepoint = table_unicode[size] & character[0];
+
+    for (uint8_t i = 1; i < size; i++) {
+      codepoint = codepoint << 6;
+      codepoint = codepoint | (character[i] & 0x3F);
+    }
+
+    return codepoint;
+  }
+
+  ////// Unicode to UTF8
+
+  uint8_t unicode_charsize(uint32_t codepoint) {
+
+    if (codepoint == 0) return 0;
+
+    if (codepoint < 0x80) return 1;
+    else if (codepoint < 0x800) return 2;
+    else if (codepoint < 0x10000) return 3;
+    else if (codepoint < 0x200000) return 4;
+    else if (codepoint < 0x4000000) return 5;
+    else if (codepoint <= 0x7FFFFFFF) return 6;
+
+    return 0;
+  }
+
+  static const uint8_t table_utf8[] = { 0, 0,  0xC0,  0xE0, 0xF0,  0xF8,  0xFC };
+
+  const char *unicode_converter(uint32_t codepoint, uint8_t size) {
+
+    static char str[10];
+
+    str[size] = '\0';
+
+    if (size == 0) return str;
+
+    if (size == 1) {
+      str[0] = (char)codepoint;
+      return str;
+    }
+
+    for (uint8_t i = size - 1; i > 0; i--) {
+      str[i] = 0x80 | (codepoint & 0x3F);
+      codepoint = codepoint >> 6;
+    }
+
+    str[0] = table_utf8[size] | (char)codepoint;
+
     return str;
   }
-
-  const char *pointer = iter->ptr + iter->position;
-
-  for (uint8_t i = 0; i < iter->size; i++) {
-    str[i] = pointer[i];
-  }
-
-  str[iter->size] = '\0';
-
-  return str;
-}
-
-//Utilities
-
-size_t utf8_strlen(const char *string) {
-
-  if (string == NULL) return 0;
-
-  size_t length = 0;
-  size_t position = 0;
-
-  while (string[position]) {
-    position = position + utf8_charsize(string + position);
-    length++;
-  }
-
-  return length;
-}
-
-size_t utf8_strnlen(const char *string, size_t end) {
-
-  if (string == NULL) return 0;
-
-  size_t length = 0;
-  size_t position = 0;
-
-  while (string[position] && position < end) {
-    position = position + utf8_charsize(string + position);
-    length++;
-  }
-
-  return length;
-}
-
-uint32_t utf8_to_unicode(const char *character) {
-
-  if (character == NULL) return 0;
-  if (character[0] == 0) return 0;
-
-  uint8_t size = utf8_charsize(character);
-
-  if (size == 0) return 0;
-
-  return utf8_converter(character, size);
-}
-
-const char *unicode_to_utf8(uint32_t codepoint) {
-  return unicode_converter(codepoint, unicode_charsize(codepoint));
-}
-
-//Internal use / Advanced use.
-
-////// UTF8 to Unicode
-
-uint8_t utf8_charsize(const char *character) {
-
-  if (character == NULL) return 0;
-  if (character[0] == 0) return 0;
-
-  if ((character[0] & 0x80) == 0) return 1;
-  else if ((character[0] & 0xE0) == 0xC0) return 2;
-  else if ((character[0] & 0xF0) == 0xE0) return 3;
-  else if ((character[0] & 0xF8) == 0xF0) return 4;
-  else if ((character[0] & 0xFC) == 0xF8) return 5;
-  else if ((character[0] & 0xFE) == 0xFC) return 6;
-
-  return 0;
-}
-
-static const uint8_t table_unicode[] = { 0, 0, 0x1F, 0xF, 0x7, 0x3, 0x1 };
-
-uint32_t utf8_converter(const char *character, uint8_t size) {
-
-  if (size == 0) return 0;
-  if (character == NULL) return 0;
-  if (character[0] == 0) return 0;
-
-  static uint32_t codepoint = 0;
-
-  if (size == 1) {
-    return character[0];
-  }
-
-  codepoint = table_unicode[size] & character[0];
-
-  for (uint8_t i = 1; i < size; i++) {
-    codepoint = codepoint << 6;
-    codepoint = codepoint | (character[i] & 0x3F);
-  }
-
-  return codepoint;
-}
-
-////// Unicode to UTF8
-
-uint8_t unicode_charsize(uint32_t codepoint) {
-
-  if (codepoint == 0) return 0;
-
-  if (codepoint < 0x80) return 1;
-  else if (codepoint < 0x800) return 2;
-  else if (codepoint < 0x10000) return 3;
-  else if (codepoint < 0x200000) return 4;
-  else if (codepoint < 0x4000000) return 5;
-  else if (codepoint <= 0x7FFFFFFF) return 6;
-
-  return 0;
-}
-
-static const uint8_t table_utf8[] = { 0, 0,  0xC0,  0xE0, 0xF0,  0xF8,  0xFC };
-
-const char *unicode_converter(uint32_t codepoint, uint8_t size) {
-
-  static char str[10];
-
-  str[size] = '\0';
-
-  if (size == 0) return str;
-
-  if (size == 1) {
-    str[0] = (char)codepoint;
-    return str;
-  }
-
-  for (uint8_t i = size - 1; i > 0; i--) {
-    str[i] = 0x80 | (codepoint & 0x3F);
-    codepoint = codepoint >> 6;
-  }
-
-  str[0] = table_utf8[size] | (char)codepoint;
-
-  return str;
-}
 }
 
 //////////////////////////////////////////////////////////////////////////
