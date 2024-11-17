@@ -51,6 +51,22 @@
 #endif
 #endif
 
+#ifndef LS_ARCH_X64
+#ifdef LS_PLATFOWM_WINDOWS
+#define LS_ARCH_X64 1
+#else
+#ifdef __x86_64__
+#define LS_ARCH_X64 1
+#endif
+#endif
+#endif
+
+#ifndef LS_ARCH_ARM64
+#ifdef __ARM_ARCH
+#define LS_ARCH_ARM64 1
+#endif
+#endif
+
 #ifdef LS_PLATFORM_WINDOWS
 #include <intrin.h>
 #define WIN32_LEAN_AND_MEAN
@@ -63,7 +79,9 @@
 #undef NEAR
 #undef FAR
 #else
+#ifdef LS_ARCH_X64
 #include <x86intrin.h>
+#endif
 #include <unistd.h>
 
 #define __debugbreak() __builtin_trap()
@@ -1459,7 +1477,16 @@ constexpr inline T lsClampWrap(T val, const T min, const T max)
 
 int64_t lsGetCurrentTimeMs();
 int64_t lsGetCurrentTimeNs();
+#ifdef LS_ARCH_X64
 inline int64_t lsGetCurrentTicks() { return __rdtsc(); }
+#elif defined(LS_ARCH_ARM64)
+inline int64_t lsGetCurrentTicks()
+{
+  uint64_t ret;
+  asm volatile("mrs %0, cntvct_el0" : "=r" (ret));
+  return (int64_t)ret;
+}
+#endif
 uint64_t lsGetRand();
 
 struct rand_seed

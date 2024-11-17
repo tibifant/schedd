@@ -1,7 +1,7 @@
 solution "schedd"
   
   editorintegration "On"
-  platforms { "x64" }
+  platforms { "x64", "ARM64" }
 
   if (_ACTION == "gmake" or _ACTION == "gmake2") then
     configurations { "Release", "Debug", "ReleaseClang", "DebugClang" }

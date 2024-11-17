@@ -522,7 +522,9 @@ void pool_prefetch(const pool<T, multiBlockAllocCount> *pPool, const size_t inde
 
   lsAssert(pPool->blockCount > blockIndex);
 
+#ifdef LS_ARCH_X64
   _mm_prefetch(reinterpret_cast<const char *>(&pPool->ppBlocks[blockIndex][blockSubIndex]), 1);
+#endif
 }
 
 template <typename T, size_t multiBlockAllocCount>

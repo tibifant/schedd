@@ -100,7 +100,7 @@ uint64_t lsGetRand()
 
   return last[1] ^ last[0];
 #else
-  static uint64_t last[2] = { (uint64_t)lsGetCurrentTimeNs(), __rdtsc() };
+  static uint64_t last[2] = { (uint64_t)lsGetCurrentTimeNs(), (uint64_t)lsGetCurrentTicks() };
   
   const uint64_t oldstate_hi = last[0];
   const uint64_t oldstate_lo = oldstate_hi * 6364136223846793005ULL + (last[1] | 1);
