@@ -163,8 +163,8 @@ lsResult assign_session_token(const char *username, _Out_ uint32_t *pOutSessionI
   {
     std::scoped_lock lock(_ThreadLock);
 
-    size_t userId = 0; // initialzing for comipler warning
-    bool userNotFound = true;
+    size_t userId = 0; // initialzing for compiler warning
+    bool userFound = false;
 
     // iterate pool checking for username
     for (const auto &&_user : _Users)
@@ -172,12 +172,12 @@ lsResult assign_session_token(const char *username, _Out_ uint32_t *pOutSessionI
       if (strncmp(_user.pItem->username, username, LS_ARRAYSIZE(_user.pItem->username)) == 0) // if name matches.
       {
         userId = _user.index;
-        userNotFound = false;
+        userFound = true;
         break;
       }
     }
 
-    LS_ERROR_IF(userNotFound, lsR_InvalidParameter);
+    LS_ERROR_IF(!userFound, lsR_InvalidParameter);
 
     // Assign Session Id.
     {
