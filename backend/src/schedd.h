@@ -43,7 +43,7 @@ struct event
   uint64_t weight, weightGrowthFactor;
   weekday_flags possibleExecutionDays; // 1 bit for each day + 1 extra
   time_span_t repetitionTimeSpan; // if 0: don't repeat!
-  time_point_t creationTime, lastCompletedTime, lastModifiedTime; // if lastCompletedTime == 0: hasn;t been executed so far.
+  time_point_t creationTime, lastCompletedTime, lastModifiedTime; // if lastCompletedTime == 0: hasn't been executed so far.
 };
 
 struct user_id_info
@@ -58,6 +58,7 @@ struct user
   local_list<time_span_t, DaysPerWeek> availableTimePerDay;
   local_list<size_t, MaxEventsPerUserPerDay> tasksForCurrentDay; // index of the event
   local_list<size_t, MaxEventsPerUserPerDay> completedTasksForCurrentDay; // index of the event
+  local_list<size_t, MaxEventsPerUserPerDay> tooLongTasksForCurrentDay; // index of the event - tasks that take too long but are urgently due.
 };
 
 extern pool<user> _Users;
@@ -87,6 +88,7 @@ struct user_info
 
 lsResult get_user_info(const size_t userId, _Out_ user_info *pOutInfo);
 lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<event_info, MaxEventsPerUserPerDay> *pOutCurrentEvents);
+lsResult get_current_too_long_events_from_user_id(const size_t userId, _Out_ local_list<event_info, MaxEventsPerUserPerDay> *pOutCurrentEvents);
 lsResult get_completed_events_for_current_day(const size_t userId, _Out_ local_list<event_info, MaxEventsPerUserPerDay> *pOutCompletedTasks);
 
 lsResult search_events_by_name(const char *searchTerm, _Out_ local_list<event_info, MaxSearchResults> *pOutSearchResults);

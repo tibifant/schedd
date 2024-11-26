@@ -85,11 +85,14 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
   // Pick.
   time_span_t freeTime = 0; // needs to be initialized before `LS_ERROR_IF`.
+
+  // TODO: Make scheduling smarter
   
   user *pUser = pool_get(&_Users, userId);
   LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
 
   list_clear(&pUser->tasksForCurrentDay);
+  list_clear(&pUser->tooLongTasksForCurrentDay);
 
   freeTime = pUser->availableTimePerDay[time.dayIndex];
 
@@ -101,7 +104,11 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
       lsAssert(pEvent != nullptr);
 
       if (pEvent->durationTimeSpan > freeTime)
+      {
+        // TODO: maybe don't add all tasks like this, but have a better check for urgency!
+        LS_DEBUG_ERROR_ASSERT(list_add(&pUser->tooLongTasksForCurrentDay, _sortable_event.event_id));
         continue;
+      }
 
       LS_DEBUG_ERROR_ASSERT(list_add(&pUser->tasksForCurrentDay, _sortable_event.event_id));
       freeTime -= pEvent->durationTimeSpan;
@@ -344,6 +351,45 @@ lsResult get_current_events_from_user_id(const size_t userId, _Out_ local_list<e
     LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
 
     for (const size_t eventId : pUser->tasksForCurrentDay)
+    {
+      event *pEvent = pool_get(&_Events, eventId);
+      LS_ERROR_IF(pEvent == nullptr, lsR_ResourceNotFound);
+
+      event_info info;
+      info.id = eventId;
+      strncpy(info.name, pEvent->name, LS_ARRAYSIZE(info.name));
+      info.durationInMinutes = minutes_from_time_span(pEvent->durationTimeSpan);
+      info.isCompleted = false;
+
+      for (const size_t completedEventId : pUser->completedTasksForCurrentDay)
+      {
+        if (completedEventId == eventId)
+        {
+          info.isCompleted = true;
+          break;
+        }
+      }
+
+      LS_ERROR_CHECK(list_add(pOutCurrentEvents, info));
+    }
+  }
+
+epilogue:
+  return result;
+}
+
+lsResult get_current_too_long_events_from_user_id(const size_t userId, _Out_ local_list<event_info, MaxEventsPerUserPerDay> *pOutCurrentEvents)
+{
+  lsResult result = lsR_Success;
+
+  // Scope Lock
+  {
+    std::scoped_lock lock(_ThreadLock);
+
+    const user *pUser = pool_get(&_Users, userId);
+    LS_ERROR_IF(pUser == nullptr, lsR_ResourceNotFound);
+
+    for (const size_t eventId : pUser->tooLongTasksForCurrentDay)
     {
       event *pEvent = pool_get(&_Events, eventId);
       LS_ERROR_IF(pEvent == nullptr, lsR_ResourceNotFound);

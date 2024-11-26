@@ -34,7 +34,7 @@
               try {
                 let obj = JSON.parse(xmlhttp.responseText);
                 callback(obj);
-              } catch (e) { // TODO: handle errors: if session id not found, go to logion screen                
+              } catch (e) {            
                   failure_callback(false);
               }
             } else { // TODO: handle all relevant error codes
@@ -96,6 +96,7 @@
 
       function clear_user_schedule() {
         document.getElementById('current_tasks').innerHTML = "";
+        document.getElementById('current_long_tasks').innerHTML = "";
       }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -375,27 +376,40 @@
           document.getElementById('user_schedule_failure').style.display = 'none';
           document.getElementsByClassName('schedule')[0].style.display = 'block';
 
-          let parent = document.getElementById('current_tasks');
-          for (const item of obj) {
-            let name = item.name;
-            let duration = item.duration;
-            let elem;
+          if (obj.tasks) {
+            let tasks_list = document.getElementById('current_tasks');
+            for (const item of obj.tasks) {
+              append_tasks_list(tasks_list, item)
+            }
+          }
 
-            if (item.isCompleted)
-              elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes) COMPLETED ✅');
-            else
-              elem = append_element(parent, 'li', '', name + ' (' +  duration + ' minutes)');
-
-            (() => {
-              let i = item;
-
-              elem.onclick = () => {
-                event.id = i.id;
-                show_task();
-              };
-            })();
+          if (obj.long_tasks) {
+            let long_tasks_list = document.getElementById('current_long_tasks');
+            for (const item of obj.long_tasks) {
+              append_tasks_list(long_tasks_list, item)
+            }
           }
         }
+      }
+
+      function append_tasks_list(html_parent, item) {
+        let name = item.name;
+        let duration = item.duration;
+        let elem;
+
+        if (item.isCompleted)
+          elem = append_element(html_parent, 'li', '', name + ' (' +  duration + ' minutes) COMPLETED ✅');
+        else
+          elem = append_element(html_parent, 'li', '', name + ' (' +  duration + ' minutes)');
+
+        (() => {
+          let i = item;
+
+          elem.onclick = () => {
+            event.id = i.id;
+            show_task();
+          };
+        })();
       }
 
       function user_schedule_failure() {
@@ -760,13 +774,13 @@
       <div class="schedule">
         <div class="box">
           <h1>Your tasks for today</h1>
+          </failure_message>
+          <ul id="current_tasks"></ul>
+          <p>These tasks didn't fit your schedule but are urgently due:</p>
+          <ul id="current_long_tasks"></ul>
           <failure_message id="user_schedule_failure">
             <p>Failure Loading Tasks!</p>
           </failure_message>
-          <failure_message id="user_schedule_empty">
-            <p>No tasks for today!</p>
-          </failure_message>
-          <ul id="current_tasks"></ul>
         </div>
       </div>
     </div>

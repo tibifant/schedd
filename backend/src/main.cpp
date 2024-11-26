@@ -639,15 +639,28 @@ crow::response handle_user_schedule(const crow::request &req)
   if (LS_FAILED(get_current_events_from_user_id(userId, &currentTasks)))
     return crow::response(crow::status::INTERNAL_SERVER_ERROR);
 
+  local_list<event_info, MaxEventsPerUserPerDay> tooLongTasks;
+  if (LS_FAILED(get_current_too_long_events_from_user_id(userId, &tooLongTasks)))
+    return crow::response(crow::status::INTERNAL_SERVER_ERROR);
+
   crow::json::wvalue ret = crow::json::rvalue(crow::json::type::List);
 
   for (size_t i = 0; i < currentTasks.count; i++)
   {
-    auto &item = ret[(uint32_t)i]; // is this legal? or does the underlying memory move...
+    auto &item = ret["tasks"][(uint32_t)i]; // is this legal? or does the underlying memory move...
     item["name"] = currentTasks[i].name;
     item["duration"] = currentTasks[i].durationInMinutes;
     item["id"] = currentTasks[i].id;
     item["isCompleted"] = currentTasks[i].isCompleted;
+  }
+
+  for (size_t i = 0; i < tooLongTasks.count; i++)
+  {
+    auto &item = ret["long_tasks"][(uint32_t)i]; // is this legal? or does the underlying memory move...
+    item["name"] = tooLongTasks[i].name;
+    item["duration"] = tooLongTasks[i].durationInMinutes;
+    item["id"] = tooLongTasks[i].id;
+    item["isCompleted"] = tooLongTasks[i].isCompleted;
   }
 
   return crow::response(crow::status::OK, ret);
