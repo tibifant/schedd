@@ -12,6 +12,15 @@
 <body>
   <div id="header">
     <img src="assets/logo.png" />
+    <div class="header_search">
+      <input type="text" id="task_search_query" placeholder="Search for a task"></input>
+      <button id="submit_event_search_button">search</button>
+      <button id="show_add_task_button">Add new Task</button>
+    </div>
+    <div class="menu">
+      <button id="edit_user_button">Edit Profile</button>
+      <button id="logout_button">Log Out</button>
+    </div>
   </div>
   <div id="app_container">
     <script type="module">
@@ -707,9 +716,6 @@
       <div class="overview">
         <div class="box">
           <h1>Welcome to Schedd!</h1>
-          <button id="logout_button">Log Out</button>
-          <button id="edit_user_button">Edit your Available Time</button><br>
-          <button id="show_add_task_button">Add new Task</button>
           <failure_message id="logout_failure">
             <p>Failed to log out!</p>
           </failure_message>
@@ -765,9 +771,6 @@
           <failure_message id="task_details_failure">
             <p>Failure Loading Task Details!</p>
           </failure_message>
-          <label for="task_search_query">Search for a task</label></br>
-          <input type="text" id="task_search_query"></input>
-          <button id="submit_event_search_button">search</button><br>
           <ul id="task_search_results"></ul>
         </div>
       </div>

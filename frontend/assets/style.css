@@ -61,6 +61,16 @@ body {
   margin: 1pt 5pt;
 }
 
+div.header_search {
+  margin: 2pt 20%;
+  position: fixed;
+}
+
+div.menu {
+  margin: 2pt 90%;
+  position: fixed;
+}
+
 div.box {
   display: block;
   margin: 50pt auto;
