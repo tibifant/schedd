@@ -30,7 +30,8 @@ body {
   height: 25pt;
   width: 100%;
   background: #111;
-  display: block;
+  display: flex;
+  align-items: center;
 }
 
 .app_view {
@@ -67,8 +68,8 @@ div.header_search {
 }
 
 div.menu {
-  margin: 2pt 90%;
-  position: fixed;
+  display: flex;
+  margin-left: auto;
 }
 
 div.box {
