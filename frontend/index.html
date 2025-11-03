@@ -46,7 +46,7 @@
               } catch (e) {            
                   failure_callback(false);
               }
-            } else { // TODO: handle all relevant error codes
+            } else {
               if (xmlhttp.status == 403) {
                 remove_session_token();
                 hide_all_logged_in_contents();
@@ -79,6 +79,12 @@
       let selectedSearchResults = []; // this is awful. selectedSearchResults needs to be cleared everywhere where users could be selected for a task via the user search.
 
 ///////////////////////////////////////////////////////////////////////////////////////
+
+// TODO: don't display top menu options on login page
+// TODO: screen for user edit (only display the user edit, back button)
+// TODO: screen for task details (only display the user edit, back button)
+// TODO: create task: own screen (only display the user edit, back button), acutally usable selection of other users (just a list of existing users to select from)
+// TODO: ?
 
       function is_logged_in() {
         return (localStorage.getItem("session_token") != null);
