@@ -575,6 +575,7 @@
 
       window.addEventListener('load', () => {
         document.getElementById("username_submit_button").addEventListener('click', on_login_click);
+        document.getElementById("username").addEventListener('keypress', function (e) { if (e.key === 'Enter') { on_login_click() } });
         document.getElementById("create_account_button").addEventListener('click', on_create_account_click);
         document.getElementById("submit_new_user_info_button").addEventListener('click', on_submit_new_account_click);
 
@@ -589,12 +590,16 @@
         document.getElementById('user_search_task_edit_button').addEventListener('click', show_user_search);
 
         document.getElementById('submit_user_search_button').addEventListener('click', on_user_search_click);
+        document.getElementById("user_search_query").addEventListener('keypress', function (e) { if (e.key === 'Enter') { on_user_search_click() } });
         
         document.getElementById('submit_event_search_button').addEventListener('click', on_task_search_click);
+        document.getElementById("task_search_query").addEventListener('keypress', function (e) { if (e.key === 'Enter') { on_task_search_click() } });
 
         document.getElementById("edit_task_button").addEventListener('click', on_task_edit_click);
         document.getElementById("mark_as_done_button").addEventListener('click', submit_task_done);
         document.getElementById("mark_as_done_add_new_button").addEventListener('click', submit_task_done_reschedule);
+        
+        
 
         if (!is_logged_in()) {
           show_login_screen();
