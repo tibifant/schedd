@@ -737,7 +737,7 @@ crow::response handle_event_completed(const crow::request &req, const bool needs
     return crow::response(crow::status::BAD_REQUEST);
 
   const size_t eventId = body["taskId"].i();
-  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();
 
   if (LS_FAILED(set_event_last_completed_time(eventId, get_current_time())))
     return crow::response(crow::status::BAD_REQUEST);
