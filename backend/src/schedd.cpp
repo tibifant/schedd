@@ -51,7 +51,7 @@ lsResult reschedule_events_for_user(const size_t userId) // Assumes mutex lock
 
   small_list<sortable_event, 128> userEvents;
   const time_info time = get_current_day_and_time();
-  weekday_flags today = (weekday_flags)(1 << time.dayIndex);
+  weekday_flags today = get_hours_since_midnight() > 2 ? (weekday_flags)(1 << time.dayIndex) : (weekday_flags)(1 << lsMin(time.dayIndex - 1, 6)); // TODO: CHECK IF CORRECT! // adjusting weekday to refelct the 2am mark for rescheduling (new day only after 2am)
 
   for (const auto &&_evnt : _Events)
   {
