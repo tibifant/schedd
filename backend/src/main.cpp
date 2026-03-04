@@ -150,12 +150,12 @@ void async_tasks()
     const size_t eventChangingStatusCurrent = _EventDataEpoch;
     const size_t explicitlyRequestedRescheduleCurrent = _ExplicitlyRequestsRescheduleEpoch;
     const size_t currentDay = get_hours_since_midnight() > 2 ? get_days_since_new_year() : dayBefore;
-    bool needsReschdeule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
+    bool needsReschedule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
 
     // If new day: Reschedule.
     if (dayBefore != currentDay)
     {
-      needsReschdeule = true;
+      needsReschedule = true;
       clearCompletedTasks();
     }
 
@@ -165,7 +165,7 @@ void async_tasks()
       // Serialize _Users pool
       writeUsersPoolToFile();
       
-      needsReschdeule = true;
+      needsReschedule = true;
     }
     
     if (eventChangingStatusBefore < eventChangingStatusCurrent)
@@ -173,10 +173,10 @@ void async_tasks()
       // Serialize _Events pool
       writeEventsPoolToFile();
     
-      needsReschdeule = true;
+      needsReschedule = true;
     }
     
-    if (needsReschdeule || firstRun)
+    if (needsReschedule || firstRun)
     {
       // Reschedule
       {

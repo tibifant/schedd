@@ -446,7 +446,7 @@ epilogue:
   return result;
 }
 
-lsResult update_task(const size_t id, event evnt) // evnt is intentionally non-const as it's creation time etc. will be updated to the old values.
+lsResult update_task(const size_t id, event &evnt) // evnt is intentionally non-const as it's creation time etc. will be updated to the old values.
 {
   lsResult result = lsR_Success;
 
@@ -484,7 +484,8 @@ lsResult set_event_last_completed_time(const size_t eventId, const time_point_t 
     pEvent->lastCompletedTime = time;
   }
 
-  _EventDataEpoch++;
+  // TODO: consider adding a variable to communicate that the events should be written to file but not rescheduled
+  //_EventDataEpoch++;
 
 epilogue:
   return result;
