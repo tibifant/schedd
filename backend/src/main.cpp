@@ -150,12 +150,12 @@ void async_tasks()
     const size_t eventChangingStatusCurrent = _EventDataEpoch;
     const size_t explicitlyRequestedRescheduleCurrent = _ExplicitlyRequestsRescheduleEpoch;
     const size_t currentDay = get_hours_since_midnight() > 2 ? get_days_since_new_year() : dayBefore;
-    bool needsReschdeule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
+    bool needsReschedule = explicitlyRequestedRescheduleBefore < explicitlyRequestedRescheduleCurrent;
 
     // If new day: Reschedule.
     if (dayBefore != currentDay)
     {
-      needsReschdeule = true;
+      needsReschedule = true;
       clearCompletedTasks();
     }
 
@@ -165,7 +165,7 @@ void async_tasks()
       // Serialize _Users pool
       writeUsersPoolToFile();
       
-      needsReschdeule = true;
+      needsReschedule = true;
     }
     
     if (eventChangingStatusBefore < eventChangingStatusCurrent)
@@ -173,10 +173,10 @@ void async_tasks()
       // Serialize _Events pool
       writeEventsPoolToFile();
     
-      needsReschdeule = true;
+      needsReschedule = true;
     }
     
-    if (needsReschdeule || firstRun)
+    if (needsReschedule || firstRun)
     {
       // Reschedule
       {
@@ -737,7 +737,7 @@ crow::response handle_event_completed(const crow::request &req, const bool needs
     return crow::response(crow::status::BAD_REQUEST);
 
   const size_t eventId = body["taskId"].i();
-  const uint32_t sessionId = (uint32_t)body["sessionId"].i();;
+  const uint32_t sessionId = (uint32_t)body["sessionId"].i();
 
   if (LS_FAILED(set_event_last_completed_time(eventId, get_current_time())))
     return crow::response(crow::status::BAD_REQUEST);
