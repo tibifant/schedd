@@ -97,7 +97,7 @@ lsResult search_users_by_name(const char *searchTerm, _Out_ local_list<user_info
 
 lsResult get_all_event_ids_for_user(const size_t userId, _Out_ local_list<size_t, MaxSearchResults> *pOutEventIds);
 
-lsResult update_task(const size_t id, const event evnt);
+lsResult update_task(const size_t id, event &evnt);
 lsResult set_event_last_completed_time(const size_t eventId, const time_point_t time);
 lsResult add_completed_task(const size_t eventId, const size_t userId);
 lsResult get_event(const size_t taskId, _Out_ event *pEvent);
